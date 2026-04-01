@@ -1,0 +1,23 @@
+# ─── Environment & Secrets ──────────────────────────────────
+secrets/.env
+
+# ─── Composer vendor ────────────────────────────────────────
+app/logic/vendor/
+
+# ─── Laravel storage (logs, compiled views, cache) ─────────
+app/logic/storage/
+
+# ─── User uploads ──────────────────────────────────────────
+assets/uploads/*
+!assets/uploads/.gitkeep
+
+# ─── IDE / OS ──────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
+
+# ─── Node (if frontend build tooling is added later) ──────
+node_modules/

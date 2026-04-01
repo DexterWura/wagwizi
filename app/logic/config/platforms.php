@@ -1,0 +1,162 @@
+<?php
+
+return [
+
+    'twitter' => [
+        'enabled'       => (bool) env('TWITTER_CLIENT_ID'),
+        'client_id'     => env('TWITTER_CLIENT_ID'),
+        'client_secret' => env('TWITTER_CLIENT_SECRET'),
+        'redirect_uri'  => env('TWITTER_REDIRECT_URI'),
+        'scopes'        => ['tweet.read', 'tweet.write', 'users.read', 'offline.access'],
+        'max_content_length' => 280,
+        'supports_images'    => true,
+        'supports_video'     => true,
+        'supports_carousel'  => false,
+        'rate_limit'         => 200,
+    ],
+
+    'facebook' => [
+        'enabled'       => (bool) env('FACEBOOK_CLIENT_ID'),
+        'client_id'     => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+        'redirect_uri'  => env('FACEBOOK_REDIRECT_URI'),
+        'scopes'        => ['pages_manage_posts', 'pages_read_engagement', 'pages_show_list'],
+        'max_content_length' => 63206,
+        'supports_images'    => true,
+        'supports_video'     => true,
+        'supports_carousel'  => false,
+        'rate_limit'         => 60,
+    ],
+
+    'instagram' => [
+        'enabled'       => (bool) env('INSTAGRAM_CLIENT_ID'),
+        'client_id'     => env('INSTAGRAM_CLIENT_ID'),
+        'client_secret' => env('INSTAGRAM_CLIENT_SECRET'),
+        'redirect_uri'  => env('INSTAGRAM_REDIRECT_URI'),
+        'scopes'        => ['instagram_basic', 'instagram_content_publish', 'pages_show_list'],
+        'max_content_length' => 2200,
+        'supports_images'    => true,
+        'supports_video'     => true,
+        'supports_carousel'  => true,
+        'rate_limit'         => 25,
+    ],
+
+    'linkedin' => [
+        'enabled'       => (bool) env('LINKEDIN_CLIENT_ID'),
+        'client_id'     => env('LINKEDIN_CLIENT_ID'),
+        'client_secret' => env('LINKEDIN_CLIENT_SECRET'),
+        'redirect_uri'  => env('LINKEDIN_REDIRECT_URI'),
+        'scopes'        => ['openid', 'profile', 'w_member_social'],
+        'max_content_length' => 3000,
+        'supports_images'    => true,
+        'supports_video'     => true,
+        'supports_carousel'  => false,
+        'rate_limit'         => 100,
+    ],
+
+    'tiktok' => [
+        'enabled'       => (bool) env('TIKTOK_CLIENT_KEY'),
+        'client_id'     => env('TIKTOK_CLIENT_KEY'),
+        'client_secret' => env('TIKTOK_CLIENT_SECRET'),
+        'redirect_uri'  => env('TIKTOK_REDIRECT_URI'),
+        'scopes'        => ['user.info.basic', 'video.publish', 'video.upload'],
+        'max_content_length' => 2200,
+        'supports_images'    => true,
+        'supports_video'     => true,
+        'supports_carousel'  => false,
+        'rate_limit'         => 6,
+    ],
+
+    'youtube' => [
+        'enabled'       => (bool) env('YOUTUBE_CLIENT_ID'),
+        'client_id'     => env('YOUTUBE_CLIENT_ID'),
+        'client_secret' => env('YOUTUBE_CLIENT_SECRET'),
+        'redirect_uri'  => env('YOUTUBE_REDIRECT_URI'),
+        'scopes'        => ['https://www.googleapis.com/auth/youtube', 'https://www.googleapis.com/auth/youtube.upload'],
+        'max_content_length' => 5000,
+        'supports_images'    => true,
+        'supports_video'     => true,
+        'supports_carousel'  => false,
+        'rate_limit'         => 60,
+    ],
+
+    'telegram' => [
+        'enabled'            => true,
+        'max_content_length' => 4096,
+        'supports_images'    => true,
+        'supports_video'     => true,
+        'supports_carousel'  => false,
+        'rate_limit'         => 30,
+    ],
+
+    'pinterest' => [
+        'enabled'       => (bool) env('PINTEREST_CLIENT_ID'),
+        'client_id'     => env('PINTEREST_CLIENT_ID'),
+        'client_secret' => env('PINTEREST_CLIENT_SECRET'),
+        'redirect_uri'  => env('PINTEREST_REDIRECT_URI'),
+        'scopes'        => ['boards:read', 'pins:read', 'pins:write'],
+        'max_content_length' => 500,
+        'supports_images'    => true,
+        'supports_video'     => false,
+        'supports_carousel'  => false,
+        'rate_limit'         => 50,
+    ],
+
+    'threads' => [
+        'enabled'       => (bool) env('THREADS_CLIENT_ID'),
+        'client_id'     => env('THREADS_CLIENT_ID'),
+        'client_secret' => env('THREADS_CLIENT_SECRET'),
+        'redirect_uri'  => env('THREADS_REDIRECT_URI'),
+        'scopes'        => ['threads_basic', 'threads_content_publish', 'threads_manage_replies'],
+        'max_content_length' => 500,
+        'supports_images'    => true,
+        'supports_video'     => true,
+        'supports_carousel'  => true,
+        'rate_limit'         => 25,
+    ],
+
+    'reddit' => [
+        'enabled'       => (bool) env('REDDIT_CLIENT_ID'),
+        'client_id'     => env('REDDIT_CLIENT_ID'),
+        'client_secret' => env('REDDIT_CLIENT_SECRET'),
+        'redirect_uri'  => env('REDDIT_REDIRECT_URI'),
+        'scopes'        => ['identity', 'submit', 'read'],
+        'max_content_length' => 40000,
+        'supports_images'    => true,
+        'supports_video'     => false,
+        'supports_carousel'  => false,
+        'rate_limit'         => 10,
+    ],
+
+    'wordpress' => [
+        'enabled'            => true,
+        'max_content_length' => 65535,
+        'supports_images'    => true,
+        'supports_video'     => false,
+        'supports_carousel'  => false,
+        'rate_limit'         => 60,
+    ],
+
+    'google_business' => [
+        'enabled'       => (bool) env('GOOGLE_BUSINESS_CLIENT_ID'),
+        'client_id'     => env('GOOGLE_BUSINESS_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_BUSINESS_CLIENT_SECRET'),
+        'redirect_uri'  => env('GOOGLE_BUSINESS_REDIRECT_URI'),
+        'scopes'        => ['https://www.googleapis.com/auth/business.manage'],
+        'max_content_length' => 1500,
+        'supports_images'    => true,
+        'supports_video'     => true,
+        'supports_carousel'  => false,
+        'rate_limit'         => 60,
+    ],
+
+    'discord' => [
+        'enabled'            => true,
+        'max_content_length' => 2000,
+        'supports_images'    => true,
+        'supports_video'     => false,
+        'supports_carousel'  => false,
+        'rate_limit'         => 30,
+    ],
+
+];

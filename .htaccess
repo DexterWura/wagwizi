@@ -1,0 +1,43 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Redirect trailing slashes
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)/$ /$1 [L,R=301]
+
+    # Serve static assets directly
+    RewriteCond %{REQUEST_URI} ^/assets/ [OR]
+    RewriteCond %{REQUEST_URI} ^/favicon\.ico$
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # Block direct access to sensitive directories
+    RewriteRule ^secrets(/|$) - [F,L]
+    RewriteRule ^app/logic(/|$) - [F,L]
+    RewriteRule ^vendor(/|$) - [F,L]
+
+    # Front controller — send everything else to index.php
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Deny access to dotfiles (except .htaccess itself)
+<FilesMatch "^\.(?!htaccess)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+</FilesMatch>
+
+# Deny executing PHP files inside assets (shared-hosting safe)
+<IfModule mod_rewrite.c>
+    RewriteRule ^assets/.*\.php$ - [F,L,NC]
+</IfModule>
