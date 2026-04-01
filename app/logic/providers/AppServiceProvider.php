@@ -81,37 +81,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         View::composer('*', function ($view) {
-            // #region agent log
-            $vn = $view->name();
-            $isInstall = str_starts_with($vn, 'install.');
-            $logFile = dirname(base_path(), 2) . DIRECTORY_SEPARATOR . 'debug-6ca688.log';
-            $payload = [
-                'sessionId' => '6ca688',
-                'timestamp' => (int) round(microtime(true) * 1000),
-                'location' => 'AppServiceProvider.php:ViewComposer',
-                'message' => 'composer',
-                'data' => ['viewName' => $vn, 'isInstallPrefix' => $isInstall],
-                'hypothesisId' => 'H4',
-                'runId' => $GLOBALS['agent_log_run_id'] ?? 'pre-fix',
-            ];
-            @file_put_contents($logFile, json_encode($payload, JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
-            // #endregion
             $view->with('appName', config('app.name'));
-            if ($isInstall) {
+            if (str_starts_with($view->name(), 'install.')) {
                 $view->with('currentUser', null);
                 return;
             }
-            // #region agent log
-            @file_put_contents($logFile, json_encode([
-                'sessionId' => '6ca688',
-                'timestamp' => (int) round(microtime(true) * 1000),
-                'location' => 'AppServiceProvider.php:ViewComposer',
-                'message' => 'before Auth::user',
-                'data' => ['viewName' => $vn],
-                'hypothesisId' => 'H1',
-                'runId' => $GLOBALS['agent_log_run_id'] ?? 'pre-fix',
-            ], JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
-            // #endregion
             $view->with('currentUser', Auth::user());
         });
     }

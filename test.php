@@ -308,10 +308,6 @@ try {
 }
 echo PHP_EOL;
 
-echo "---- Agent install instrumentation (session 6ca688) ----" . PHP_EOL;
-line('Also open', '/test_install_debug.php (step replay + NDJSON log dump)');
-echo PHP_EOL;
-
 echo "==== End of Diagnostic ====" . PHP_EOL;
 echo "Security note: delete this file after debugging." . PHP_EOL;
 

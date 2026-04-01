@@ -1,6 +1,6 @@
 <?php
 
-$projectRoot = dirname(__DIR__, 2);
+$projectRoot = dirname(__DIR__, 3);
 
 return [
 
