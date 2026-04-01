@@ -28,6 +28,14 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $installedMarker = dirname(base_path(), 2) . DIRECTORY_SEPARATOR . 'secrets' . DIRECTORY_SEPARATOR . 'installed';
+        if (! is_file($installedMarker)) {
+            config([
+                'cache.default' => 'file',
+                'session.driver' => 'file',
+            ]);
+        }
+
         $this->app->singleton(PlatformRegistry::class, function () {
             $registry = new PlatformRegistry();
 
@@ -74,6 +82,10 @@ class AppServiceProvider extends ServiceProvider
     {
         View::composer('*', function ($view) {
             $view->with('appName', config('app.name'));
+            if (str_starts_with($view->name(), 'install.')) {
+                $view->with('currentUser', null);
+                return;
+            }
             $view->with('currentUser', Auth::user());
         });
     }
