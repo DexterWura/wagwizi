@@ -39,10 +39,24 @@ if (!is_dir($logicPath . '/bootstrap/cache')) {
     @mkdir($logicPath . '/bootstrap/cache', 0775, true);
 }
 
+$storagePath = $logicPath . DIRECTORY_SEPARATOR . 'storage';
+foreach (
+    [
+        $storagePath . '/framework/sessions',
+        $storagePath . '/framework/views',
+        $storagePath . '/framework/cache/data',
+        $storagePath . '/logs',
+    ] as $dir
+) {
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+}
+
 $app = new Application($logicPath);
 
 $app->useEnvironmentPath($projectRoot . DIRECTORY_SEPARATOR . 'secrets');
-$app->useStoragePath($logicPath . DIRECTORY_SEPARATOR . 'storage');
+$app->useStoragePath($storagePath);
 $app->useDatabasePath($logicPath . DIRECTORY_SEPARATOR . 'database');
 
 $app->bind('path.public', fn () => $projectRoot);
