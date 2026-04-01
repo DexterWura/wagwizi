@@ -16,6 +16,11 @@
     RewriteRule ^app/logic(/|$) - [F,L]
     RewriteRule ^vendor(/|$) - [F,L]
 
+    # Standalone installer (install/index.php — not the main Laravel front controller)
+    RewriteRule ^install$ install/index.php?__path__= [L,QSA]
+    RewriteRule ^install/$ install/index.php?__path__= [L,QSA]
+    RewriteRule ^install/(.+)$ install/index.php?__path__=$1 [L,QSA]
+
     # Front controller — send everything else to index.php
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f

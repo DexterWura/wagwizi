@@ -3,7 +3,6 @@
 use App\Controllers\AdminController;
 use App\Controllers\Auth\AuthController;
 use App\Controllers\Auth\SocialAuthController;
-use App\Controllers\InstallController;
 use App\Controllers\MediaController;
 use App\Controllers\NotificationController;
 use App\Controllers\PageController;
@@ -13,22 +12,6 @@ use App\Controllers\SocialAccountController;
 use App\Controllers\StatusController;
 use App\Controllers\SupportTicketController;
 use Illuminate\Support\Facades\Route;
-
-/*
-|--------------------------------------------------------------------------
-| Installer routes (exempt from EnsureInstalled by URL prefix check)
-|--------------------------------------------------------------------------
-*/
-
-Route::prefix('install')->group(function () {
-    Route::get('/',             [InstallController::class, 'index'])->name('install.index');
-    Route::get('/requirements', [InstallController::class, 'requirements'])->name('install.requirements');
-    Route::get('/database',     [InstallController::class, 'database'])->name('install.database');
-    Route::post('/database',    [InstallController::class, 'saveDatabase'])->name('install.database.save');
-    Route::get('/admin',        [InstallController::class, 'admin'])->name('install.admin');
-    Route::post('/admin',       [InstallController::class, 'finalize'])->name('install.finalize');
-    Route::get('/complete',     [InstallController::class, 'complete'])->name('install.complete');
-});
 
 /*
 |--------------------------------------------------------------------------

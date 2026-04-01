@@ -15,7 +15,7 @@
       and visit this page again.
     </p>
     <div class="installer__actions installer__actions--center">
-      <a href="{{ url('/') }}" class="btn btn--primary"><i class="fa-solid fa-house"></i> Go to site</a>
+      <a href="/" class="btn btn--primary"><i class="fa-solid fa-house"></i> Go to site</a>
     </div>
   </div>
 @endsection
