@@ -222,19 +222,30 @@ class InstallerService
         $contents = file_get_contents($this->envPath);
 
         foreach ($values as $key => $value) {
-            if (str_contains($value, ' ') || str_contains($value, '#')) {
-                $value = '"' . addslashes($value) . '"';
-            }
-
-            $pattern = "/^" . preg_quote($key, '/') . "=.*/m";
+            $line = $this->formatEnvAssignment($key, (string) $value);
+            $pattern = '/^' . preg_quote($key, '/') . '=.*/m';
 
             if (preg_match($pattern, $contents)) {
-                $contents = preg_replace($pattern, "{$key}={$value}", $contents);
+                $contents = preg_replace($pattern, $line, $contents);
             } else {
-                $contents .= "\n{$key}={$value}";
+                $contents .= "\n" . $line;
             }
         }
 
         file_put_contents($this->envPath, $contents);
+    }
+
+    /**
+     * Single-quoted .env values are literal (no $ expansion), safe for DB passwords.
+     */
+    private function formatEnvAssignment(string $key, string $value): string
+    {
+        if ($value === '') {
+            return "{$key}=";
+        }
+
+        $escaped = str_replace(['\\', "'"], ['\\\\', "\\'"], $value);
+
+        return "{$key}='{$escaped}'";
     }
 }
