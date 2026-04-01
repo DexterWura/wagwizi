@@ -1,9 +1,6 @@
 # ─── Environment & Secrets ──────────────────────────────────
 secrets/.env
 
-# ─── Composer vendor ────────────────────────────────────────
-app/logic/vendor/
-
 # ─── Laravel storage (logs, compiled views, cache) ─────────
 app/logic/storage/
 

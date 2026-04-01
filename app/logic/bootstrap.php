@@ -73,9 +73,14 @@ $app->singleton(
 |
 */
 $installedMarker = $projectRoot . DIRECTORY_SEPARATOR . 'secrets' . DIRECTORY_SEPARATOR . 'installed';
-$servicesCache   = $logicPath . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR . 'services.php';
-if (! is_file($installedMarker) && is_file($servicesCache)) {
-    @unlink($servicesCache);
+$bootstrapCache  = $logicPath . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'cache';
+if (! is_file($installedMarker)) {
+    foreach (['services.php', 'packages.php', 'config.php'] as $cacheFile) {
+        $p = $bootstrapCache . DIRECTORY_SEPARATOR . $cacheFile;
+        if (is_file($p)) {
+            @unlink($p);
+        }
+    }
 }
 
 return $app;

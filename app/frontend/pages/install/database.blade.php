@@ -14,7 +14,7 @@
   </div>
   @endif
 
-  <form method="POST" action="{{ route('install.database.save') }}">
+  <form method="POST" action="{{ url('/install/database') }}">
     @csrf
     <div class="installer__field-row">
       <div class="field">
@@ -43,7 +43,7 @@
     </div>
 
     <div class="installer__actions">
-      <a href="{{ route('install.requirements') }}" class="btn btn--outline"><i class="fa-solid fa-arrow-left"></i> Back</a>
+      <a href="{{ url('/install/requirements') }}" class="btn btn--outline"><i class="fa-solid fa-arrow-left"></i> Back</a>
       <button type="submit" class="btn btn--primary">Test &amp; Continue <i class="fa-solid fa-arrow-right"></i></button>
     </div>
   </form>
