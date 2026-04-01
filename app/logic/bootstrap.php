@@ -42,6 +42,8 @@ if (!is_dir($logicPath . '/bootstrap/cache')) {
 $storagePath = $logicPath . DIRECTORY_SEPARATOR . 'storage';
 foreach (
     [
+        $storagePath . '/app',
+        $storagePath . '/app/public',
         $storagePath . '/framework/sessions',
         $storagePath . '/framework/views',
         $storagePath . '/framework/cache/data',
