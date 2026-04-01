@@ -55,6 +55,12 @@ foreach (
 
 $app = new Application($logicPath);
 
+// Laravel discovers App\ via composer PSR-4 where realpath(app/) === realpath(path()).
+// If app/ is missing on deploy or realpath() fails on the host, Console\Kernel::bootstrap() throws.
+$applicationNamespace = (new \ReflectionClass($app))->getProperty('namespace');
+$applicationNamespace->setAccessible(true);
+$applicationNamespace->setValue($app, 'App\\');
+
 $app->useEnvironmentPath($projectRoot . DIRECTORY_SEPARATOR . 'secrets');
 $app->useStoragePath($storagePath);
 $app->useDatabasePath($logicPath . DIRECTORY_SEPARATOR . 'database');

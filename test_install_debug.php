@@ -12,6 +12,10 @@ ini_set('display_errors', '1');
 
 header('Content-Type: text/plain; charset=utf-8');
 
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
+
 $GLOBALS['agent_log_run_id'] = 'test-install-web';
 
 require_once __DIR__ . '/debug_6ca688_inc.php';
@@ -31,18 +35,10 @@ $root = __DIR__;
 $logicPath = $root . '/app/logic';
 
 out('[A] project root: ' . $root);
-
-try {
-    if (session_status() !== PHP_SESSION_ACTIVE) {
-        session_start();
-    }
-    out('[B] session_start OK status=' . session_status());
-    agent_log_6ca688('test_install_debug.php:session', 'session ok', ['status' => session_status()], 'H1');
-} catch (Throwable $e) {
-    out('[B] FAIL: ' . $e->getMessage());
-    agent_log_6ca688('test_install_debug.php:session', 'fail', ['msg' => $e->getMessage()], 'H1');
-    throw $e;
-}
+out('[B] session OK status=' . session_status());
+// #region agent log
+agent_log_6ca688('test_install_debug.php:session', 'session ok', ['status' => session_status()], 'H1');
+// #endregion
 
 require $logicPath . '/vendor/autoload.php';
 out('[C] vendor/autoload OK');
