@@ -21,9 +21,32 @@ final class StandaloneInstaller
 
     public static function run(string $path): void
     {
+        // #region agent log
+        $logFile = dirname(base_path(), 2) . DIRECTORY_SEPARATOR . 'debug-6ca688.log';
+        @file_put_contents($logFile, json_encode([
+            'sessionId' => '6ca688',
+            'timestamp' => (int) round(microtime(true) * 1000),
+            'location' => 'StandaloneInstaller::run',
+            'message' => 'entry',
+            'data' => ['path' => $path],
+            'hypothesisId' => 'H5',
+            'runId' => $GLOBALS['agent_log_run_id'] ?? 'pre-fix',
+        ], JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
+        // #endregion
         try {
             (new self(new InstallerService()))->dispatch($path);
         } catch (Throwable $e) {
+            // #region agent log
+            @file_put_contents($logFile, json_encode([
+                'sessionId' => '6ca688',
+                'timestamp' => (int) round(microtime(true) * 1000),
+                'location' => 'StandaloneInstaller::run',
+                'message' => 'caught',
+                'data' => ['class' => $e::class, 'msg' => $e->getMessage()],
+                'hypothesisId' => 'H3',
+                'runId' => $GLOBALS['agent_log_run_id'] ?? 'pre-fix',
+            ], JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
+            // #endregion
             report($e);
             http_response_code(500);
             if (config('app.debug')) {
@@ -102,6 +125,18 @@ final class StandaloneInstaller
      */
     private function render(string $view, array $extra = []): void
     {
+        // #region agent log
+        $logFile = dirname(base_path(), 2) . DIRECTORY_SEPARATOR . 'debug-6ca688.log';
+        @file_put_contents($logFile, json_encode([
+            'sessionId' => '6ca688',
+            'timestamp' => (int) round(microtime(true) * 1000),
+            'location' => 'StandaloneInstaller::render',
+            'message' => 'before view',
+            'data' => ['view' => $view],
+            'hypothesisId' => 'H3',
+            'runId' => $GLOBALS['agent_log_run_id'] ?? 'pre-fix',
+        ], JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
+        // #endregion
         echo view($view, array_merge($this->sharedViewData(), $extra))->render();
     }
 
