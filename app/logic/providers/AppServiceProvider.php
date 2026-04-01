@@ -28,6 +28,11 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $installedMarker = dirname(base_path(), 2) . DIRECTORY_SEPARATOR . 'secrets' . DIRECTORY_SEPARATOR . 'installed';
+        if (! is_file($installedMarker)) {
+            config(['session.driver' => 'file']);
+        }
+
         $this->app->singleton(PlatformRegistry::class, function () {
             $registry = new PlatformRegistry();
 
