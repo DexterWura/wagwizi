@@ -69,7 +69,7 @@
             if (!is_string($lpMockHost) || $lpMockHost === '') {
               $lpMockHost = 'app';
             }
-            $lpMockPlatforms = $enabledPlatforms->take(4);
+            $lpMockPlatforms = collect($enabledPlatforms)->take(4);
           @endphp
           <div class="lp-mockup" data-lp-mockup data-lp-reveal>
             <div class="lp-mockup__glow" aria-hidden="true"></div>
