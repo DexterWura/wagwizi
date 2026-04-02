@@ -62,8 +62,36 @@
                       <span>Registration open</span>
                     </label>
                     <p class="field__hint">When disabled, new users cannot sign up.</p>
+                    <label class="check-line check-line--spaced">
+                      <input type="hidden" name="show_floating_help" value="0" />
+                      <input type="checkbox" name="show_floating_help" value="1" {{ ($settings['show_floating_help'] ?? '1') === '1' ? 'checked' : '' }} />
+                      <span>Show floating Get Help button</span>
+                    </label>
+                    <p class="field__hint">Controls the bottom-right support shortcut in the main app (signed-in pages).</p>
                   </div>
                 </div>
+                @if($socialGoogleConfigured || $socialLinkedinConfigured)
+                <div class="card">
+                  <div class="card__head">Social login</div>
+                  <div class="card__body">
+                    <p class="field__hint">OAuth keys come from your environment (<code>GOOGLE_*</code> and <code>LINKEDIN_*</code>). Only providers with credentials can be toggled.</p>
+                    @if($socialGoogleConfigured)
+                    <label class="check-line check-line--spaced">
+                      <input type="hidden" name="social_login_google" value="0" />
+                      <input type="checkbox" name="social_login_google" value="1" {{ ($settings['social_login_google'] ?? '1') === '1' ? 'checked' : '' }} />
+                      <span>Google (sign in / sign up)</span>
+                    </label>
+                    @endif
+                    @if($socialLinkedinConfigured)
+                    <label class="check-line check-line--spaced">
+                      <input type="hidden" name="social_login_linkedin" value="0" />
+                      <input type="checkbox" name="social_login_linkedin" value="1" {{ ($settings['social_login_linkedin'] ?? '1') === '1' ? 'checked' : '' }} />
+                      <span>LinkedIn (sign in / sign up)</span>
+                    </label>
+                    @endif
+                  </div>
+                </div>
+                @endif
                 @if($timezonesForSelect->isNotEmpty())
                 <div class="card">
                   <div class="card__head">Schedules &amp; reports</div>

@@ -6,6 +6,7 @@ use App\Models\Plan;
 use App\Models\PlanChange;
 use App\Models\SiteSetting;
 use App\Models\Subscription;
+use App\Models\Faq;
 use App\Models\Testimonial;
 use App\Services\Insights\AudienceInsightsService;
 use App\Services\Platform\Platform;
@@ -24,8 +25,9 @@ class PageController extends Controller
         $enabledPlatforms = $registry->enabledPlatforms();
         $testimonials = Testimonial::active()->ordered()->get();
         $plans = Plan::active()->get();
+        $faqs = Faq::active()->ordered()->get();
 
-        return view('index', compact('enabledPlatforms', 'testimonials', 'plans'));
+        return view('index', compact('enabledPlatforms', 'testimonials', 'plans', 'faqs'));
     }
 
     public function dashboard(): View

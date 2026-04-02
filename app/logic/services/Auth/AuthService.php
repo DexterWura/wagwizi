@@ -13,6 +13,10 @@ class AuthService
 {
     private const SUPPORTED_PROVIDERS = ['google', 'linkedin-openid'];
 
+    public function __construct(
+        private readonly SocialLoginAvailability $socialLoginAvailability,
+    ) {}
+
     public function attemptLogin(string $email, string $password, bool $remember = false): array
     {
         $credentials = ['email' => $email, 'password' => $password];
@@ -116,6 +120,19 @@ class AuthService
     public function isSupportedProvider(string $provider): bool
     {
         return in_array($provider, self::SUPPORTED_PROVIDERS);
+    }
+
+    public function canUseSocialProvider(string $provider): bool
+    {
+        if (! $this->isSupportedProvider($provider)) {
+            return false;
+        }
+
+        return match ($provider) {
+            'google'          => $this->socialLoginAvailability->isGoogleEnabled(),
+            'linkedin-openid' => $this->socialLoginAvailability->isLinkedinEnabled(),
+            default           => false,
+        };
     }
 
     public function logout(): void

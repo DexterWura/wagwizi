@@ -17,7 +17,7 @@ class SocialAuthController extends Controller
 
     public function redirect(string $provider): \Symfony\Component\HttpFoundation\Response
     {
-        if (!$this->authService->isSupportedProvider($provider)) {
+        if (! $this->authService->canUseSocialProvider($provider)) {
             return redirect()->route('login')
                 ->withErrors(['social' => 'This login method is not available.']);
         }
@@ -27,7 +27,7 @@ class SocialAuthController extends Controller
 
     public function callback(Request $request, string $provider): RedirectResponse
     {
-        if (!$this->authService->isSupportedProvider($provider)) {
+        if (! $this->authService->canUseSocialProvider($provider)) {
             return redirect()->route('login')
                 ->withErrors(['social' => 'This login method is not available.']);
         }

@@ -37,12 +37,14 @@
 
     @include('modal-notifications')
     @stack('modals')
+    @if($showFloatingHelp ?? true)
     @include('modal-help-ticket')
 
     <button type="button" class="app-fab" data-app-modal-open="modal-help-ticket" aria-label="Get help — create support ticket" title="Help and support">
       <span class="app-fab__avatar" aria-hidden="true"><i class="fa-solid fa-robot"></i></span>
       Get Help
     </button>
+    @endif
 
     <script>
       (function () {

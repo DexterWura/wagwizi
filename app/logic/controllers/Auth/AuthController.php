@@ -4,22 +4,21 @@ namespace App\Controllers\Auth;
 
 use App\Controllers\Controller;
 use App\Services\Auth\AuthService;
+use App\Services\Auth\SocialLoginAvailability;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class AuthController extends Controller
 {
-    private AuthService $authService;
-
-    public function __construct(AuthService $authService)
-    {
-        $this->authService = $authService;
-    }
+    public function __construct(
+        private readonly AuthService $authService,
+        private readonly SocialLoginAvailability $socialLoginAvailability,
+    ) {}
 
     public function showLogin(): View
     {
-        return view('login');
+        return view('login', $this->socialAuthViewData());
     }
 
     public function login(Request $request): RedirectResponse
@@ -48,7 +47,18 @@ class AuthController extends Controller
 
     public function showSignup(): View
     {
-        return view('signup');
+        return view('signup', $this->socialAuthViewData());
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    private function socialAuthViewData(): array
+    {
+        return [
+            'socialGoogleEnabled'   => $this->socialLoginAvailability->isGoogleEnabled(),
+            'socialLinkedinEnabled' => $this->socialLoginAvailability->isLinkedinEnabled(),
+        ];
     }
 
     public function signup(Request $request): RedirectResponse

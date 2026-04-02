@@ -31,6 +31,17 @@
           </div>
 
           <div class="card">
+            <div class="card__head"><span>Optimization</span></div>
+            <div class="card__body">
+              <p class="field__hint">Clears cached config, routes, views, events, and application cache. Run after deployments or when site settings do not appear to apply.</p>
+              <form method="POST" action="{{ route('admin.operations.clear-cache') }}" class="inline-form">
+                @csrf
+                <button class="btn btn--outline" type="submit">Clear application cache</button>
+              </form>
+            </div>
+          </div>
+
+          <div class="card">
             <div class="card__head"><span>Reliability Policy</span></div>
             <div class="card__body">
               <form method="POST" action="{{ route('admin.operations.settings') }}">

@@ -131,6 +131,17 @@ class AppServiceProvider extends ServiceProvider
             $view->with('displayTimezonesMeta', $displayTimezonesMeta);
             $view->with('defaultDisplayTimezoneIdentifier', $defaultDisplayTimezoneIdentifier);
 
+            $showFloatingHelp = true;
+            try {
+                if (Schema::hasTable('site_settings')) {
+                    $v = SiteSetting::get('show_floating_help', '1');
+                    $showFloatingHelp = $v === '1' || $v === 1 || $v === true;
+                }
+            } catch (\Throwable) {
+                // Installer, missing DB, or migrations not run yet.
+            }
+            $view->with('showFloatingHelp', $showFloatingHelp);
+
             if (str_starts_with($view->name(), 'install.')) {
                 $view->with('currentUser', null);
                 return;

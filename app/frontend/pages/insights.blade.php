@@ -46,8 +46,20 @@
             </div>
             <div class="stat-card">
               <div class="stat-card__label">Engagement rate</div>
-              <div class="stat-card__value">@if($audienceInsights->hasEngagementMetrics){{ $audienceInsights->blendedEngagementRateEstimate }}%@else—@endif</div>
-              <p class="field__hint stat-card__hint">@if($audienceInsights->hasEngagementMetrics)Interactions ÷ reach (likes, reposts, comments)@else Sync metrics on published posts to unlock@endif</p>
+              <div class="stat-card__value">
+                @if($audienceInsights->hasEngagementMetrics)
+                  {{ $audienceInsights->blendedEngagementRateEstimate }}%
+                @else
+                  —
+                @endif
+              </div>
+              <p class="field__hint stat-card__hint">
+                @if($audienceInsights->hasEngagementMetrics)
+                  Interactions ÷ reach (likes, reposts, comments)
+                @else
+                  Sync metrics on published posts to unlock
+                @endif
+              </p>
             </div>
             <div class="stat-card">
               <div class="stat-card__label">Best day</div>
@@ -76,7 +88,7 @@
                 <li>{{ $line }}</li>
                 @endforeach
               </ul>
-              @if($audienceInsights->topHourSlots !== [])
+              @if(count($audienceInsights->topHourSlots) > 0)
               <p class="insights-smart-slots"><strong>Suggested times:</strong> {{ implode(' · ', array_column($audienceInsights->topHourSlots, 'label')) }}</p>
               @endif
             </div>
@@ -174,7 +186,10 @@
             <div class="card">
               <div class="card__head"><span>Activity by weekday</span></div>
               <div class="insights-week-bars" role="img" aria-label="Relative activity Monday through Sunday">
-                @php $dows = ['M','T','W','T','F','S','S']; $peak = max($audienceInsights->weekdayScores) ?: 1; @endphp
+                @php
+                  $dows = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                  $peak = collect($audienceInsights->weekdayScores)->max() ?: 1;
+                @endphp
                 @foreach($dows as $i => $d)
                 @php $pct = $audienceInsights->weekdayScores[$i] ?? 0; $isPeak = $pct >= $peak && $pct > 0; $h = max(6, round($pct * 0.88)); @endphp
                 <div class="insights-week-bars__col">

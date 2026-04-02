@@ -9,14 +9,17 @@ use App\Models\Timezone;
 use App\Models\SocialAccount;
 use App\Models\SupportTicket;
 use App\Models\SupportTicketReply;
+use App\Models\Faq;
 use App\Models\Testimonial;
 use App\Models\User;
 use App\Jobs\PublishPostCommentJob;
 use App\Jobs\PublishPostToPlatformJob;
 use App\Services\Admin\MigrationService;
+use App\Services\Auth\SocialLoginAvailability;
 use App\Services\Platform\Platform;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -258,6 +261,56 @@ class AdminController extends Controller
         return back()->with('success', 'Testimonial deleted.');
     }
 
+    // ── FAQs ────────────────────────────────────────────
+
+    public function faqs(): View
+    {
+        $faqs = Faq::ordered()->get();
+
+        return view('admin.faqs', compact('faqs'));
+    }
+
+    public function storeFaq(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'question'   => 'required|string|max:500',
+            'answer'     => 'required|string',
+            'is_active'  => 'boolean',
+            'sort_order' => 'integer|min:0',
+        ]);
+
+        $validated['is_active'] = $request->boolean('is_active');
+
+        Faq::create($validated);
+
+        return back()->with('success', 'FAQ added.');
+    }
+
+    public function updateFaq(Request $request, int $id): RedirectResponse
+    {
+        $faq = Faq::findOrFail($id);
+
+        $validated = $request->validate([
+            'question'   => 'required|string|max:500',
+            'answer'     => 'required|string',
+            'is_active'  => 'boolean',
+            'sort_order' => 'integer|min:0',
+        ]);
+
+        $validated['is_active'] = $request->boolean('is_active');
+
+        $faq->update($validated);
+
+        return back()->with('success', 'FAQ updated.');
+    }
+
+    public function destroyFaq(int $id): RedirectResponse
+    {
+        Faq::findOrFail($id)->delete();
+
+        return back()->with('success', 'FAQ deleted.');
+    }
+
     // ── Support Tickets ─────────────────────────────────
 
     public function tickets(Request $request): View
@@ -322,6 +375,9 @@ class AdminController extends Controller
             'hero_heading'               => SiteSetting::get('hero_heading', ''),
             'hero_subheading'            => SiteSetting::get('hero_subheading', ''),
             'registration_open'          => SiteSetting::get('registration_open', '1'),
+            'show_floating_help'         => SiteSetting::get('show_floating_help', '1'),
+            'social_login_google'        => SiteSetting::get('social_login_google', '1'),
+            'social_login_linkedin'      => SiteSetting::get('social_login_linkedin', '1'),
             'default_display_timezone'   => SiteSetting::get('default_display_timezone', 'UTC'),
         ];
 
@@ -329,12 +385,21 @@ class AdminController extends Controller
             ? Timezone::query()->orderBy('identifier')->get()
             : collect();
 
-        return view('admin.settings', compact('settings', 'timezonesForSelect'));
+        $availability       = app(SocialLoginAvailability::class);
+        $socialGoogleConfigured   = $availability->googleCredentialsConfigured();
+        $socialLinkedinConfigured = $availability->linkedinCredentialsConfigured();
+
+        return view('admin.settings', compact(
+            'settings',
+            'timezonesForSelect',
+            'socialGoogleConfigured',
+            'socialLinkedinConfigured'
+        ));
     }
 
     public function updateSettings(Request $request): RedirectResponse
     {
-        $fields = ['app_name', 'app_tagline', 'hero_heading', 'hero_subheading', 'registration_open'];
+        $fields = ['app_name', 'app_tagline', 'hero_heading', 'hero_subheading', 'registration_open', 'show_floating_help'];
 
         foreach ($fields as $field) {
             if ($request->has($field)) {
@@ -347,6 +412,14 @@ class AdminController extends Controller
                 'default_display_timezone' => ['required', 'string', 'max:128', Rule::exists('timezones', 'identifier')],
             ]);
             SiteSetting::set('default_display_timezone', $validated['default_display_timezone']);
+        }
+
+        $availability = app(SocialLoginAvailability::class);
+        if ($availability->googleCredentialsConfigured() && $request->has('social_login_google')) {
+            SiteSetting::set('social_login_google', $request->input('social_login_google', '0'));
+        }
+        if ($availability->linkedinCredentialsConfigured() && $request->has('social_login_linkedin')) {
+            SiteSetting::set('social_login_linkedin', $request->input('social_login_linkedin', '0'));
         }
 
         return back()->with('success', 'Settings saved.');
@@ -513,5 +586,16 @@ class AdminController extends Controller
         ]);
 
         return back()->with('success', 'Operations settings updated.');
+    }
+
+    public function clearApplicationCache(): RedirectResponse
+    {
+        try {
+            Artisan::call('optimize:clear');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Could not clear caches: ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'Application caches cleared (config, routes, views, compiled files, events, cache).');
     }
 }

@@ -110,6 +110,11 @@ Route::middleware('auth')->group(function () {
         Route::put('/testimonials/{id}',    [AdminController::class, 'updateTestimonial'])->name('testimonials.update');
         Route::delete('/testimonials/{id}', [AdminController::class, 'destroyTestimonial'])->name('testimonials.destroy');
 
+        Route::get('/faqs',         [AdminController::class, 'faqs'])->name('faqs');
+        Route::post('/faqs',        [AdminController::class, 'storeFaq'])->name('faqs.store');
+        Route::put('/faqs/{id}',    [AdminController::class, 'updateFaq'])->name('faqs.update');
+        Route::delete('/faqs/{id}', [AdminController::class, 'destroyFaq'])->name('faqs.destroy');
+
         Route::get('/tickets',              [AdminController::class, 'tickets'])->name('tickets');
         Route::post('/tickets/{id}/reply',  [AdminController::class, 'replyTicket'])->name('tickets.reply');
         Route::post('/tickets/{id}/status', [AdminController::class, 'updateTicketStatus'])->name('tickets.status');
@@ -122,6 +127,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/migrations/rollback', [AdminController::class, 'rollbackMigrations'])->name('migrations.rollback');
 
         Route::get('/operations',                [AdminController::class, 'operations'])->name('operations');
+        Route::post('/operations/clear-cache',   [AdminController::class, 'clearApplicationCache'])->name('operations.clear-cache');
         Route::post('/operations/retry-publish', [AdminController::class, 'retryPublish'])->name('operations.retry-publish');
         Route::post('/operations/retry-comment', [AdminController::class, 'retryComment'])->name('operations.retry-comment');
         Route::post('/operations/settings',      [AdminController::class, 'updateOperationsSettings'])->name('operations.settings');

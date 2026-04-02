@@ -1072,6 +1072,16 @@ img {
   font-weight: 600;
 }
 
+.app-context-banner a {
+  color: var(--accent-orange);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.app-context-banner a:hover {
+  text-decoration: underline;
+}
+
 .table-meta-note {
   margin: 0 0 0.75rem;
   font-size: 0.8rem;
@@ -3234,6 +3244,7 @@ button.link-create {
 
 .login-page__head {
   margin-bottom: 1.25rem;
+  text-align: center;
 }
 
 .login-page__head h1 {
@@ -3247,6 +3258,16 @@ button.link-create {
   font-size: 0.875rem;
   color: var(--text-muted);
   line-height: 1.45;
+}
+
+.login-page__panel form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.login-page__submit {
+  align-self: center;
 }
 
 /* ─── Alert banners ────────────────────────────────────── */
@@ -5326,10 +5347,6 @@ button.link-create {
   color: var(--text);
   font-family: var(--font-sans);
   overflow-x: hidden;
-}
-
-.error-page .app-theme-toggle {
-  flex-shrink: 0;
 }
 
 .error-page__container {

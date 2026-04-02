@@ -54,6 +54,7 @@
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-plans' ? 'nav-link--active' : '' }}" href="{{ route('admin.plans') }}"><i class="fa-solid fa-credit-card fa-fw" aria-hidden="true"></i>Plans</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-platforms' ? 'nav-link--active' : '' }}" href="{{ route('admin.platforms') }}"><i class="fa-solid fa-plug fa-fw" aria-hidden="true"></i>Platforms</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-testimonials' ? 'nav-link--active' : '' }}" href="{{ route('admin.testimonials') }}"><i class="fa-solid fa-quote-left fa-fw" aria-hidden="true"></i>Testimonials</a>
+      <a class="nav-link nav-link--sub {{ $activePage === 'admin-faqs' ? 'nav-link--active' : '' }}" href="{{ route('admin.faqs') }}"><i class="fa-solid fa-circle-question fa-fw" aria-hidden="true"></i>FAQs</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-tickets' ? 'nav-link--active' : '' }}" href="{{ route('admin.tickets') }}"><i class="fa-solid fa-life-ring fa-fw" aria-hidden="true"></i>Support Tickets</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-settings' ? 'nav-link--active' : '' }}" href="{{ route('admin.settings') }}"><i class="fa-solid fa-sliders fa-fw" aria-hidden="true"></i>Site Settings</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-migrations' ? 'nav-link--active' : '' }}" href="{{ route('admin.migrations') }}"><i class="fa-solid fa-database fa-fw" aria-hidden="true"></i>Migrations</a>

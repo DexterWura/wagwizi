@@ -58,6 +58,20 @@ body.lp {
   text-decoration: none;
 }
 
+/* Beat `.lp a { color: inherit }` so button variants keep correct contrast */
+.lp a.lp-btn--primary {
+  color: #fff;
+}
+
+.lp a.lp-btn--light {
+  color: #09090b;
+}
+
+.lp a.lp-btn--ghost,
+.lp a.lp-btn--outline {
+  color: var(--lp-text);
+}
+
 .lp img {
   max-width: 100%;
   display: block;
@@ -704,7 +718,7 @@ body.lp-nav-open {
 }
 
 .lp-video {
-  width: 100%;
+  width: min(100%, 56rem);
   max-width: 56rem;
   margin-left: auto;
   margin-right: auto;
@@ -718,6 +732,17 @@ body.lp-nav-open {
   align-items: center;
   justify-content: center;
   position: relative;
+  box-sizing: border-box;
+}
+
+section#video .lp-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: var(--lp-max);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .lp-video__placeholder {
@@ -800,10 +825,22 @@ body.lp-nav-open {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+  align-content: center;
   align-items: center;
   gap: 0.75rem;
   max-width: 720px;
-  margin: 0 auto;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+section#resources .lp-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  max-width: var(--lp-max);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .lp-int-cell {
@@ -818,8 +855,23 @@ body.lp-nav-open {
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
+  line-height: 1;
   transition: transform 0.2s ease, border-color 0.2s ease;
   animation: lp-float-y 4s ease-in-out infinite;
+}
+
+.lp-int-cell i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25em;
+  height: 1.25em;
+  line-height: 1;
+  margin: 0;
+}
+
+.lp-int-cell i::before {
+  line-height: 1;
 }
 
 .lp-int-cell:nth-child(3n) {
@@ -900,26 +952,19 @@ body.lp-nav-open {
 }
 
 .lp-pricing__grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: stretch;
-}
-
-@media (min-width: 640px) {
-  .lp-pricing__grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1100px) {
-  .lp-pricing__grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
+  gap: 1rem;
+  width: 100%;
 }
 
 .lp-pricing-card {
   position: relative;
+  flex: 1 1 268px;
+  max-width: 320px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   padding: 1.35rem 1.25rem 1.5rem;
@@ -1020,13 +1065,6 @@ body.lp-nav-open {
   text-align: center;
 }
 
-.lp-pricing__note {
-  margin: 1.75rem 0 0;
-  text-align: center;
-  font-size: 0.82rem;
-  color: var(--lp-muted2);
-}
-
 .lp-cta-band {
   margin: 2rem 1.25rem;
   padding: 3rem 1.5rem;
@@ -1053,16 +1091,17 @@ body.lp-nav-open {
   margin-top: 0.5rem;
 }
 
-.lp-wall {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+section#love .lp-wrap {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
   gap: 1rem;
+  justify-items: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .lp-tweet {
-  flex: 0 1 320px;
-  max-width: min(100%, 380px);
+  width: min(100%, 380px);
   box-sizing: border-box;
   padding: 1.25rem;
   border-radius: var(--lp-radius);

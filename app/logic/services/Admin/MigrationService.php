@@ -45,8 +45,7 @@ class MigrationService
 
     public function runAll(): array
     {
-        $this->migrator->run($this->migrationPath);
-        return $this->migrator->getNotes();
+        return $this->migrator->run($this->migrationPath);
     }
 
     public function runSingle(string $migrationName): bool
@@ -73,8 +72,7 @@ class MigrationService
 
     public function rollbackBatch(): array
     {
-        $this->migrator->rollback($this->migrationPath);
-        return $this->migrator->getNotes();
+        return $this->migrator->rollback($this->migrationPath);
     }
 
     public function rollbackSingle(string $migrationName): bool

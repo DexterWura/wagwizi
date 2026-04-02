@@ -40,18 +40,6 @@
       </div>
     </div>
 
-    <button type="button" class="app-theme-toggle" data-app-theme-toggle aria-label="Switch color theme">
-      <i class="fa-solid fa-moon" data-app-theme-icon aria-hidden="true"></i>
-      <span class="app-theme-toggle__label" data-app-theme-label>Dark</span>
-    </button>
-
-    <script>
-      (function () {
-        var t = document.documentElement.getAttribute("data-theme") || "dark";
-        var icon = document.querySelector("[data-app-theme-icon]");
-        if (icon) icon.className = t === "light" ? "fa-solid fa-sun" : "fa-solid fa-moon";
-      })();
-    </script>
     <script src="{{ asset('assets/js/app.js') }}"></script>
   </body>
 </html>

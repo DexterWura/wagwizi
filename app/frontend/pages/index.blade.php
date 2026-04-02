@@ -291,7 +291,6 @@
             </article>
             @endforelse
           </div>
-          <p class="lp-pricing__note" data-lp-reveal>Plans are loaded from admin configuration.</p>
         </div>
       </section>
 
@@ -305,7 +304,7 @@
           <h2>Wall of love</h2>
           <p>Teams who switched from duct-tape workflows.</p>
         </div>
-        <div class="lp-wrap lp-wall">
+        <div class="lp-wrap">
           @forelse($testimonials as $testimonial)
           <article class="lp-tweet" data-lp-reveal>
             <div class="lp-tweet__head">
@@ -340,25 +339,21 @@
         </div>
       </section>
 
+      @if($faqs->isNotEmpty())
       <section class="lp-section" id="faq">
         <div class="lp-section__head" data-lp-reveal>
           <h2>Frequently asked questions</h2>
         </div>
         <div class="lp-faq" data-lp-faq data-lp-reveal>
+          @foreach($faqs as $faq)
           <div class="lp-faq__item">
-            <button type="button" class="lp-faq__question" aria-expanded="false">Is this a hosted product?<i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
-            <div class="lp-faq__answer">This site is a static UI demo. You wire your own API, OAuth, and database.</div>
+            <button type="button" class="lp-faq__question" aria-expanded="false">{{ $faq->question }}<i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
+            <div class="lp-faq__answer">{!! nl2br(e($faq->answer)) !!}</div>
           </div>
-          <div class="lp-faq__item">
-            <button type="button" class="lp-faq__question" aria-expanded="false">Which networks are supported?<i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
-            <div class="lp-faq__answer">The UI covers X, LinkedIn, YouTube, TikTok, Meta properties, Telegram, and more — integrations depend on your backend.</div>
-          </div>
-          <div class="lp-faq__item">
-            <button type="button" class="lp-faq__question" aria-expanded="false">Does scheduling persist?<i class="fa-solid fa-chevron-down" aria-hidden="true"></i></button>
-            <div class="lp-faq__answer">Calendar drag-and-drop is front-end only until you connect persistence.</div>
-          </div>
+          @endforeach
         </div>
       </section>
+      @endif
     </main>
 
     <footer class="lp-footer">

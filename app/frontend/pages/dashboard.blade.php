@@ -18,10 +18,17 @@
             </div>
           </div>
 
+          @if($connectedAccountsCount === 0)
+          <p class="app-context-banner" role="note">
+            <i class="fa-solid fa-plug" aria-hidden="true"></i>
+            <span>You have no social accounts connected. <a href="{{ route('accounts') }}">Connect an account</a> to publish and see analytics here.</span>
+          </p>
+          @else
           <p class="app-context-banner" role="note">
             <i class="fa-solid fa-globe" aria-hidden="true"></i>
             <span>Scheduled times and analytics use your display timezone (<strong data-app-timezone-label>UTC</strong>) from the top bar.</span>
           </p>
+          @endif
 
           <div class="grid-metrics">
             <div class="metric-card">
