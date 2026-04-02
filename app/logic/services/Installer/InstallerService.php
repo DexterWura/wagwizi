@@ -168,17 +168,25 @@ class InstallerService
 
     public function createAdminUser(string $name, string $email, string $password): void
     {
-        DB::table('users')->insert([
-            'name'       => $name,
-            'email'      => $email,
-            'password'   => Hash::make($password),
-            'role'       => 'super_admin',
-            'status'     => 'active',
+        $now = now();
+        $attributes = [
+            'name'                => $name,
+            'password'            => Hash::make($password),
+            'role'                => 'super_admin',
+            'status'              => 'active',
             'profile_completed' => true,
-            'timezone'   => 'UTC',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+            'timezone'            => 'UTC',
+            'updated_at'          => $now,
+        ];
+
+        $updated = DB::table('users')->where('email', $email)->update($attributes);
+
+        if ($updated === 0) {
+            DB::table('users')->insert(array_merge($attributes, [
+                'email'      => $email,
+                'created_at' => $now,
+            ]));
+        }
     }
 
     public function generateAppKey(): void
