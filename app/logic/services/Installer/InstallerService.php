@@ -2,6 +2,7 @@
 
 namespace App\Services\Installer;
 
+use App\Services\Cron\CronService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -198,7 +199,7 @@ class InstallerService
 
     public function seedCronTasks(): void
     {
-        Artisan::call('cron:seed');
+        app(CronService::class)->seedDefaults();
     }
 
     public function setAppUrl(string $url): void
