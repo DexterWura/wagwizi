@@ -26,8 +26,16 @@
     <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    @php
+      $fontCss = 'https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap';
+      $faCss = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css';
+    @endphp
+    <link rel="preload" href="{{ $fontCss }}" as="style" />
+    <link href="{{ $fontCss }}" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript><link href="{{ $fontCss }}" rel="stylesheet" /></noscript>
+    <link rel="preload" href="{{ $faCss }}" as="style" crossorigin="anonymous" />
+    <link href="{{ $faCss }}" rel="stylesheet" media="print" onload="this.media='all'" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <noscript><link href="{{ $faCss }}" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer" /></noscript>
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}" />
     @stack('styles')
   </head>

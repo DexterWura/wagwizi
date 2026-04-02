@@ -45,6 +45,11 @@
                   <div class="card__head">Landing Page Hero</div>
                   <div class="card__body">
                     <div class="field">
+                      <label class="field__label" for="hero_eyebrow">Eyebrow</label>
+                      <input class="input" id="hero_eyebrow" name="hero_eyebrow" value="{{ $settings['hero_eyebrow'] }}" maxlength="80" placeholder="e.g. Social OS" />
+                      <p class="field__hint">Short label above the main headline (styled in uppercase on the landing page).</p>
+                    </div>
+                    <div class="field">
                       <label class="field__label" for="hero_heading">Heading</label>
                       <input class="input" id="hero_heading" name="hero_heading" value="{{ $settings['hero_heading'] }}" />
                     </div>
@@ -115,6 +120,78 @@
             </div>
             <div class="admin-form-footer">
               <button class="btn btn--primary" type="submit">Save settings</button>
+            </div>
+          </form>
+
+          <form method="POST" action="{{ route('admin.settings.landing-features-deep') }}" enctype="multipart/form-data" class="card admin-landing-features-form">
+            @csrf
+            <div class="card__head">Landing page — Features deep</div>
+            <div class="card__body">
+              <p class="field__hint">The four rows in <code>#features-deep</code> on the home page. For <strong>Icon row</strong>, leave classes empty to use enabled platform icons, or enter comma-separated Font Awesome classes (e.g. <code>fa-brands fa-x-twitter fa-2x,fa-brands fa-linkedin fa-2x</code>).</p>
+              <p class="field__hint">CTA URL: leave blank for sign-up, or use a path (<code>/dashboard</code>) or full <code>https://</code> URL.</p>
+              @for($i = 0; $i < 4; $i++)
+              @php $lf = $landingFeaturesDeep[$i]; @endphp
+              <fieldset class="admin-landing-feature-block">
+                <legend class="admin-landing-feature-block__title">Block {{ $i + 1 }}</legend>
+                <div class="field">
+                  <label class="check-line check-line--spaced">
+                    <input type="checkbox" name="features[{{ $i }}][reverse]" value="1" {{ !empty($lf['reverse']) ? 'checked' : '' }} />
+                    <span>Reverse layout (visual on the left)</span>
+                  </label>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="lf-{{ $i }}-title">Title</label>
+                  <input class="input" id="lf-{{ $i }}-title" name="features[{{ $i }}][title]" value="{{ $lf['title'] }}" />
+                </div>
+                <div class="field">
+                  <label class="field__label" for="lf-{{ $i }}-body">Body</label>
+                  <textarea class="input" id="lf-{{ $i }}-body" name="features[{{ $i }}][body]" rows="3">{{ $lf['body'] }}</textarea>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="lf-{{ $i }}-cta_label">CTA label</label>
+                  <input class="input" id="lf-{{ $i }}-cta_label" name="features[{{ $i }}][cta_label]" value="{{ $lf['cta_label'] }}" placeholder="Optional" />
+                </div>
+                <div class="field">
+                  <label class="field__label" for="lf-{{ $i }}-cta_href">CTA URL</label>
+                  <input class="input" id="lf-{{ $i }}-cta_href" name="features[{{ $i }}][cta_href]" value="{{ $lf['cta_href'] }}" placeholder="/dashboard or https://…" />
+                </div>
+                <div class="field">
+                  <label class="field__label" for="lf-{{ $i }}-visual">Visual style</label>
+                  <select class="input" id="lf-{{ $i }}-visual" name="features[{{ $i }}][visual]">
+                    @foreach($landingFeaturesVisualLabels as $val => $label)
+                    <option value="{{ $val }}" {{ ($lf['visual'] ?? '') === $val ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                  </select>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="lf-{{ $i }}-glass_eyebrow">Glass eyebrow</label>
+                  <input class="input" id="lf-{{ $i }}-glass_eyebrow" name="features[{{ $i }}][glass_eyebrow]" value="{{ $lf['glass_eyebrow'] }}" placeholder="For “Glass card” style" />
+                </div>
+                <div class="field">
+                  <label class="field__label" for="lf-{{ $i }}-glass_body">Glass body</label>
+                  <textarea class="input" id="lf-{{ $i }}-glass_body" name="features[{{ $i }}][glass_body]" rows="2" placeholder="For “Glass card” style">{{ $lf['glass_body'] }}</textarea>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="lf-{{ $i }}-glass_mono">Glass single line</label>
+                  <input class="input" id="lf-{{ $i }}-glass_mono" name="features[{{ $i }}][glass_mono]" value="{{ $lf['glass_mono'] }}" placeholder="For “Glass — single line”" />
+                </div>
+                <div class="field">
+                  <label class="field__label" for="lf-{{ $i }}-icon_classes">Icon classes</label>
+                  <input class="input" id="lf-{{ $i }}-icon_classes" name="features[{{ $i }}][icon_classes]" value="{{ $lf['icon_classes'] }}" placeholder="Comma-separated; empty = platform icons" />
+                </div>
+                <div class="field">
+                  <label class="field__label" for="lf-{{ $i }}-image">Image (photo style)</label>
+                  <input class="input" type="file" id="lf-{{ $i }}-image" name="features[{{ $i }}][image]" accept="image/jpeg,image/png,image/gif,image/webp" />
+                  <input type="hidden" name="features[{{ $i }}][image_existing]" value="{{ $lf['image'] ?? '' }}" />
+                  @if(!empty($lf['image']))
+                  <p class="field__hint">Current: <a href="{{ asset($lf['image']) }}" target="_blank" rel="noopener noreferrer">{{ $lf['image'] }}</a> — upload a new file to replace.</p>
+                  @endif
+                </div>
+              </fieldset>
+              @endfor
+            </div>
+            <div class="admin-form-footer">
+              <button type="submit" class="btn btn--primary">Save features section</button>
             </div>
           </form>
 

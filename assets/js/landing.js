@@ -98,6 +98,67 @@
     }
   }
 
+  function initMockupDrawer() {
+    var root = document.querySelector("[data-lp-mockup-demo-root]");
+    if (!root) return;
+
+    var openBtn = root.querySelector("[data-lp-mockup-drawer-open]");
+    var backdrop = root.querySelector("[data-lp-mockup-drawer-backdrop]");
+    var closeBtn = root.querySelector("[data-lp-mockup-drawer-close]");
+    if (!openBtn || !backdrop) return;
+
+    var mq = window.matchMedia("(max-width: 720px)");
+
+    function setOpen(open) {
+      if (!mq.matches) {
+        root.classList.remove("lp-mockup-app--nav-open");
+        openBtn.setAttribute("aria-expanded", "false");
+        return;
+      }
+      root.classList.toggle("lp-mockup-app--nav-open", open);
+      openBtn.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    openBtn.addEventListener("click", function () {
+      setOpen(!root.classList.contains("lp-mockup-app--nav-open"));
+    });
+
+    backdrop.addEventListener("click", function () {
+      setOpen(false);
+    });
+
+    if (closeBtn) {
+      closeBtn.addEventListener("click", function () {
+        setOpen(false);
+      });
+    }
+
+    var nav = root.querySelector(".lp-mockup-app__nav");
+    if (nav) {
+      nav.addEventListener("click", function () {
+        if (mq.matches) setOpen(false);
+      });
+    }
+
+    if (mq.addEventListener) {
+      mq.addEventListener("change", function () {
+        if (!mq.matches) root.classList.remove("lp-mockup-app--nav-open");
+        openBtn.setAttribute("aria-expanded", "false");
+      });
+    } else if (mq.addListener) {
+      mq.addListener(function () {
+        if (!mq.matches) root.classList.remove("lp-mockup-app--nav-open");
+        openBtn.setAttribute("aria-expanded", "false");
+      });
+    }
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
+      if (!root.classList.contains("lp-mockup-app--nav-open")) return;
+      setOpen(false);
+    });
+  }
+
   function initMockupComposerDemo() {
     var root = document.querySelector("[data-lp-mockup-demo-root]");
     var mock = document.querySelector("[data-lp-mockup]");
@@ -355,6 +416,7 @@
     initMobileNav();
     initSmoothAnchors();
     initMockupDate();
+    initMockupDrawer();
     initMockupComposerDemo();
     initMockupParallax();
     initFaq();

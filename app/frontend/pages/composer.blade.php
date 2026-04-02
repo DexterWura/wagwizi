@@ -107,7 +107,7 @@
                         <i class="fa-regular fa-face-smile" aria-hidden="true"></i>
                       </button>
                     </div>
-                    <div class="composer-ai-dock" id="composer-ai-dock" data-app-composer-ai-dock hidden aria-hidden="true" role="dialog" aria-modal="false" aria-label="Writing assistant">
+                    <div class="composer-ai-dock" id="composer-ai-dock" data-app-composer-ai-dock data-composer-ai-locked="{{ $composerAiLocked ? '1' : '0' }}" hidden aria-hidden="true" role="dialog" aria-modal="false" aria-label="Writing assistant">
                       <div class="composer-ai-dock__panel card card--composer composer-assistant-card ai-chat-panel">
                         <div class="composer-assistant-card__head composer-assistant-card__head--row">
                           <div class="composer-assistant-card__head-text">
@@ -118,13 +118,27 @@
                             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                           </button>
                         </div>
-                        <div class="ai-chat-panel__messages" id="composer-ai-messages">
-                          <div class="ai-msg ai-msg--assistant">Ask for a shorter hook, a LinkedIn tone, or hashtags. Suggested edits appear in the feed preview.</div>
+                        <div class="composer-ai-dock__stack @if($composerAiLocked) composer-ai-dock__stack--locked @endif">
+                          <div class="composer-ai-dock__stack-inner" aria-hidden="{{ $composerAiLocked ? 'true' : 'false' }}">
+                            <div class="ai-chat-panel__messages" id="composer-ai-messages">
+                              <div class="ai-msg ai-msg--assistant">Ask for a shorter hook, a LinkedIn tone, or hashtags. Suggested edits appear in the feed preview.</div>
+                            </div>
+                            <form class="ai-chat-panel__input" data-app-composer-ai>
+                              <input class="input" id="composer-ai-input" type="text" name="composer-ai-prompt" autocomplete="off" placeholder="e.g. Shorten for X with one CTA…" @if($composerAiLocked) disabled @endif />
+                              <button type="submit" class="btn btn--primary" @if($composerAiLocked) disabled @endif>Send</button>
+                            </form>
+                          </div>
+                          @if($composerAiLocked)
+                          <div class="composer-ai-paywall" role="region" aria-label="Upgrade required for AI Assist">
+                            <div class="composer-ai-paywall__card">
+                              <span class="composer-ai-paywall__badge" aria-hidden="true"><i class="fa-solid fa-crown"></i> Pro</span>
+                              <p class="composer-ai-paywall__title">AI Assist is for paid plans</p>
+                              <p class="composer-ai-paywall__text">Only paid subscribers can use the writing assistant. Upgrade your plan to unlock AI Assist.</p>
+                              <a class="btn btn--primary" href="{{ route('plans') }}">View plans</a>
+                            </div>
+                          </div>
+                          @endif
                         </div>
-                        <form class="ai-chat-panel__input" data-app-composer-ai>
-                          <input class="input" id="composer-ai-input" type="text" name="composer-ai-prompt" autocomplete="off" placeholder="e.g. Shorten for X with one CTA…" />
-                          <button type="submit" class="btn btn--primary">Send</button>
-                        </form>
                       </div>
                     </div>
                   </div>
@@ -307,6 +321,38 @@
 @endsection
 
 @push('modals')
+    <div class="app-modal app-modal--cool app-modal--composer-media" id="modal-composer-media" data-app-modal role="dialog" aria-modal="true" aria-labelledby="modal-composer-media-title" aria-hidden="true">
+      <div class="app-modal__backdrop" data-app-modal-close tabindex="-1" aria-hidden="true"></div>
+      <div class="app-modal__panel app-modal__panel--composer-media">
+        <div class="composer-media-modal" data-composer-media-step="source">
+          <h2 id="modal-composer-media-title" class="composer-media-modal__title">Add media</h2>
+          <p class="composer-media-modal__hint" data-composer-media-type-hint>Choose where to get your file from.</p>
+          <div class="composer-media-modal__actions">
+            <button type="button" class="btn btn--primary composer-media-modal__choice" data-composer-media-from-device>
+              <i class="fa-solid fa-upload" aria-hidden="true"></i>
+              From device
+            </button>
+            <button type="button" class="btn btn--outline composer-media-modal__choice" data-composer-media-from-library>
+              <i class="fa-solid fa-photo-film" aria-hidden="true"></i>
+              From library
+            </button>
+          </div>
+          <button type="button" class="btn btn--ghost composer-media-modal__cancel" data-app-modal-close>Cancel</button>
+        </div>
+        <div class="composer-media-modal composer-media-modal--library" data-composer-media-step="library" hidden>
+          <div class="composer-media-modal__library-head">
+            <button type="button" class="btn btn--ghost composer-media-modal__back" data-composer-media-back>
+              <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+              Back
+            </button>
+            <span class="composer-media-modal__library-title">Your library</span>
+          </div>
+          <p class="composer-media-modal__loading" data-composer-media-library-loading hidden>Loading…</p>
+          <div class="composer-media-picker__grid" data-composer-media-grid role="listbox" aria-label="Media in your library"></div>
+          <p class="composer-media-modal__empty" data-composer-media-empty hidden>Nothing to show here.</p>
+        </div>
+      </div>
+    </div>
     <div class="app-modal app-modal--cool app-modal--composer-feedback" id="modal-composer-feedback" data-app-modal role="dialog" aria-modal="true" aria-labelledby="modal-feedback-title" aria-hidden="true">
       <div class="app-modal__backdrop" data-app-modal-close tabindex="-1" aria-hidden="true"></div>
       <div class="app-modal__panel">
@@ -324,5 +370,8 @@
 @endpush
 
 @push('scripts')
+    <script>
+      window.__composerMediaCounts = @json($composerMediaCounts ?? ['image' => 0, 'video' => 0]);
+    </script>
     <script src="{{ asset('assets/js/social-app.js') }}"></script>
 @endpush

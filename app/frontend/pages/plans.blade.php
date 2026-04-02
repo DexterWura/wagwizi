@@ -9,6 +9,15 @@
 
 @section('content')
         <main class="app-content app-content--plans">
+          @if(session('success'))
+            <div class="alert alert--success">{{ session('success') }}</div>
+          @endif
+          @if(session('info'))
+            <div class="alert alert--info">{{ session('info') }}</div>
+          @endif
+          @if(session('error'))
+            <div class="alert alert--danger">{{ session('error') }}</div>
+          @endif
           <div class="page-head">
             <div class="page-head__row">
               <div class="page-head__title">
@@ -40,7 +49,13 @@
           <div class="card card--app-section">
             <div class="card__head">Choose a plan</div>
             <div class="card__body">
-          <div class="plans-grid" data-app-plans>
+          <div
+            class="plans-grid"
+            data-app-plans
+            data-app-plans-server="1"
+            data-current-plan-slug="{{ $currentPlanSlug ?? '' }}"
+            data-paynow-checkout="{{ $paynowCheckoutAvailable ? '1' : '0' }}"
+          >
             @foreach($plans as $plan)
             @php
                 $isCurrent = $currentPlanSlug === $plan->slug;
@@ -48,7 +63,7 @@
                     ? '$' . number_format($plan->getMonthlyPriceDollars(), 0)
                     : 'Custom';
             @endphp
-            <article class="plan-card{{ $isCurrent ? ' plan-card--current' : '' }}{{ $plan->slug === 'growth' ? ' plan-card--featured' : '' }}" data-plan-id="{{ $plan->slug }}">
+            <article class="plan-card{{ $isCurrent ? ' plan-card--current' : '' }}{{ $plan->slug === 'growth' ? ' plan-card--featured' : '' }}" data-plan-id="{{ $plan->slug }}" data-plan-sort="{{ $plan->sort_order }}">
               @if($plan->slug === 'growth')
               <span class="plan-card__badge">Popular</span>
               @endif
@@ -75,7 +90,7 @@
             @endforeach
 
             @if($plans->isEmpty())
-            <article class="plan-card" data-plan-id="starter">
+            <article class="plan-card" data-plan-id="starter" data-plan-sort="0">
               <h2 class="plan-card__name">Starter</h2>
               <span class="plan-card__price">$0 <span class="plan-card__cycle">/ month</span></span>
               <ul class="plan-card__list">
@@ -91,3 +106,9 @@
           </div>
         </main>
 @endsection
+
+@push('scripts')
+    <script>
+      window.__paidPlanSlugs = @json($paidPlanSlugs ?? []);
+    </script>
+@endpush

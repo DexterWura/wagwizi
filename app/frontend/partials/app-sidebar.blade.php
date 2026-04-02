@@ -65,13 +65,19 @@
     @if($currentUser?->isSuperAdmin())
     <div class="nav-group">
       <div class="nav-group__label"><span class="nav-group__dot nav-group__dot--admin"></span> Super Admin</div>
+      <span class="nav-subgroup-label">Commerce &amp; billing</span>
+      <a class="nav-link nav-link--sub {{ $activePage === 'admin-subscriptions' ? 'nav-link--active' : '' }}" href="{{ route('admin.subscriptions') }}"><i class="fa-solid fa-chart-line fa-fw" aria-hidden="true"></i>Subscriptions</a>
+      <a class="nav-link nav-link--sub {{ $activePage === 'admin-payment-gateways' ? 'nav-link--active' : '' }}" href="{{ route('admin.payment-gateways') }}"><i class="fa-solid fa-building-columns fa-fw" aria-hidden="true"></i>Payment gateways</a>
+      <a class="nav-link nav-link--sub {{ $activePage === 'admin-plans' ? 'nav-link--active' : '' }}" href="{{ route('admin.plans') }}"><i class="fa-solid fa-layer-group fa-fw" aria-hidden="true"></i>Plans &amp; pricing</a>
+      <span class="nav-subgroup-label">People &amp; platform</span>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-users' ? 'nav-link--active' : '' }}" href="{{ route('admin.users') }}"><i class="fa-solid fa-users fa-fw" aria-hidden="true"></i>Users</a>
-      <a class="nav-link nav-link--sub {{ $activePage === 'admin-plans' ? 'nav-link--active' : '' }}" href="{{ route('admin.plans') }}"><i class="fa-solid fa-credit-card fa-fw" aria-hidden="true"></i>Plans</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-platforms' ? 'nav-link--active' : '' }}" href="{{ route('admin.platforms') }}"><i class="fa-solid fa-plug fa-fw" aria-hidden="true"></i>Platforms</a>
+      <a class="nav-link nav-link--sub {{ $activePage === 'admin-tickets' ? 'nav-link--active' : '' }}" href="{{ route('admin.tickets') }}"><i class="fa-solid fa-life-ring fa-fw" aria-hidden="true"></i>Support tickets</a>
+      <span class="nav-subgroup-label">Marketing content</span>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-testimonials' ? 'nav-link--active' : '' }}" href="{{ route('admin.testimonials') }}"><i class="fa-solid fa-quote-left fa-fw" aria-hidden="true"></i>Testimonials</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-faqs' ? 'nav-link--active' : '' }}" href="{{ route('admin.faqs') }}"><i class="fa-solid fa-circle-question fa-fw" aria-hidden="true"></i>FAQs</a>
-      <a class="nav-link nav-link--sub {{ $activePage === 'admin-tickets' ? 'nav-link--active' : '' }}" href="{{ route('admin.tickets') }}"><i class="fa-solid fa-life-ring fa-fw" aria-hidden="true"></i>Support Tickets</a>
-      <a class="nav-link nav-link--sub {{ $activePage === 'admin-settings' ? 'nav-link--active' : '' }}" href="{{ route('admin.settings') }}"><i class="fa-solid fa-sliders fa-fw" aria-hidden="true"></i>Site Settings</a>
+      <span class="nav-subgroup-label">System</span>
+      <a class="nav-link nav-link--sub {{ $activePage === 'admin-settings' ? 'nav-link--active' : '' }}" href="{{ route('admin.settings') }}"><i class="fa-solid fa-sliders fa-fw" aria-hidden="true"></i>Site settings</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-migrations' ? 'nav-link--active' : '' }}" href="{{ route('admin.migrations') }}"><i class="fa-solid fa-database fa-fw" aria-hidden="true"></i>Migrations</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-operations' ? 'nav-link--active' : '' }}" href="{{ route('admin.operations') }}"><i class="fa-solid fa-shield-halved fa-fw" aria-hidden="true"></i>Operations</a>
     </div>

@@ -8,7 +8,11 @@ use App\Models\SiteSetting;
 use App\Models\Subscription;
 use App\Models\Faq;
 use App\Models\Testimonial;
+use App\Services\Billing\PaymentGatewayConfigService;
+use App\Services\Billing\SubscriptionFulfillmentService;
 use App\Services\Insights\AudienceInsightsService;
+use App\Services\Landing\LandingFeaturesDeepService;
+use App\Services\Media\MediaLibraryService;
 use App\Services\Platform\Platform;
 use App\Services\Platform\PlatformRegistry;
 use Carbon\Carbon;
@@ -27,6 +31,11 @@ class PageController extends Controller
         $plans = Plan::active()->get();
         $faqs = Faq::active()->ordered()->get();
 
+        $heroEyebrow = trim((string) SiteSetting::get('hero_eyebrow', ''));
+        if ($heroEyebrow === '') {
+            $heroEyebrow = 'Social OS';
+        }
+
         $heroHeading = trim((string) SiteSetting::get('hero_heading', ''));
         if ($heroHeading === '') {
             $heroHeading = 'Your agentic social media scheduling tool';
@@ -37,13 +46,23 @@ class PageController extends Controller
             $heroSubheading = 'One workspace to compose, preview every network, schedule with drag-and-drop, and ship with confidence — powered by the same polished app UI you already use.';
         }
 
+        $featuresDeepService = app(LandingFeaturesDeepService::class);
+        $landingFeaturesDeep = [];
+        foreach ($featuresDeepService->resolvedBlocks() as $row) {
+            $row['cta_url']         = $featuresDeepService->resolveCtaHref((string) ($row['cta_href'] ?? ''));
+            $row['icon_class_list'] = $featuresDeepService->parseIconClasses((string) ($row['icon_classes'] ?? ''));
+            $landingFeaturesDeep[]  = $row;
+        }
+
         return view('index', compact(
             'enabledPlatforms',
             'testimonials',
             'plans',
             'faqs',
+            'heroEyebrow',
             'heroHeading',
-            'heroSubheading'
+            'heroSubheading',
+            'landingFeaturesDeep'
         ));
     }
 
@@ -83,10 +102,13 @@ class PageController extends Controller
         $user = Auth::user();
 
         $audienceInsights = app(AudienceInsightsService::class)->buildForUser($user);
+        $composerMediaCounts = app(MediaLibraryService::class)->typeCountsForUser($user);
 
         return view('composer', [
-            'socialAccounts'     => $user->socialAccounts()->active()->get(['id', 'platform', 'username', 'display_name']),
-            'audienceInsights'   => $audienceInsights,
+            'socialAccounts'       => $user->socialAccounts()->active()->get(['id', 'platform', 'username', 'display_name']),
+            'audienceInsights'     => $audienceInsights,
+            'composerAiLocked'     => ! $user->canAccessComposerAi(),
+            'composerMediaCounts'  => $composerMediaCounts,
         ]);
     }
 
@@ -182,10 +204,19 @@ class PageController extends Controller
         $user         = Auth::user();
         $subscription = $user->subscription;
         $plans        = Plan::active()->get();
+        $gatewayCfg   = app(PaymentGatewayConfigService::class);
+        $fulfillment  = app(SubscriptionFulfillmentService::class);
+
+        $paidPlanSlugs = $plans->filter(static fn (Plan $p): bool => $fulfillment->requiresOnlinePayment($p))
+            ->pluck('slug')
+            ->values()
+            ->all();
 
         return view('plans', [
-            'currentSubscription' => $subscription,
-            'plans'               => $plans,
+            'currentSubscription'     => $subscription,
+            'plans'                   => $plans,
+            'paynowCheckoutAvailable' => $gatewayCfg->paynowIsReady(),
+            'paidPlanSlugs'           => $paidPlanSlugs,
         ]);
     }
 
@@ -240,6 +271,16 @@ class PageController extends Controller
             ], 422);
         }
 
+        $fulfillment = app(SubscriptionFulfillmentService::class);
+        $gateways    = app(PaymentGatewayConfigService::class);
+        if ($gateways->paynowIsReady() && $fulfillment->requiresOnlinePayment($newPlan)) {
+            return response()->json([
+                'success'           => false,
+                'checkout_required' => true,
+                'message'           => 'Complete checkout with Paynow to activate this plan.',
+            ], 402);
+        }
+
         $subscription = Subscription::updateOrCreate(
             ['user_id' => $user->id],
             [
@@ -251,7 +292,7 @@ class PageController extends Controller
             ]
         );
 
-        if ($newPlan->is_lifetime) {
+        if ($newPlan->is_lifetime && $oldPlanId !== $newPlan->id) {
             $newPlan->increment('lifetime_current_count');
         }
 
@@ -265,6 +306,7 @@ class PageController extends Controller
                 'user_id'      => $user->id,
                 'from_plan_id' => $oldPlanId,
                 'to_plan_id'   => $newPlan->id,
+                'change_type'  => 'upgrade',
             ]);
         }
 

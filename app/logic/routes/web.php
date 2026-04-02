@@ -11,6 +11,8 @@ use App\Controllers\SettingsController;
 use App\Controllers\SocialAccountController;
 use App\Controllers\StatusController;
 use App\Controllers\SupportTicketController;
+use App\Controllers\PaynowWebhookController;
+use App\Controllers\PlanCheckoutController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -41,6 +43,8 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
+
+Route::post('/paynow/result', [PaynowWebhookController::class, 'result'])->name('paynow.result');
 
 /*
 |--------------------------------------------------------------------------
@@ -88,6 +92,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
 
     Route::post('/plans/change', [PageController::class, 'changePlan'])->name('plans.change');
+    Route::post('/plans/paynow/start', [PlanCheckoutController::class, 'startPaynow'])->name('plans.paynow.start');
+    Route::get('/plans/paynow/return', [PlanCheckoutController::class, 'paynowReturn'])->name('plans.paynow.return');
 
     /*
     |----------------------------------------------------------------------
@@ -127,10 +133,16 @@ Route::middleware('auth')->group(function () {
         Route::post('/settings/clear-cache', [AdminController::class, 'clearSiteCache'])->name('settings.clear-cache');
         Route::post('/settings/generate-sitemap', [AdminController::class, 'generateSitemap'])->name('settings.generate-sitemap');
         Route::post('/settings/generate-robots', [AdminController::class, 'generateRobotsTxt'])->name('settings.generate-robots');
+        Route::post('/settings/landing-features-deep', [AdminController::class, 'updateLandingFeaturesDeep'])->name('settings.landing-features-deep');
 
         Route::get('/migrations',           [AdminController::class, 'migrations'])->name('migrations');
         Route::post('/migrations/run',      [AdminController::class, 'runMigrations'])->name('migrations.run');
         Route::post('/migrations/rollback', [AdminController::class, 'rollbackMigrations'])->name('migrations.rollback');
+
+        Route::get('/payment-gateways', [AdminController::class, 'paymentGateways'])->name('payment-gateways');
+        Route::post('/payment-gateways', [AdminController::class, 'updatePaymentGateways'])->name('payment-gateways.update');
+
+        Route::get('/subscriptions', [AdminController::class, 'subscriptionsDashboard'])->name('subscriptions');
 
         Route::get('/operations',                [AdminController::class, 'operations'])->name('operations');
         Route::post('/operations/clear-cache',   [AdminController::class, 'clearApplicationCache'])->name('operations.clear-cache');

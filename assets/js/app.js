@@ -563,6 +563,11 @@
     var root = document.querySelector("[data-app-plans]");
     if (!root) return;
 
+    if (root.getAttribute("data-app-plans-server") === "1") {
+      renderPlansFromServer(root);
+      return;
+    }
+
     var STORAGE_KEY = "postai-plan";
     var DEFAULT_PLAN = "growth";
     var PLAN_ORDER = ["starter", "growth", "scale", "enterprise"];
@@ -670,6 +675,70 @@
     });
 
     render();
+  }
+
+  function renderPlansFromServer(root) {
+    var current = root.getAttribute("data-current-plan-slug") || "";
+    var labelEl = document.querySelector("[data-app-plan-label]");
+    var nameEl = root.querySelector('.plan-card--current .plan-card__name');
+    if (labelEl) {
+      labelEl.textContent = nameEl ? nameEl.textContent.trim() : current || "No plan";
+    }
+
+    var order = [];
+    root.querySelectorAll("[data-plan-id]").forEach(function (card) {
+      var id = card.getAttribute("data-plan-id");
+      if (!id) return;
+      var sort = parseInt(card.getAttribute("data-plan-sort"), 10);
+      order.push({ id: id, sort: isNaN(sort) ? 999 : sort });
+    });
+    order.sort(function (a, b) {
+      return a.sort - b.sort;
+    });
+    var pos = {};
+    order.forEach(function (row, i) {
+      pos[row.id] = i;
+    });
+
+    root.querySelectorAll("[data-plan-id]").forEach(function (card) {
+      var id = card.getAttribute("data-plan-id");
+      if (!id) return;
+      var isCurrent = id === current;
+      card.classList.toggle("plan-card--current", isCurrent);
+
+      var btn = card.querySelector("[data-plan-select]");
+      if (!btn) return;
+
+      btn.classList.remove("btn--primary", "btn--ghost", "btn--outline");
+      btn.disabled = false;
+
+      if (id === "enterprise" && !isCurrent) {
+        btn.textContent = "Contact sales";
+        btn.classList.add("btn--outline");
+        btn.setAttribute("aria-label", "Contact sales for Enterprise");
+        return;
+      }
+
+      if (isCurrent) {
+        btn.textContent = "Current plan";
+        btn.disabled = true;
+        btn.classList.add("btn--outline");
+        btn.setAttribute("aria-label", "Current plan");
+        return;
+      }
+
+      var curIdx = pos[current] != null ? pos[current] : -1;
+      var idx = pos[id] != null ? pos[id] : 0;
+      if (idx > curIdx) {
+        btn.textContent = "Upgrade";
+        btn.classList.add("btn--primary");
+        btn.setAttribute("aria-label", "Upgrade to plan");
+      } else {
+        btn.textContent = "Downgrade";
+        btn.classList.add("btn--ghost");
+        btn.setAttribute("aria-label", "Downgrade to plan");
+      }
+    });
   }
 
   function readAiConfig() {
@@ -1440,19 +1509,46 @@
   }
 
   function initNavPrefetch() {
+    var conn = global.navigator.connection || global.navigator.mozConnection || global.navigator.webkitConnection;
+    if (
+      conn &&
+      (conn.saveData === true ||
+        conn.effectiveType === "slow-2g" ||
+        conn.effectiveType === "2g" ||
+        conn.effectiveType === "3g")
+    ) {
+      return;
+    }
+
     var done = {};
+    var timers = {};
+    var delayMs = 320;
+
     document.querySelectorAll(".app-sidebar a[href]").forEach(function (a) {
+      var href = a.getAttribute("href");
+      if (!href || href.charAt(0) !== "/" || href.charAt(1) === "/") return;
+
       a.addEventListener(
         "pointerenter",
         function () {
-          var href = a.getAttribute("href");
-          if (!href || href.charAt(0) !== "/" || href.charAt(1) === "/") return;
           if (done[href]) return;
-          done[href] = true;
-          var link = document.createElement("link");
-          link.rel = "prefetch";
-          link.href = href;
-          document.head.appendChild(link);
+          global.clearTimeout(timers[href]);
+          timers[href] = global.setTimeout(function () {
+            if (done[href]) return;
+            done[href] = true;
+            var link = document.createElement("link");
+            link.rel = "prefetch";
+            link.href = href;
+            document.head.appendChild(link);
+          }, delayMs);
+        },
+        { passive: true }
+      );
+
+      a.addEventListener(
+        "pointerleave",
+        function () {
+          global.clearTimeout(timers[href]);
         },
         { passive: true }
       );
@@ -1550,7 +1646,19 @@
 
   function initPlansServerSync() {
     var root = document.querySelector("[data-app-plans]");
-    if (!root) return;
+    if (!root || root.getAttribute("data-app-plans-server") !== "1") return;
+
+    var paynowOn = root.getAttribute("data-paynow-checkout") === "1";
+    var paidSlugs = [];
+    try {
+      if (global.__paidPlanSlugs && Array.isArray(global.__paidPlanSlugs)) {
+        paidSlugs = global.__paidPlanSlugs;
+      }
+    } catch (err) {}
+
+    function slugNeedsPaynow(slug) {
+      return paidSlugs.indexOf(slug) !== -1;
+    }
 
     root.addEventListener("click", function (e) {
       var btn = e.target.closest("[data-plan-select]");
@@ -1560,10 +1668,36 @@
       var planSlug = card.getAttribute("data-plan-id");
       if (!planSlug || planSlug === "enterprise") return;
 
+      var status = document.querySelector("[data-app-plan-status]");
+
+      if (paynowOn && slugNeedsPaynow(planSlug)) {
+        apiPost("/plans/paynow/start", { plan_slug: planSlug }).then(function (res) {
+          if (res.success && res.redirect_url) {
+            global.location.href = res.redirect_url;
+            return;
+          }
+          if (status) status.textContent = res.message || "Could not start checkout.";
+          if (!res.success && global.App && global.App.showFlash) {
+            global.App.showFlash(res.message || "Checkout failed.", "error");
+          }
+        }).catch(function () {
+          if (status) status.textContent = "Network error starting checkout.";
+          if (global.App && global.App.showFlash) global.App.showFlash("Network error.", "error");
+        });
+        return;
+      }
+
       apiPost("/plans/change", { plan_slug: planSlug }).then(function (res) {
         if (res._ok) {
-          var status = document.querySelector("[data-app-plan-status]");
           if (status) status.textContent = res.message || "Plan updated.";
+          root.setAttribute("data-current-plan-slug", planSlug);
+          renderPlansFromServer(root);
+          if (global.App && global.App.showFlash) global.App.showFlash(res.message || "Plan updated.");
+        } else {
+          if (status) status.textContent = res.message || "Plan could not be updated.";
+          if (res.checkout_required && global.App && global.App.showFlash) {
+            global.App.showFlash(res.message || "Complete payment to choose this plan.", "error");
+          }
         }
       });
     });

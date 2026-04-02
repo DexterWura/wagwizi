@@ -115,4 +115,24 @@ class User extends Authenticatable
 
         return $plan->is_free === true;
     }
+
+    /**
+     * Composer “AI Assist” for non–free plans with an active or trialing subscription; super admins always allowed.
+     */
+    public function canAccessComposerAi(): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        $this->loadMissing('subscription.planModel');
+        $sub  = $this->subscription;
+        $plan = $sub?->planModel;
+
+        if ($sub === null || $plan === null || $plan->is_free === true) {
+            return false;
+        }
+
+        return $sub->isActive() || $sub->isTrialing();
+    }
 }

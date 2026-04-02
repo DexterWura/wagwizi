@@ -51,7 +51,7 @@
       <section class="lp-hero" id="top">
         <div class="lp-hero__bg" aria-hidden="true"></div>
         <div class="lp-hero__inner">
-          <p class="lp-hero__eyebrow" data-lp-reveal><i class="fa-solid fa-sparkles" aria-hidden="true"></i> Social OS</p>
+          <p class="lp-hero__eyebrow" data-lp-reveal><i class="fa-solid fa-sparkles" aria-hidden="true"></i> {{ $heroEyebrow }}</p>
           <h1 data-lp-reveal>{{ $heroHeading }}</h1>
           <p class="lp-hero__sub" data-lp-reveal>{{ $heroSubheading }}</p>
           <div class="lp-hero__icons" data-lp-reveal>
@@ -81,10 +81,14 @@
                 <span class="lp-mockup__url">{{ $lpMockHost }} / composer</span>
               </div>
               <div class="lp-mockup__body lp-mockup-app" data-lp-mockup-demo-root aria-hidden="true">
-                <aside class="lp-mockup-app__sidebar">
+                <div class="lp-mockup-app__drawer-backdrop" data-lp-mockup-drawer-backdrop aria-hidden="true"></div>
+                <aside class="lp-mockup-app__sidebar" id="lp-mockup-app-sidebar">
                   <div class="lp-mockup-app__brand">
                     <span class="lp-mockup-app__collapse" title="Navigation"><i class="fa-solid fa-angles-left" aria-hidden="true"></i></span>
                     <img src="{{ asset('assets/images/logo.svg') }}" width="100" height="26" alt="" decoding="async" />
+                    <button type="button" class="lp-mockup-app__drawer-close" data-lp-mockup-drawer-close aria-label="Close menu">
+                      <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                    </button>
                   </div>
                   <div class="lp-mockup-app__search">
                     <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
@@ -131,7 +135,9 @@
                 </aside>
                 <div class="lp-mockup-app__workspace">
                   <header class="lp-mockup-app__topbar">
-                    <span class="lp-mockup-app__menu-btn"><i class="fa-solid fa-bars" aria-hidden="true"></i></span>
+                    <button type="button" class="lp-mockup-app__menu-btn" data-lp-mockup-drawer-open aria-label="Open menu" aria-expanded="false" aria-controls="lp-mockup-app-sidebar">
+                      <i class="fa-solid fa-bars" aria-hidden="true"></i>
+                    </button>
                     <div class="lp-mockup-app__lead">
                       <span class="lp-mockup-app__hello">Hello,</span>
                       <strong>Alex</strong>
@@ -315,54 +321,53 @@
 
       <section class="lp-section" id="features-deep">
         <div class="lp-wrap">
-          <div class="lp-split" data-lp-reveal>
+          @foreach($landingFeaturesDeep as $feature)
+          <div class="lp-split @if(!empty($feature['reverse'])) lp-split--reverse @endif" data-lp-reveal>
             <div class="lp-split__text">
-              <h3>Everything for growth in one place</h3>
-              <p>Dashboard, composer, calendar, and accounts — same shell, dark or light, with a theme toggle that persists.</p>
-              <a class="lp-btn lp-btn--primary" href="{{ route('signup') }}">Explore dashboard</a>
+              <h3>{{ $feature['title'] }}</h3>
+              <p>{{ $feature['body'] }}</p>
+              @if(!empty(trim((string) ($feature['cta_label'] ?? ''))))
+              <a class="lp-btn lp-btn--primary" href="{{ $feature['cta_url'] }}">{{ $feature['cta_label'] }}</a>
+              @endif
             </div>
             <div class="lp-split__visual">
+              @if(($feature['visual'] ?? '') === 'glass_card')
               <div class="lp-glass">
-                <p class="lp-glass__eyebrow">Omnichannel</p>
-                <p class="lp-glass__body">Reach, engagement, and queue — without leaving the page.</p>
+                @if(!empty($feature['glass_eyebrow']))
+                <p class="lp-glass__eyebrow">{{ $feature['glass_eyebrow'] }}</p>
+                @endif
+                @if(!empty($feature['glass_body']))
+                <p class="lp-glass__body">{{ $feature['glass_body'] }}</p>
+                @endif
               </div>
-            </div>
-          </div>
-          <div class="lp-split lp-split--reverse" data-lp-reveal>
-            <div class="lp-split__text">
-              <h3>AI content assistant</h3>
-              <p>Cursor-style chat beside your draft; suggested edits appear inline in the feed preview.</p>
-              <a class="lp-btn lp-btn--primary" href="{{ route('signup') }}">Try composer</a>
-            </div>
-            <div class="lp-split__visual">
+              @elseif(($feature['visual'] ?? '') === 'glass_mono')
               <div class="lp-glass">
-                <p class="lp-glass__mono">+ One workspace. Every channel.</p>
+                <p class="lp-glass__mono">{{ $feature['glass_mono'] }}</p>
               </div>
-            </div>
-          </div>
-          <div class="lp-split" data-lp-reveal>
-            <div class="lp-split__text">
-              <h3>Post preview across networks</h3>
-              <p>Stacked previews for X, LinkedIn, YouTube, and more — edit once or per tab.</p>
-            </div>
-            <div class="lp-split__visual">
+              @elseif(($feature['visual'] ?? '') === 'icons')
               <div class="lp-glass lp-glass--icons">
-                <i class="fa-brands fa-x-twitter fa-2x"></i>
-                <i class="fa-brands fa-linkedin fa-2x"></i>
-                <i class="fa-brands fa-instagram fa-2x"></i>
+                @if(count($feature['icon_class_list'] ?? []) > 0)
+                  @foreach($feature['icon_class_list'] as $ic)
+                  <i class="{{ $ic }}" aria-hidden="true"></i>
+                  @endforeach
+                @elseif(count($enabledPlatforms) > 0)
+                  @foreach($enabledPlatforms as $platform)
+                  <i class="{{ $platform->icon() }} fa-2x" aria-hidden="true"></i>
+                  @endforeach
+                @else
+                  <p class="lp-glass__body" style="margin:0;font-size:0.85rem;">Add platform icons in admin or enable networks.</p>
+                @endif
               </div>
-            </div>
-          </div>
-          <div class="lp-split lp-split--reverse" data-lp-reveal>
-            <div class="lp-split__text">
-              <h3>Drag-and-drop scheduling</h3>
-              <p>Move posts between days or back to the unscheduled queue — persistence is yours to wire.</p>
-              <a class="lp-btn lp-btn--primary" href="{{ route('signup') }}">Open calendar</a>
-            </div>
-            <div class="lp-split__visual">
+              @elseif(($feature['visual'] ?? '') === 'image' && !empty($feature['image']))
+              <div class="lp-feature-visual-photo">
+                <img src="{{ asset($feature['image']) }}" alt="" loading="lazy" decoding="async" width="800" height="600" />
+              </div>
+              @elseif(($feature['visual'] ?? '') === 'grid')
               <div class="lp-glass lp-glass--grid"></div>
+              @endif
             </div>
           </div>
+          @endforeach
         </div>
       </section>
 

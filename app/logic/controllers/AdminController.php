@@ -2,8 +2,10 @@
 
 namespace App\Controllers;
 
+use App\Models\PaymentTransaction;
 use App\Models\Plan;
 use App\Models\PostPlatform;
+use App\Models\Subscription;
 use App\Models\SiteSetting;
 use App\Models\Timezone;
 use App\Models\SocialAccount;
@@ -15,9 +17,14 @@ use App\Models\User;
 use App\Jobs\PublishPostCommentJob;
 use App\Jobs\PublishPostToPlatformJob;
 use App\Services\Admin\MigrationService;
+use App\Services\Admin\SubscriptionInsightsService;
+use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Auth\SocialLoginAvailability;
 use App\Services\Platform\Platform;
+use App\Services\Landing\LandingFeaturesDeepService;
 use App\Services\Seo\PublicSeoFilesService;
+use App\Utils\FileUploadUtil;
+use Illuminate\Support\Str;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -385,6 +392,7 @@ class AdminController extends Controller
         $settings = [
             'app_name'                   => SiteSetting::get('app_name', config('app.name')),
             'app_tagline'                => SiteSetting::get('app_tagline', ''),
+            'hero_eyebrow'               => SiteSetting::get('hero_eyebrow', ''),
             'hero_heading'               => SiteSetting::get('hero_heading', ''),
             'hero_subheading'            => SiteSetting::get('hero_subheading', ''),
             'registration_open'          => SiteSetting::get('registration_open', '1'),
@@ -405,19 +413,116 @@ class AdminController extends Controller
         $sitemapExists = is_file(public_path('sitemap.xml'));
         $robotsExists = is_file(public_path('robots.txt'));
 
+        $landingFeaturesDeep = app(LandingFeaturesDeepService::class)->resolvedBlocks();
+        $landingFeaturesVisualLabels = [
+            LandingFeaturesDeepService::VISUAL_GLASS_CARD => 'Glass card (eyebrow + body)',
+            LandingFeaturesDeepService::VISUAL_GLASS_MONO => 'Glass — single line',
+            LandingFeaturesDeepService::VISUAL_ICONS       => 'Icon row (or platform icons if empty)',
+            LandingFeaturesDeepService::VISUAL_IMAGE       => 'Photo / image',
+            LandingFeaturesDeepService::VISUAL_GRID        => 'Decorative grid',
+        ];
+
         return view('admin.settings', compact(
             'settings',
             'timezonesForSelect',
             'socialGoogleConfigured',
             'socialLinkedinConfigured',
             'sitemapExists',
-            'robotsExists'
+            'robotsExists',
+            'landingFeaturesDeep',
+            'landingFeaturesVisualLabels'
         ));
+    }
+
+    public function updateLandingFeaturesDeep(Request $request, LandingFeaturesDeepService $service): RedirectResponse
+    {
+        $request->validate([
+            'features'                 => 'required|array',
+            'features.*.title'         => 'nullable|string|max:220',
+            'features.*.body'          => 'nullable|string|max:2000',
+            'features.*.cta_label'     => 'nullable|string|max:120',
+            'features.*.cta_href'      => 'nullable|string|max:500',
+            'features.*.visual'       => 'nullable|string|max:32',
+            'features.*.glass_eyebrow' => 'nullable|string|max:120',
+            'features.*.glass_body'    => 'nullable|string|max:500',
+            'features.*.glass_mono'    => 'nullable|string|max:500',
+            'features.*.icon_classes'  => 'nullable|string|max:1000',
+            'features.*.image'         => 'nullable|file|image|max:5120',
+            'features.*.image_existing' => 'nullable|string|max:500',
+        ]);
+
+        $dir = public_path('assets/uploads/landing');
+        if (! is_dir($dir)) {
+            @mkdir($dir, 0775, true);
+        }
+
+        $defaults = $service->defaultBlocks();
+        $prevAll  = SiteSetting::getJson('landing_features_deep', []);
+        $out      = [];
+
+        for ($i = 0; $i < 4; $i++) {
+            $f    = $request->input("features.$i", []);
+            $def  = $defaults[$i];
+            $prev = is_array($prevAll[$i] ?? null) ? $prevAll[$i] : [];
+
+            $visual = $f['visual'] ?? $def['visual'];
+            if (! in_array($visual, LandingFeaturesDeepService::visualOptions(), true)) {
+                $visual = $def['visual'];
+            }
+
+            $iconRaw = strip_tags((string) ($f['icon_classes'] ?? ''));
+            $iconParts = array_filter(array_map('trim', explode(',', $iconRaw)));
+            $iconSafe  = [];
+            foreach ($iconParts as $p) {
+                if ($p !== '' && preg_match('/^[\w\s\-]+$/', $p)) {
+                    $iconSafe[] = preg_replace('/\s+/', ' ', $p);
+                }
+            }
+            $iconClasses = Str::limit(implode(',', array_slice($iconSafe, 0, 24)), 1000);
+
+            $block = [
+                'reverse'       => $request->boolean("features.$i.reverse"),
+                'title'         => Str::limit(strip_tags((string) ($f['title'] ?? '')), 220),
+                'body'          => Str::limit(strip_tags((string) ($f['body'] ?? '')), 2000),
+                'cta_label'     => Str::limit(strip_tags((string) ($f['cta_label'] ?? '')), 120),
+                'cta_href'      => Str::limit(trim((string) ($f['cta_href'] ?? '')), 500),
+                'visual'        => $visual,
+                'glass_eyebrow' => Str::limit(strip_tags((string) ($f['glass_eyebrow'] ?? '')), 120),
+                'glass_body'    => Str::limit(strip_tags((string) ($f['glass_body'] ?? '')), 500),
+                'glass_mono'    => Str::limit(strip_tags((string) ($f['glass_mono'] ?? '')), 500),
+                'icon_classes'  => $iconClasses,
+                'image'         => '',
+            ];
+
+            if ($visual === LandingFeaturesDeepService::VISUAL_IMAGE) {
+                if ($request->hasFile("features.$i.image")) {
+                    if (! empty($prev['image'])) {
+                        FileUploadUtil::delete($prev['image']);
+                    }
+                    $block['image'] = FileUploadUtil::store($request->file("features.$i.image"), 'landing');
+                } else {
+                    $existing = trim((string) ($f['image_existing'] ?? ''));
+                    if ($existing !== '' && str_starts_with($existing, 'assets/uploads/landing/')) {
+                        $block['image'] = $existing;
+                    } elseif (! empty($prev['image'])) {
+                        $block['image'] = $prev['image'];
+                    }
+                }
+            } elseif (! empty($prev['image'])) {
+                FileUploadUtil::delete($prev['image']);
+            }
+
+            $out[] = $block;
+        }
+
+        SiteSetting::setJson('landing_features_deep', $out);
+
+        return back()->with('success', 'Landing features deep section saved.');
     }
 
     public function updateSettings(Request $request): RedirectResponse
     {
-        $fields = ['app_name', 'app_tagline', 'hero_heading', 'hero_subheading', 'registration_open', 'show_floating_help'];
+        $fields = ['app_name', 'app_tagline', 'hero_eyebrow', 'hero_heading', 'hero_subheading', 'registration_open', 'show_floating_help'];
 
         foreach ($fields as $field) {
             if ($request->has($field)) {
@@ -500,6 +605,75 @@ class AdminController extends Controller
         } catch (\Throwable $e) {
             return back()->with('error', 'Rollback failed: ' . $e->getMessage());
         }
+    }
+
+    // ── Payment gateways (extensible) ───────────────────
+
+    public function paymentGateways(PaymentGatewayConfigService $cfg): View
+    {
+        $gateways = $cfg->all();
+        $paynowKey = (string) ($gateways['paynow']['integration_key'] ?? '');
+        $gateways['paynow']['integration_key_masked'] = $paynowKey !== ''
+            ? '••••••••' . substr($paynowKey, -4)
+            : '';
+
+        return view('admin.payment-gateways', compact('gateways'));
+    }
+
+    public function updatePaymentGateways(Request $request, PaymentGatewayConfigService $cfg): RedirectResponse
+    {
+        $request->validate([
+            'paynow_enabled'          => 'nullable|boolean',
+            'paynow_integration_id'   => 'nullable|string|max:120',
+            'paynow_integration_key'  => 'nullable|string|max:500',
+            'stripe_enabled'          => 'nullable|boolean',
+            'stripe_publishable_key'  => 'nullable|string|max:200',
+            'stripe_secret_key'       => 'nullable|string|max:200',
+            'stripe_webhook_secret'   => 'nullable|string|max:200',
+        ]);
+
+        $current = $cfg->all();
+
+        $current['paynow']['enabled'] = $request->boolean('paynow_enabled');
+        $id = trim((string) $request->input('paynow_integration_id', ''));
+        if ($id !== '') {
+            $current['paynow']['integration_id'] = $id;
+        }
+        $key = $request->input('paynow_integration_key');
+        if (is_string($key) && trim($key) !== '') {
+            $current['paynow']['integration_key'] = trim($key);
+        }
+
+        $current['stripe']['enabled'] = $request->boolean('stripe_enabled');
+        foreach (['publishable_key', 'secret_key', 'webhook_secret'] as $f) {
+            $v = $request->input('stripe_' . $f);
+            if (is_string($v) && trim($v) !== '') {
+                $current['stripe'][$f] = trim($v);
+            }
+        }
+
+        $cfg->save($current);
+
+        return back()->with('success', 'Payment gateway settings saved.');
+    }
+
+    public function subscriptionsDashboard(SubscriptionInsightsService $insights): View
+    {
+        $stats = $insights->build();
+
+        $recentSubs = Subscription::query()
+            ->with(['user:id,name,email', 'planModel:id,name,slug'])
+            ->orderByDesc('updated_at')
+            ->limit(15)
+            ->get();
+
+        $recentPayments = PaymentTransaction::query()
+            ->with(['user:id,name,email', 'plan:id,name'])
+            ->orderByDesc('id')
+            ->limit(15)
+            ->get();
+
+        return view('admin.subscriptions', compact('stats', 'recentSubs', 'recentPayments'));
     }
 
     // ── Operations & Reliability ───────────────────────
