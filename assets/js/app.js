@@ -488,13 +488,6 @@
         }
       });
     });
-
-    document.addEventListener("click", function (e) {
-      document.querySelectorAll("[data-app-account-wrap].is-open").forEach(function (wrap) {
-        if (wrap.contains(e.target)) return;
-        closeAccountMenu(wrap);
-      });
-    });
   }
 
   function initLogout() {
@@ -1548,11 +1541,9 @@
 
     if (hadPending) {
       global.requestAnimationFrame(function () {
-        global.requestAnimationFrame(function () {
-          setTimeout(function () {
-            hideNavLoading();
-          }, 180);
-        });
+        setTimeout(function () {
+          hideNavLoading();
+        }, 72);
       });
     }
   }

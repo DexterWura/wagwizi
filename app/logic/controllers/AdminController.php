@@ -17,6 +17,7 @@ use App\Jobs\PublishPostToPlatformJob;
 use App\Services\Admin\MigrationService;
 use App\Services\Auth\SocialLoginAvailability;
 use App\Services\Platform\Platform;
+use App\Services\Seo\PublicSeoFilesService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -401,11 +402,16 @@ class AdminController extends Controller
         $socialGoogleConfigured   = $availability->googleCredentialsConfigured();
         $socialLinkedinConfigured = $availability->linkedinCredentialsConfigured();
 
+        $sitemapExists = is_file(public_path('sitemap.xml'));
+        $robotsExists = is_file(public_path('robots.txt'));
+
         return view('admin.settings', compact(
             'settings',
             'timezonesForSelect',
             'socialGoogleConfigured',
-            'socialLinkedinConfigured'
+            'socialLinkedinConfigured',
+            'sitemapExists',
+            'robotsExists'
         ));
     }
 
@@ -615,5 +621,27 @@ class AdminController extends Controller
     public function clearSiteCache(): RedirectResponse
     {
         return $this->clearApplicationCache();
+    }
+
+    public function generateSitemap(PublicSeoFilesService $seo): RedirectResponse
+    {
+        try {
+            $seo->writeSitemap();
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Could not write sitemap.xml: ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'sitemap.xml was generated and saved at the site root.');
+    }
+
+    public function generateRobotsTxt(PublicSeoFilesService $seo): RedirectResponse
+    {
+        try {
+            $seo->writeRobotsTxt();
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Could not write robots.txt: ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'robots.txt was generated and saved at the site root.');
     }
 }

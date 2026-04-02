@@ -23,6 +23,7 @@
       })();
     </script>
     <title>@yield('title', config('app.name'))</title>
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
@@ -31,17 +32,17 @@
     @stack('styles')
   </head>
   <body class="app" data-app-page="@yield('page-id')">
-    <div class="app-nav-preloader" id="app-nav-preloader" role="status" aria-live="polite" aria-hidden="true">
-      <div class="app-nav-preloader__inner">
-        <div class="app-nav-preloader__orbit" aria-hidden="true"></div>
-        <span class="app-nav-preloader__text">Loading…</span>
-      </div>
-    </div>
     <div class="app-overlay" id="app-drawer-overlay" data-app-drawer-overlay aria-hidden="true"></div>
     <div class="app-shell">
       @include('app-sidebar', ['activePage' => View::yieldContent('page-id')])
 
       <div class="app-main">
+        <div class="app-nav-preloader" id="app-nav-preloader" role="status" aria-live="polite" aria-hidden="true">
+          <div class="app-nav-preloader__inner">
+            <div class="app-nav-preloader__orbit" aria-hidden="true"></div>
+            <span class="app-nav-preloader__text">Loading…</span>
+          </div>
+        </div>
         @section('topbar')
         @include('app-topbar')
         @show

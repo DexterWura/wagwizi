@@ -118,6 +118,31 @@
             </div>
           </form>
 
+          <div class="card">
+            <div class="card__head">SEO files</div>
+            <div class="card__body">
+              <p class="field__hint">Writes static files to the site document root so crawlers can load <code>/sitemap.xml</code> and <code>/robots.txt</code> without hitting PHP. URLs use <code>APP_URL</code> from your environment.</p>
+              <p class="field__hint">
+                sitemap.xml: {{ $sitemapExists ? 'on disk' : 'not created yet' }} ·
+                robots.txt: {{ $robotsExists ? 'on disk' : 'not created yet' }}
+              </p>
+              <div class="admin-seo-files-actions">
+                <form method="POST" action="{{ route('admin.settings.generate-sitemap') }}" class="inline-form">
+                  @csrf
+                  <button type="submit" class="btn btn--outline">
+                    <i class="fa-solid fa-sitemap" aria-hidden="true"></i> Create sitemap
+                  </button>
+                </form>
+                <form method="POST" action="{{ route('admin.settings.generate-robots') }}" class="inline-form">
+                  @csrf
+                  <button type="submit" class="btn btn--outline">
+                    <i class="fa-solid fa-robot" aria-hidden="true"></i> Create robots.txt
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+
           <div class="card admin-settings-cache-card">
             <div class="card__head">Cache</div>
             <div class="card__body">

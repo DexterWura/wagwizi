@@ -120,22 +120,22 @@ img {
   width: 100%;
 }
 
-/* ─── In-app navigation preloader (full page transitions) ─── */
+/* ─── In-app navigation preloader (main column only — sidebar stays sharp) ─── */
 
 .app-nav-preloader {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 350;
+  z-index: 120;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--bg-app) 86%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: color-mix(in srgb, var(--bg-app) 78%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
+  transition: opacity 0.12s ease, visibility 0.12s ease;
 }
 
 html.app-nav-loading .app-nav-preloader {
@@ -148,22 +148,22 @@ html.app-nav-loading .app-nav-preloader {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  padding: 1.5rem;
+  gap: 0.65rem;
+  padding: 1rem 1.25rem;
 }
 
 .app-nav-preloader__orbit {
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  border: 3px solid var(--border);
+  border: 2.5px solid var(--border);
   border-top-color: var(--accent-orange);
-  animation: app-nav-preloader-spin 0.7s linear infinite;
+  animation: app-nav-preloader-spin 0.38s linear infinite;
   will-change: transform;
 }
 
 .app-nav-preloader__text {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--text-muted);
@@ -178,7 +178,7 @@ html.app-nav-loading .app-nav-preloader {
 
 @media (prefers-reduced-motion: reduce) {
   .app-nav-preloader__orbit {
-    animation-duration: 1.4s;
+    animation-duration: 0.9s;
   }
 }
 
@@ -876,6 +876,7 @@ html.app-nav-loading .app-nav-preloader {
 }
 
 .app-main {
+  position: relative;
   flex: 1;
   margin-left: 0;
   min-height: 100vh;
@@ -953,16 +954,28 @@ html.app-nav-loading .app-nav-preloader {
 .app-topbar__account {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.2rem 0.45rem 0.2rem 0.2rem;
+  gap: 0.15rem;
+  padding: 0.12rem 0.2rem 0.12rem 0.12rem;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--bg-input);
+}
+
+.app-topbar__account-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.28rem 0.4rem;
+  margin: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
   cursor: pointer;
   touch-action: manipulation;
 }
 
-.app-topbar__account:focus-visible {
+.app-topbar__account-toggle:focus-visible {
   outline: 2px solid var(--accent-orange);
   outline-offset: 2px;
 }
@@ -6046,6 +6059,14 @@ button.link-create {
 
 .admin-settings-cache-card {
   margin-top: 1.25rem;
+}
+
+.admin-seo-files-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
 }
 
 .admin-checkbox-grid {

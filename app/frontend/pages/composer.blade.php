@@ -31,10 +31,12 @@
               <span class="app-theme-toggle__label" data-app-theme-label>Dark</span>
             </button>
             <div class="app-topbar__account-wrap" data-app-account-wrap>
-              <button type="button" class="app-topbar__account" data-app-account-trigger aria-label="Account menu" aria-haspopup="menu" aria-expanded="false" id="app-topbar-account-trigger">
+              <div class="app-topbar__account">
                 <span class="app-topbar__avatar" aria-hidden="true"></span>
-                <i class="fa-solid fa-chevron-down fa-xs app-topbar__account-chev" aria-hidden="true"></i>
-              </button>
+                <button type="button" class="app-topbar__account-toggle" data-app-account-trigger id="app-topbar-account-trigger" aria-label="Account menu" aria-haspopup="menu" aria-expanded="false" aria-controls="app-topbar-account-menu">
+                  <i class="fa-solid fa-chevron-down fa-xs app-topbar__account-chev" aria-hidden="true"></i>
+                </button>
+              </div>
               <nav class="app-topbar-account-menu" data-app-account-menu id="app-topbar-account-menu" role="menu" aria-labelledby="app-topbar-account-trigger" hidden>
                 <a class="app-topbar-account-menu__link" role="menuitem" href="{{ route('profile') }}">
                   <i class="fa-solid fa-user fa-fw" aria-hidden="true"></i>

@@ -125,6 +125,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/settings',             [AdminController::class, 'settings'])->name('settings');
         Route::post('/settings',            [AdminController::class, 'updateSettings'])->name('settings.update');
         Route::post('/settings/clear-cache', [AdminController::class, 'clearSiteCache'])->name('settings.clear-cache');
+        Route::post('/settings/generate-sitemap', [AdminController::class, 'generateSitemap'])->name('settings.generate-sitemap');
+        Route::post('/settings/generate-robots', [AdminController::class, 'generateRobotsTxt'])->name('settings.generate-robots');
 
         Route::get('/migrations',           [AdminController::class, 'migrations'])->name('migrations');
         Route::post('/migrations/run',      [AdminController::class, 'runMigrations'])->name('migrations.run');

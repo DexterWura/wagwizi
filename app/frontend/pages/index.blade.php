@@ -64,6 +64,13 @@
             <a class="lp-btn lp-btn--ghost lp-btn--lg" href="{{ route('login') }}">Sign in</a>
           </div>
 
+          @php
+            $lpMockHost = parse_url(config('app.url'), PHP_URL_HOST);
+            if (!is_string($lpMockHost) || $lpMockHost === '') {
+              $lpMockHost = 'app';
+            }
+            $lpMockPlatforms = $enabledPlatforms->take(4);
+          @endphp
           <div class="lp-mockup" data-lp-mockup data-lp-reveal>
             <div class="lp-mockup__glow" aria-hidden="true"></div>
             <div class="lp-mockup__tilt">
@@ -71,22 +78,165 @@
                 <span class="lp-mockup__dot"></span>
                 <span class="lp-mockup__dot"></span>
                 <span class="lp-mockup__dot"></span>
-                <span class="lp-mockup__url">app.postai.local / dashboard</span>
+                <span class="lp-mockup__url">{{ $lpMockHost }} / composer</span>
               </div>
-              <div class="lp-mockup__body">
-                <aside class="lp-mockup__sidebar" aria-hidden="true">
-                  <div class="lp-mockup__nav-item is-active"><i class="fa-solid fa-house"></i> Home</div>
-                  <div class="lp-mockup__nav-item">Composer</div>
-                  <div class="lp-mockup__nav-item">Calendar</div>
-                  <div class="lp-mockup__nav-item">Insights</div>
+              <div class="lp-mockup__body lp-mockup-app" data-lp-mockup-demo-root aria-hidden="true">
+                <aside class="lp-mockup-app__sidebar">
+                  <div class="lp-mockup-app__brand">
+                    <span class="lp-mockup-app__collapse" title="Navigation"><i class="fa-solid fa-angles-left" aria-hidden="true"></i></span>
+                    <img src="{{ asset('assets/images/logo.svg') }}" width="100" height="26" alt="" decoding="async" />
+                  </div>
+                  <div class="lp-mockup-app__search">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    <span>Search pages…</span>
+                    <kbd>⌘K</kbd>
+                  </div>
+                  <nav class="lp-mockup-app__nav">
+                    <span class="lp-mockup-app__nav-link is-active" data-lp-mockup-nav-home><i class="fa-solid fa-house fa-fw" aria-hidden="true"></i>Home</span>
+                    <div class="lp-mockup-app__nav-group">
+                      <div class="lp-mockup-app__nav-label"><span class="lp-mockup-app__dot lp-mockup-app__dot--pub"></span>Publishing</div>
+                      <span class="lp-mockup-app__nav-link lp-mockup-app__nav-link--sub" data-lp-mockup-nav-composer><i class="fa-solid fa-pen-to-square fa-fw" aria-hidden="true"></i>Create post</span>
+                      <span class="lp-mockup-app__nav-link lp-mockup-app__nav-link--sub"><i class="fa-solid fa-calendar-days fa-fw" aria-hidden="true"></i>Calendar</span>
+                      <span class="lp-mockup-app__nav-link lp-mockup-app__nav-link--sub"><i class="fa-solid fa-photo-film fa-fw" aria-hidden="true"></i>Media library</span>
+                    </div>
+                    <div class="lp-mockup-app__nav-group">
+                      <div class="lp-mockup-app__nav-label"><span class="lp-mockup-app__dot lp-mockup-app__dot--acc"></span>Accounts</div>
+                      <span class="lp-mockup-app__nav-link lp-mockup-app__nav-link--sub"><i class="fa-solid fa-link fa-fw" aria-hidden="true"></i>Connect accounts</span>
+                    </div>
+                    <div class="lp-mockup-app__nav-group">
+                      <div class="lp-mockup-app__nav-label"><span class="lp-mockup-app__dot lp-mockup-app__dot--ana"></span>Analytics</div>
+                      <span class="lp-mockup-app__nav-link lp-mockup-app__nav-link--sub"><i class="fa-solid fa-chart-line fa-fw" aria-hidden="true"></i>Insights</span>
+                    </div>
+                    <div class="lp-mockup-app__nav-group">
+                      <div class="lp-mockup-app__nav-label"><span class="lp-mockup-app__dot lp-mockup-app__dot--bill"></span>Billing</div>
+                      <span class="lp-mockup-app__nav-link lp-mockup-app__nav-link--sub"><i class="fa-solid fa-layer-group fa-fw" aria-hidden="true"></i>Plans</span>
+                      <span class="lp-mockup-app__nav-link lp-mockup-app__nav-link--sub"><i class="fa-solid fa-clock-rotate-left fa-fw" aria-hidden="true"></i>Plan history</span>
+                    </div>
+                    <div class="lp-mockup-app__nav-group">
+                      <div class="lp-mockup-app__nav-label"><span class="lp-mockup-app__dot lp-mockup-app__dot--user"></span>Account</div>
+                      <span class="lp-mockup-app__nav-link lp-mockup-app__nav-link--sub"><i class="fa-solid fa-user fa-fw" aria-hidden="true"></i>Profile</span>
+                      <span class="lp-mockup-app__nav-link lp-mockup-app__nav-link--sub"><i class="fa-solid fa-gear fa-fw" aria-hidden="true"></i>Settings</span>
+                      <span class="lp-mockup-app__nav-link lp-mockup-app__nav-link--sub"><i class="fa-solid fa-ticket fa-fw" aria-hidden="true"></i>Support tickets</span>
+                    </div>
+                  </nav>
+                  <div class="lp-mockup-app__sidebar-foot">
+                    <div class="lp-mockup-app__userchip">
+                      <span class="lp-mockup-app__u-av" aria-hidden="true"></span>
+                      <div class="lp-mockup-app__u-meta">
+                        <strong>Alex Morgan</strong>
+                        <span>alex@studio.test</span>
+                      </div>
+                    </div>
+                  </div>
                 </aside>
-                <div class="lp-mockup__main">
-                  <div class="lp-mockup__toolbar"></div>
-                  <div class="lp-mockup__cards">
-                    <div class="lp-mockup__card"></div>
-                    <div class="lp-mockup__card"></div>
-                    <div class="lp-mockup__card"></div>
-                    <div class="lp-mockup__card"></div>
+                <div class="lp-mockup-app__workspace">
+                  <header class="lp-mockup-app__topbar">
+                    <span class="lp-mockup-app__menu-btn"><i class="fa-solid fa-bars" aria-hidden="true"></i></span>
+                    <div class="lp-mockup-app__lead">
+                      <span class="lp-mockup-app__hello">Hello,</span>
+                      <strong>Alex</strong>
+                    </div>
+                    <div class="lp-mockup-app__spacer" aria-hidden="true"></div>
+                    <div class="lp-mockup-app__cluster">
+                      <time class="lp-mockup-app__date" data-lp-mockup-date datetime=""></time>
+                      <span class="lp-mockup-app__tb-btn" title="Notifications"><i class="fa-solid fa-bell" aria-hidden="true"></i></span>
+                      <span class="lp-mockup-app__tz"><abbr title="Display timezone">UTC</abbr><i class="fa-solid fa-chevron-down fa-2xs" aria-hidden="true"></i></span>
+                      <span class="lp-mockup-app__theme"><i class="fa-solid fa-moon" aria-hidden="true"></i><span>Dark</span></span>
+                      <span class="lp-mockup-app__acct"><span class="lp-mockup-app__acct-av" aria-hidden="true"></span><i class="fa-solid fa-chevron-down fa-2xs" aria-hidden="true"></i></span>
+                    </div>
+                  </header>
+                  <div class="lp-mockup-app__main">
+                    <div class="lp-mockup-app__page-head">
+                      <div class="lp-mockup-app__ph-icon" aria-hidden="true"><i class="fa-solid fa-pen-to-square"></i></div>
+                      <div>
+                        <h2 class="lp-mockup-app__ph-title">Create post</h2>
+                        <p class="lp-mockup-app__ph-sub">Draft once, tailor per network, preview the feed.</p>
+                      </div>
+                    </div>
+                    <div class="lp-mockup-app__composer-grid">
+                      <div class="lp-mockup-app__card">
+                        <div class="lp-mockup-app__sect">
+                          <span class="lp-mockup-app__sect-label">Post to</span>
+                          <div class="lp-mockup-app__platforms">
+                            @forelse($lpMockPlatforms as $platform)
+                            <span class="lp-mockup-app__platform" data-lp-mockup-platform>
+                              <span class="lp-mockup-app__p-box" aria-hidden="true"><i class="fa-solid fa-check"></i></span>
+                              <i class="{{ $platform->icon() }}" aria-hidden="true"></i>
+                              {{ $platform->label() }}
+                            </span>
+                            @empty
+                            <span class="lp-mockup-app__platform" data-lp-mockup-platform>
+                              <span class="lp-mockup-app__p-box" aria-hidden="true"><i class="fa-solid fa-check"></i></span>
+                              <i class="fa-brands fa-x-twitter" aria-hidden="true"></i>X
+                            </span>
+                            <span class="lp-mockup-app__platform" data-lp-mockup-platform>
+                              <span class="lp-mockup-app__p-box" aria-hidden="true"><i class="fa-solid fa-check"></i></span>
+                              <i class="fa-brands fa-linkedin" aria-hidden="true"></i>LinkedIn
+                            </span>
+                            @endforelse
+                          </div>
+                        </div>
+                        <div class="lp-mockup-app__sect">
+                          <div class="lp-mockup-app__draft-shell">
+                            <div class="lp-mockup-app__draft" data-lp-mockup-draft></div>
+                            <span class="lp-mockup-app__caret" data-lp-mockup-caret aria-hidden="true"></span>
+                          </div>
+                          <div class="lp-mockup-app__toolbar">
+                            <span class="lp-mockup-app__pill"><i class="fa-solid fa-hashtag" aria-hidden="true"></i>Hashtags</span>
+                            <span class="lp-mockup-app__pill lp-mockup-app__pill--ai"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>AI Assist</span>
+                            <span class="lp-mockup-app__pill lp-mockup-app__pill--icon"><i class="fa-regular fa-face-smile" aria-hidden="true"></i></span>
+                          </div>
+                        </div>
+                        <div class="lp-mockup-app__sect lp-mockup-app__sect--tight">
+                          <div class="lp-mockup-app__pills">
+                            <span class="lp-mockup-app__tab is-on">Master</span>
+                            @foreach($lpMockPlatforms->take(2) as $platform)
+                            <span class="lp-mockup-app__tab">{{ $platform->label() }}</span>
+                            @endforeach
+                            @if($lpMockPlatforms->count() === 0)
+                            <span class="lp-mockup-app__tab">X</span>
+                            <span class="lp-mockup-app__tab">LinkedIn</span>
+                            @endif
+                          </div>
+                        </div>
+                        <div class="lp-mockup-app__actions">
+                          <span class="lp-mockup-app__btn-schedule" data-lp-mockup-schedule-btn><i class="fa-solid fa-paper-plane" aria-hidden="true"></i>Schedule</span>
+                          <span class="lp-mockup-app__btn-ghost">Save draft</span>
+                        </div>
+                      </div>
+                      <aside class="lp-mockup-app__aside">
+                        <div class="lp-mockup-app__preview-head">Feed preview</div>
+                        <div class="lp-mockup-app__preview-card" data-lp-mockup-preview-card>
+                          <div class="lp-mockup-app__pv-head">
+                            <span class="lp-mockup-app__pv-av" aria-hidden="true"></span>
+                            <div>
+                              <strong>Alex Morgan</strong>
+                              <span>@alexstudio · now</span>
+                            </div>
+                          </div>
+                          <p class="lp-mockup-app__pv-body" data-lp-mockup-preview-text></p>
+                          <div class="lp-mockup-app__pv-bar">
+                            <span><i class="fa-regular fa-comment" aria-hidden="true"></i></span>
+                            <span><i class="fa-solid fa-retweet" aria-hidden="true"></i></span>
+                            <span><i class="fa-regular fa-heart" aria-hidden="true"></i></span>
+                          </div>
+                        </div>
+                        <div class="lp-mockup-app__preview-card lp-mockup-app__preview-card--dim">
+                          <div class="lp-mockup-app__pv-head">
+                            <span class="lp-mockup-app__pv-av lp-mockup-app__pv-av--in" aria-hidden="true"></span>
+                            <div>
+                              <strong>Studio</strong>
+                              <span>LinkedIn · now</span>
+                            </div>
+                          </div>
+                          <p class="lp-mockup-app__pv-body lp-mockup-app__pv-body--muted">Same draft, tuned for professional tone…</p>
+                        </div>
+                      </aside>
+                    </div>
+                    <div class="lp-mockup-app__toast" data-lp-mockup-toast role="status">
+                      <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+                      <span><strong>Scheduled</strong> · Mon 9:00 AM · 3 networks</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -400,7 +550,9 @@
         </div>
       </div>
       <div class="lp-footer__bottom">
-        <span>&copy; {{ date('Y') }} {{ config('app.name') }}</span>
+        <span class="lp-footer__copy">&copy; {{ date('Y') }} {{ config('app.name') }}</span>
+        <span class="lp-footer__bottom-sep" aria-hidden="true">·</span>
+        <span class="lp-footer__credit">Developed by <a href="https://dextersoft.com" target="_blank" rel="noopener noreferrer">Dextersoft</a></span>
       </div>
     </footer>
 

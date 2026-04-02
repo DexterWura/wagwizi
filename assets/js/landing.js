@@ -82,6 +82,152 @@
     });
   }
 
+  function initMockupDate() {
+    var el = document.querySelector("[data-lp-mockup-date]");
+    if (!el) return;
+    try {
+      var fmt = new Intl.DateTimeFormat("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric"
+      });
+      el.textContent = fmt.format(new Date());
+      el.setAttribute("datetime", new Date().toISOString());
+    } catch (e) {
+      el.textContent = "";
+    }
+  }
+
+  function initMockupComposerDemo() {
+    var root = document.querySelector("[data-lp-mockup-demo-root]");
+    var mock = document.querySelector("[data-lp-mockup]");
+    if (!root || !mock) return;
+
+    var motionReduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var draft = root.querySelector("[data-lp-mockup-draft]");
+    var preview = root.querySelector("[data-lp-mockup-preview-text]");
+    var homeNav = root.querySelector("[data-lp-mockup-nav-home]");
+    var compNav = root.querySelector("[data-lp-mockup-nav-composer]");
+    var fullText = "Launch week starts Monday — here's the rundown 🚀";
+
+    var loopTimer = null;
+    var typeTimer = null;
+    var busy = false;
+
+    function clearDemoState() {
+      root.classList.remove(
+        "lp-mockup-demo--typing-done",
+        "lp-mockup-demo--platforms",
+        "lp-mockup-demo--schedule-pulse",
+        "lp-mockup-demo--sent"
+      );
+      if (draft) draft.textContent = "";
+      if (preview) preview.textContent = "";
+      if (homeNav) homeNav.classList.add("is-active");
+      if (compNav) compNav.classList.remove("is-active");
+    }
+
+    function runOnce() {
+      if (busy) return;
+      busy = true;
+      if (typeTimer) {
+        window.clearInterval(typeTimer);
+        typeTimer = null;
+      }
+      clearDemoState();
+
+      window.setTimeout(function () {
+        if (homeNav) homeNav.classList.remove("is-active");
+        if (compNav) compNav.classList.add("is-active");
+      }, 450);
+
+      function afterType() {
+        root.classList.add("lp-mockup-demo--typing-done");
+        window.setTimeout(function () {
+          root.classList.add("lp-mockup-demo--platforms");
+        }, 280);
+        window.setTimeout(function () {
+          root.classList.add("lp-mockup-demo--schedule-pulse");
+        }, 900);
+        window.setTimeout(function () {
+          root.classList.add("lp-mockup-demo--sent");
+        }, 2000);
+        window.setTimeout(function () {
+          busy = false;
+        }, 2400);
+        window.setTimeout(function () {
+          clearDemoState();
+        }, 5600);
+      }
+
+      if (motionReduce) {
+        if (draft) draft.textContent = fullText;
+        if (preview) preview.textContent = fullText;
+        root.classList.add("lp-mockup-demo--typing-done");
+        window.setTimeout(function () {
+          root.classList.add("lp-mockup-demo--platforms");
+        }, 200);
+        window.setTimeout(function () {
+          root.classList.add("lp-mockup-demo--schedule-pulse");
+        }, 500);
+        window.setTimeout(function () {
+          root.classList.add("lp-mockup-demo--sent");
+        }, 800);
+        window.setTimeout(function () {
+          busy = false;
+        }, 1500);
+        window.setTimeout(function () {
+          clearDemoState();
+        }, 4200);
+        return;
+      }
+
+      var i = 0;
+      typeTimer = window.setInterval(function () {
+        i += 1;
+        var slice = fullText.slice(0, i);
+        if (draft) draft.textContent = slice;
+        if (preview) preview.textContent = slice;
+        if (i >= fullText.length) {
+          window.clearInterval(typeTimer);
+          typeTimer = null;
+          afterType();
+        }
+      }, 40);
+    }
+
+    function startLoop() {
+      runOnce();
+      if (motionReduce) return;
+      if (loopTimer) window.clearInterval(loopTimer);
+      loopTimer = window.setInterval(runOnce, 8800);
+    }
+
+    function kickoff() {
+      if (mock.classList.contains("is-visible")) {
+        startLoop();
+        return;
+      }
+      if (!("IntersectionObserver" in window)) {
+        startLoop();
+        return;
+      }
+      var io = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) return;
+            startLoop();
+            io.disconnect();
+          });
+        },
+        { rootMargin: "0px 0px -5% 0px", threshold: 0.08 }
+      );
+      io.observe(mock);
+    }
+
+    kickoff();
+  }
+
   function initMockupParallax() {
     if (reduceMotion) return;
     var mock = document.querySelector("[data-lp-mockup]");
@@ -208,6 +354,8 @@
     initScrollChrome();
     initMobileNav();
     initSmoothAnchors();
+    initMockupDate();
+    initMockupComposerDemo();
     initMockupParallax();
     initFaq();
     initPricingBilling();
