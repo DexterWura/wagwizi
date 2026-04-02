@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\Plan;
 use App\Models\PostPlatform;
 use App\Models\SiteSetting;
+use App\Models\Timezone;
 use App\Models\SocialAccount;
 use App\Models\SupportTicket;
 use App\Models\SupportTicketReply;
@@ -17,6 +18,8 @@ use App\Services\Platform\Platform;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AdminController extends Controller
@@ -106,6 +109,7 @@ class AdminController extends Controller
             'allowed_platforms'             => 'nullable|array',
             'allowed_platforms.*'           => 'string',
             'is_active'                     => 'boolean',
+            'is_free'                       => 'boolean',
             'is_lifetime'                   => 'boolean',
             'lifetime_max_subscribers'      => 'nullable|integer|min:1',
             'sort_order'                    => 'integer|min:0',
@@ -113,6 +117,7 @@ class AdminController extends Controller
 
         $validated['features'] = $this->parseFeaturesList($validated['features'] ?? null);
         $validated['is_active'] = $request->boolean('is_active');
+        $validated['is_free'] = $request->boolean('is_free');
         $validated['is_lifetime'] = $request->boolean('is_lifetime');
 
         Plan::create($validated);
@@ -136,6 +141,7 @@ class AdminController extends Controller
             'allowed_platforms'             => 'nullable|array',
             'allowed_platforms.*'           => 'string',
             'is_active'                     => 'boolean',
+            'is_free'                       => 'boolean',
             'is_lifetime'                   => 'boolean',
             'lifetime_max_subscribers'      => 'nullable|integer|min:1',
             'sort_order'                    => 'integer|min:0',
@@ -143,6 +149,7 @@ class AdminController extends Controller
 
         $validated['features'] = $this->parseFeaturesList($validated['features'] ?? null);
         $validated['is_active'] = $request->boolean('is_active');
+        $validated['is_free'] = $request->boolean('is_free');
         $validated['is_lifetime'] = $request->boolean('is_lifetime');
 
         if (!$request->has('allowed_platforms')) {
@@ -310,14 +317,19 @@ class AdminController extends Controller
     public function settings(): View
     {
         $settings = [
-            'app_name'         => SiteSetting::get('app_name', config('app.name')),
-            'app_tagline'      => SiteSetting::get('app_tagline', ''),
-            'hero_heading'     => SiteSetting::get('hero_heading', ''),
-            'hero_subheading'  => SiteSetting::get('hero_subheading', ''),
-            'registration_open' => SiteSetting::get('registration_open', '1'),
+            'app_name'                   => SiteSetting::get('app_name', config('app.name')),
+            'app_tagline'                => SiteSetting::get('app_tagline', ''),
+            'hero_heading'               => SiteSetting::get('hero_heading', ''),
+            'hero_subheading'            => SiteSetting::get('hero_subheading', ''),
+            'registration_open'          => SiteSetting::get('registration_open', '1'),
+            'default_display_timezone'   => SiteSetting::get('default_display_timezone', 'UTC'),
         ];
 
-        return view('admin.settings', compact('settings'));
+        $timezonesForSelect = Schema::hasTable('timezones')
+            ? Timezone::query()->orderBy('identifier')->get()
+            : collect();
+
+        return view('admin.settings', compact('settings', 'timezonesForSelect'));
     }
 
     public function updateSettings(Request $request): RedirectResponse
@@ -328,6 +340,13 @@ class AdminController extends Controller
             if ($request->has($field)) {
                 SiteSetting::set($field, $request->input($field, ''));
             }
+        }
+
+        if (Schema::hasTable('timezones') && Timezone::query()->exists()) {
+            $validated = $request->validate([
+                'default_display_timezone' => ['required', 'string', 'max:128', Rule::exists('timezones', 'identifier')],
+            ]);
+            SiteSetting::set('default_display_timezone', $validated['default_display_timezone']);
         }
 
         return back()->with('success', 'Settings saved.');

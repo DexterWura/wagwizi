@@ -65,8 +65,8 @@
     <div class="user-chip">
       <span class="user-chip__avatar" aria-hidden="true"></span>
       <div class="user-chip__meta">
-        <strong>{{ $currentUser->name ?? 'User' }}</strong>
-        <span>{{ $currentUser->email ?? '' }}</span>
+        <strong title="{{ $currentUser->name ?? 'User' }}">{{ $currentUser->name ?? 'User' }}</strong>
+        <span title="{{ $currentUser->email ?? '' }}">{{ $currentUser->email ?? '' }}</span>
       </div>
       <button type="button" aria-label="Account menu"><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i></button>
     </div>

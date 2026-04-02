@@ -100,4 +100,19 @@ class User extends Authenticatable
     {
         return $this->hasMany(SupportTicket::class);
     }
+
+    /**
+     * Show upgrade CTA when the user is on the free tier (or has no plan linked yet).
+     */
+    public function shouldShowUpgradePlan(): bool
+    {
+        $this->loadMissing('subscription.planModel');
+        $plan = $this->subscription?->planModel;
+
+        if ($plan === null) {
+            return true;
+        }
+
+        return $plan->is_free === true;
+    }
 }

@@ -23,8 +23,12 @@
           <a href="#pricing">Pricing</a>
         </nav>
         <div class="lp-header__actions">
-          <a class="lp-btn lp-btn--ghost" href="{{ route('login') }}">Sign in</a>
-          <a class="lp-btn lp-btn--primary" href="{{ route('signup') }}">Get started</a>
+          @auth
+            <a class="lp-btn lp-btn--primary" href="{{ route('dashboard') }}">Dashboard</a>
+          @else
+            <a class="lp-btn lp-btn--ghost" href="{{ route('login') }}">Sign in</a>
+            <a class="lp-btn lp-btn--primary" href="{{ route('signup') }}">Get started</a>
+          @endauth
           <button type="button" class="lp-nav-toggle" data-lp-nav-toggle aria-expanded="false" aria-controls="lp-nav-panel" aria-label="Open menu">
             <i class="fa-solid fa-bars" aria-hidden="true"></i>
           </button>
@@ -34,8 +38,12 @@
         <a href="#product">Product</a>
         <a href="#resources">Resources</a>
         <a href="#pricing">Pricing</a>
-        <a href="{{ route('login') }}">Sign in</a>
-        <a href="{{ route('signup') }}">Get started</a>
+        @auth
+          <a href="{{ route('dashboard') }}">Dashboard</a>
+        @else
+          <a href="{{ route('login') }}">Sign in</a>
+          <a href="{{ route('signup') }}">Get started</a>
+        @endauth
       </div>
     </header>
 
@@ -237,36 +245,53 @@
             </div>
           </div>
           <div class="lp-pricing__grid">
-            <article class="lp-pricing-card" data-lp-pricing-card data-monthly="0" data-yearly-total="0" data-lp-reveal>
-              <h3 class="lp-pricing-card__name">Starter</h3>
-              <p class="lp-pricing-card__price"><span class="lp-pricing-card__amount"><span class="lp-pricing-card__currency">$</span><span data-lp-price-amount>0</span></span><span class="lp-pricing-card__suffix" data-lp-price-suffix>/ month</span></p>
-              <p class="lp-pricing-card__billing" data-lp-price-billing hidden></p>
-              <ul class="lp-pricing-card__list"><li>3 social profiles</li><li>30 scheduled posts / month</li><li>Basic analytics</li><li>Email support</li></ul>
-              <a class="lp-btn lp-btn--outline lp-pricing-card__cta" href="{{ route('signup') }}">Choose Starter</a>
-            </article>
-            <article class="lp-pricing-card lp-pricing-card--featured" data-lp-pricing-card data-monthly="29" data-yearly-total="278" data-lp-reveal>
+            @forelse($plans as $plan)
+            @php
+              $isFeatured = strtolower($plan->slug) === 'growth' || strtolower($plan->name) === 'growth';
+              $monthly = $plan->monthly_price_cents !== null ? intdiv($plan->monthly_price_cents, 100) : 0;
+              $yearlyTotal = $plan->yearly_price_cents !== null ? intdiv($plan->yearly_price_cents, 100) : ($monthly * 12);
+            @endphp
+            <article class="lp-pricing-card{{ $isFeatured ? ' lp-pricing-card--featured' : '' }}" data-lp-pricing-card data-monthly="{{ $monthly }}" data-yearly-total="{{ $yearlyTotal }}" data-lp-reveal>
+              @if($isFeatured)
               <span class="lp-pricing-card__badge">Popular</span>
-              <h3 class="lp-pricing-card__name">Growth</h3>
-              <p class="lp-pricing-card__price"><span class="lp-pricing-card__amount"><span class="lp-pricing-card__currency">$</span><span data-lp-price-amount>29</span></span><span class="lp-pricing-card__suffix" data-lp-price-suffix>/ month</span></p>
+              @endif
+              <h3 class="lp-pricing-card__name">{{ $plan->name }}</h3>
+              <p class="lp-pricing-card__price">
+                <span class="lp-pricing-card__amount">
+                  <span class="lp-pricing-card__currency">$</span><span data-lp-price-amount>{{ $monthly }}</span>
+                </span>
+                <span class="lp-pricing-card__suffix" data-lp-price-suffix>/ month</span>
+              </p>
               <p class="lp-pricing-card__billing" data-lp-price-billing hidden></p>
-              <ul class="lp-pricing-card__list"><li>10 social profiles</li><li>Unlimited scheduled posts</li><li>AI assist &amp; previews</li><li>Priority email support</li></ul>
-              <a class="lp-btn lp-btn--primary lp-pricing-card__cta" href="{{ route('signup') }}">Choose Growth</a>
+              <ul class="lp-pricing-card__list">
+                @if($plan->max_social_profiles === null)
+                <li>Unlimited social profiles</li>
+                @else
+                <li>{{ $plan->max_social_profiles }} social profiles</li>
+                @endif
+
+                @if($plan->max_scheduled_posts_per_month === null)
+                <li>Unlimited scheduled posts</li>
+                @else
+                <li>{{ $plan->max_scheduled_posts_per_month }} scheduled posts / month</li>
+                @endif
+
+                @foreach(array_slice($plan->features ?? [], 0, 4) as $feature)
+                <li>{{ $feature }}</li>
+                @endforeach
+              </ul>
+              <a class="lp-btn {{ $isFeatured ? 'lp-btn--primary' : 'lp-btn--outline' }} lp-pricing-card__cta" href="{{ route('signup') }}">Choose {{ $plan->name }}</a>
             </article>
-            <article class="lp-pricing-card" data-lp-pricing-card data-monthly="79" data-yearly-total="758" data-lp-reveal>
-              <h3 class="lp-pricing-card__name">Scale</h3>
-              <p class="lp-pricing-card__price"><span class="lp-pricing-card__amount"><span class="lp-pricing-card__currency">$</span><span data-lp-price-amount>79</span></span><span class="lp-pricing-card__suffix" data-lp-price-suffix>/ month</span></p>
-              <p class="lp-pricing-card__billing" data-lp-price-billing hidden></p>
-              <ul class="lp-pricing-card__list"><li>30 social profiles</li><li>Team roles &amp; approvals</li><li>Advanced analytics export</li><li>Chat support</li></ul>
-              <a class="lp-btn lp-btn--outline lp-pricing-card__cta" href="{{ route('signup') }}">Choose Scale</a>
-            </article>
+            @empty
             <article class="lp-pricing-card lp-pricing-card--enterprise" data-lp-reveal>
-              <h3 class="lp-pricing-card__name">Enterprise</h3>
-              <p class="lp-pricing-card__price lp-pricing-card__price--static"><span class="lp-pricing-card__amount">Custom</span></p>
-              <ul class="lp-pricing-card__list"><li>Unlimited profiles &amp; workspaces</li><li>SSO &amp; audit logs</li><li>SLA &amp; dedicated support</li><li>Custom integrations</li></ul>
-              <a class="lp-btn lp-btn--outline lp-pricing-card__cta" href="{{ route('signup') }}">Contact sales</a>
+              <h3 class="lp-pricing-card__name">No plans configured</h3>
+              <p class="lp-pricing-card__price lp-pricing-card__price--static"><span class="lp-pricing-card__amount">Contact admin</span></p>
+              <ul class="lp-pricing-card__list"><li>Ask an admin to create active plans from the dashboard.</li></ul>
+              <a class="lp-btn lp-btn--outline lp-pricing-card__cta" href="{{ route('signup') }}">Create account</a>
             </article>
+            @endforelse
           </div>
-          <p class="lp-pricing__note" data-lp-reveal>Figures are illustrative for this demo. Final billing is configured in the app.</p>
+          <p class="lp-pricing__note" data-lp-reveal>Plans are loaded from admin configuration.</p>
         </div>
       </section>
 

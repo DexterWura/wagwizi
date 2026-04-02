@@ -36,6 +36,9 @@
                 @if(!$plan->is_active)
                   <span class="badge badge--muted">Inactive</span>
                 @endif
+                @if($plan->is_free)
+                  <span class="badge badge--info">Free</span>
+                @endif
               </div>
               <div class="card__body">
                 <form method="POST" action="{{ route('admin.plans.update', $plan->id) }}">
@@ -94,6 +97,13 @@
                         <input type="hidden" name="is_active" value="0" />
                         <input type="checkbox" name="is_active" value="1" {{ $plan->is_active ? 'checked' : '' }} />
                         <span>Active</span>
+                      </label>
+                    </div>
+                    <div class="field">
+                      <label class="check-line">
+                        <input type="hidden" name="is_free" value="0" />
+                        <input type="checkbox" name="is_free" value="1" {{ $plan->is_free ? 'checked' : '' }} />
+                        <span>Free tier (upgrade CTA hidden for paid plans)</span>
                       </label>
                     </div>
                     <div class="field">
@@ -176,6 +186,13 @@
                   <input type="hidden" name="is_active" value="0" />
                   <input type="checkbox" name="is_active" value="1" checked />
                   <span>Active</span>
+                </label>
+              </div>
+              <div class="field">
+                <label class="check-line">
+                  <input type="hidden" name="is_free" value="0" />
+                  <input type="checkbox" name="is_free" value="1" />
+                  <span>Free tier</span>
                 </label>
               </div>
               <div class="field">

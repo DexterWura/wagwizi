@@ -23,8 +23,9 @@ class PageController extends Controller
         $registry = app(PlatformRegistry::class);
         $enabledPlatforms = $registry->enabledPlatforms();
         $testimonials = Testimonial::active()->ordered()->get();
+        $plans = Plan::active()->get();
 
-        return view('index', compact('enabledPlatforms', 'testimonials'));
+        return view('index', compact('enabledPlatforms', 'testimonials', 'plans'));
     }
 
     public function dashboard(): View

@@ -62,7 +62,7 @@
             </div>
             <div class="stat-card">
               <div class="stat-card__label">Top channel</div>
-              <div class="stat-card__value">{{ $audienceInsights->leadingPlatform['label'] ?? '—' }}</div>
+              <div class="stat-card__value">{{ data_get($audienceInsights->leadingPlatform, 'label', '—') }}</div>
               <p class="field__hint stat-card__hint">Strongest signal in range</p>
             </div>
           </div>

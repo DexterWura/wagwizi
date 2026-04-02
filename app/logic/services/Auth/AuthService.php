@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
+use App\Services\Subscription\DefaultSubscriptionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -49,6 +50,8 @@ class AuthService
             ]);
 
             Auth::login($user);
+
+            app(DefaultSubscriptionService::class)->assignFreePlanToUser($user);
 
             Log::info('New user registered', ['user_id' => $user->id, 'email' => $email]);
 
@@ -97,6 +100,9 @@ class AuthService
             ]);
 
             Auth::login($user, true);
+
+            app(DefaultSubscriptionService::class)->assignFreePlanToUser($user);
+
             Log::info('New user registered via social auth', [
                 'user_id'  => $user->id,
                 'provider' => $provider,

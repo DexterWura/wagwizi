@@ -2,7 +2,9 @@
 
 namespace App\Services\Installer;
 
+use App\Models\User;
 use App\Services\Cron\CronService;
+use App\Services\Subscription\DefaultSubscriptionService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -187,6 +189,11 @@ class InstallerService
                 'email'      => $email,
                 'created_at' => $now,
             ]));
+        }
+
+        $user = User::where('email', $email)->first();
+        if ($user !== null) {
+            app(DefaultSubscriptionService::class)->assignFreePlanToUser($user);
         }
     }
 

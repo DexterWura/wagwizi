@@ -572,6 +572,9 @@ img {
   border-top: 1px solid var(--border);
   padding: 0.75rem;
   margin-top: auto;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .test-mode {
@@ -668,34 +671,50 @@ img {
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-input);
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .user-chip__avatar {
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: linear-gradient(135deg, #6366f1, #ec4899);
 }
 
+.user-chip > button {
+  flex-shrink: 0;
+}
+
 .user-chip__meta {
-  flex: 1;
+  flex: 1 1 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .user-chip__meta strong {
   display: block;
   font-size: 0.8rem;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .user-chip__meta span {
+  display: block;
   font-size: 0.7rem;
+  line-height: 1.25;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .sidebar-logout {
@@ -753,6 +772,30 @@ img {
   position: sticky;
   top: 0;
   z-index: 50;
+}
+
+.app-topbar__lead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-width: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.app-topbar__hello {
+  font-weight: 500;
+}
+
+.app-topbar__name {
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  max-width: min(14rem, 40vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-topbar__spacer {
@@ -829,26 +872,6 @@ img {
   row-gap: 0.65rem;
 }
 
-.composer-topbar__lead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.35rem;
-  min-width: 0;
-  font-size: 0.9rem;
-  color: var(--text-muted);
-}
-
-.composer-topbar__name {
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: -0.02em;
-}
-
-.composer-topbar__spacer {
-  flex: 1 1 2rem;
-  min-width: 0;
-}
 
 .btn--topbar-upgrade {
   padding: 0.4rem 0.95rem;
@@ -5288,14 +5311,25 @@ button.link-create {
 
 .error-page {
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem;
+  gap: 1.25rem;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1.25rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   background: var(--bg-app);
   color: var(--text);
   font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+.error-page .app-theme-toggle {
+  flex-shrink: 0;
 }
 
 .error-page__container {
@@ -5305,11 +5339,14 @@ button.link-create {
   gap: 2.5rem;
   width: 100%;
   max-width: 440px;
+  min-width: 0;
   text-align: center;
 }
 
 .error-page__card {
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 2.5rem 2rem 2rem;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
@@ -5366,7 +5403,7 @@ button.link-create {
 
 .error-page__code {
   display: block;
-  font-size: 3.5rem;
+  font-size: clamp(2.25rem, 14vw, 3.5rem);
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.04em;
@@ -5375,12 +5412,14 @@ button.link-create {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  word-break: break-word;
 }
 
 .error-page__title {
   margin: 0 0 0.5rem;
-  font-size: 1.35rem;
+  font-size: clamp(1.1rem, 4vw, 1.35rem);
   font-weight: 700;
+  word-wrap: break-word;
 }
 
 .error-page__message {
@@ -5388,14 +5427,40 @@ button.link-create {
   font-size: 0.9rem;
   line-height: 1.55;
   color: var(--text-muted);
+  overflow-wrap: anywhere;
+  word-wrap: break-word;
 }
 
 .error-page__actions {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   gap: 0.75rem;
   flex-wrap: wrap;
+  width: 100%;
+}
+
+.error-page__actions .btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+@media (max-width: 420px) {
+  .error-page__card {
+    padding: 1.5rem 1rem 1.25rem;
+  }
+
+  .error-page__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .error-page__actions .btn {
+    width: 100%;
+    max-width: none;
+  }
 }
 
 .error-page__brand img {
@@ -5465,12 +5530,15 @@ button.link-create {
 
 .status-check__name {
   flex: 1;
+  min-width: 0;
   font-size: 0.875rem;
   font-weight: 500;
   text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .status-check__badge {
+  flex-shrink: 0;
   font-size: 0.75rem;
   font-weight: 600;
   padding: 0.15rem 0.55rem;
@@ -5491,10 +5559,15 @@ button.link-create {
   font-size: 0.78rem;
   color: var(--text-muted);
   margin: 0 0 1.25rem;
+  overflow-wrap: anywhere;
 }
 
 .status-page .error-page__card {
   max-width: 480px;
+}
+
+.status-page .error-page__container {
+  max-width: min(480px, 100%);
 }
 
 .error-page__status-link {

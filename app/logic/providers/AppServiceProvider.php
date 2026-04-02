@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\SiteSetting;
+use App\Models\Timezone;
 use App\Services\Cron\CronService;
 use App\Services\Platform\Adapters\DiscordAdapter;
 use App\Services\Platform\Adapters\FacebookAdapter;
@@ -21,6 +23,7 @@ use App\Services\Post\PostPublishingService;
 use App\Services\SocialAccount\TokenRefreshService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -80,8 +83,54 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->app->booted(function (): void {
+            try {
+                if (Schema::hasTable('site_settings')) {
+                    $name = SiteSetting::get('app_name', config('app.name'));
+                    if (is_string($name) && $name !== '') {
+                        config(['app.name' => $name]);
+                    }
+                }
+            } catch (\Throwable) {
+                // Installer, missing DB, or migrations not run yet.
+            }
+        });
+
         View::composer('*', function ($view) {
             $view->with('appName', config('app.name'));
+
+            $displayTimezonesList = collect();
+            $displayTimezonesMeta = [];
+            $defaultDisplayTimezoneIdentifier = 'UTC';
+
+            try {
+                if (Schema::hasTable('timezones')) {
+                    $list = Timezone::query()->orderBy('identifier')->get();
+                    if ($list->isNotEmpty()) {
+                        $displayTimezonesList = $list;
+                        $displayTimezonesMeta = $list->mapWithKeys(static function (Timezone $tz): array {
+                            return [
+                                $tz->identifier => [
+                                    'code'   => $tz->label_short,
+                                    'name'   => $tz->label_long,
+                                    'symbol' => '',
+                                ],
+                            ];
+                        })->all();
+                        $defaultDisplayTimezoneIdentifier = SiteSetting::get('default_display_timezone', 'UTC');
+                        if (! $list->contains('identifier', $defaultDisplayTimezoneIdentifier)) {
+                            $defaultDisplayTimezoneIdentifier = $list->first()->identifier;
+                        }
+                    }
+                }
+            } catch (\Throwable) {
+                // Installer, missing DB, or migrations not run yet.
+            }
+
+            $view->with('displayTimezonesList', $displayTimezonesList);
+            $view->with('displayTimezonesMeta', $displayTimezonesMeta);
+            $view->with('defaultDisplayTimezoneIdentifier', $defaultDisplayTimezoneIdentifier);
+
             if (str_starts_with($view->name(), 'install.')) {
                 $view->with('currentUser', null);
                 return;

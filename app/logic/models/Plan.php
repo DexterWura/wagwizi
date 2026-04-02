@@ -25,6 +25,7 @@ class Plan extends Model
         'lifetime_max_subscribers',
         'lifetime_current_count',
         'sort_order',
+        'is_free',
     ];
 
     protected function casts(): array
@@ -34,6 +35,7 @@ class Plan extends Model
             'allowed_platforms'  => 'array',
             'is_active'          => 'boolean',
             'is_lifetime'        => 'boolean',
+            'is_free'            => 'boolean',
         ];
     }
 

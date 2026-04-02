@@ -51,6 +51,10 @@
         if (icon) icon.className = t === "light" ? "fa-solid fa-sun" : "fa-solid fa-moon";
       })();
     </script>
+    <script>
+      window.__appDisplayTimezones = @json($displayTimezonesMeta ?? []);
+      window.__appDefaultDisplayTimezone = @json($defaultDisplayTimezoneIdentifier ?? 'UTC');
+    </script>
     <script src="{{ asset('assets/js/app.js') }}"></script>
     @stack('scripts')
   </body>

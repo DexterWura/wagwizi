@@ -128,11 +128,18 @@
     render();
   }
 
-  var DISPLAY_TIMEZONES = {
-    utc: { code: "UTC", name: "Coordinated Universal Time", symbol: "" },
-    est: { code: "EST", name: "Eastern (US)", symbol: "" },
-    cet: { code: "CET", name: "Central European", symbol: "" }
-  };
+  var DISPLAY_TIMEZONES = (function () {
+    var fromServer =
+      typeof global.__appDisplayTimezones === "object" &&
+      global.__appDisplayTimezones &&
+      Object.keys(global.__appDisplayTimezones).length
+        ? global.__appDisplayTimezones
+        : null;
+    if (fromServer) return fromServer;
+    return { UTC: { code: "UTC", name: "Coordinated Universal Time", symbol: "" } };
+  })();
+
+  var LEGACY_DISPLAY_TIMEZONE_KEYS = { utc: "UTC", est: "America/New_York", cet: "Europe/Paris" };
 
   function readStoredTheme() {
     var t = localStorage.getItem(STORAGE.theme) || localStorage.getItem(STORAGE.legacyTheme);
@@ -343,17 +350,25 @@
   }
 
   function readStoredDisplayTimezone() {
+    var def = global.__appDefaultDisplayTimezone || "UTC";
     var k = localStorage.getItem(STORAGE.displayTimezone);
     if (k && DISPLAY_TIMEZONES[k]) return k;
+    if (k && LEGACY_DISPLAY_TIMEZONE_KEYS[k]) {
+      var mapped = LEGACY_DISPLAY_TIMEZONE_KEYS[k];
+      if (DISPLAY_TIMEZONES[mapped]) return mapped;
+    }
     var legacy = localStorage.getItem(STORAGE.legacyDisplayCurrency);
-    if (legacy === "eur") return "cet";
-    if (legacy === "gbp" || legacy === "usd") return "utc";
-    return "utc";
+    if (legacy === "eur" && DISPLAY_TIMEZONES["Europe/Paris"]) return "Europe/Paris";
+    if ((legacy === "gbp" || legacy === "usd") && DISPLAY_TIMEZONES["UTC"]) return "UTC";
+    return DISPLAY_TIMEZONES[def] ? def : Object.keys(DISPLAY_TIMEZONES)[0];
   }
 
   function applyDisplayTimezone(key) {
-    var meta = DISPLAY_TIMEZONES[key] || DISPLAY_TIMEZONES.utc;
-    if (!DISPLAY_TIMEZONES[key]) key = "utc";
+    var def = global.__appDefaultDisplayTimezone || "UTC";
+    if (!DISPLAY_TIMEZONES[key]) {
+      key = DISPLAY_TIMEZONES[def] ? def : Object.keys(DISPLAY_TIMEZONES)[0];
+    }
+    var meta = DISPLAY_TIMEZONES[key];
     document.documentElement.setAttribute("data-app-timezone", key);
     try {
       localStorage.setItem(STORAGE.displayTimezone, key);
@@ -389,38 +404,42 @@
   }
 
   function initDisplayTimezone() {
-    var wrap = document.querySelector("[data-app-timezone-wrap]");
-    if (!wrap) return;
+    var wraps = document.querySelectorAll("[data-app-timezone-wrap]");
+    if (!wraps.length) return;
 
     applyDisplayTimezone(readStoredDisplayTimezone());
 
-    var trigger = wrap.querySelector("[data-app-timezone-trigger]");
-    var menu = wrap.querySelector("[data-app-timezone-menu]");
-    if (!trigger || !menu) return;
+    wraps.forEach(function (wrap) {
+      var trigger = wrap.querySelector("[data-app-timezone-trigger]");
+      var menu = wrap.querySelector("[data-app-timezone-menu]");
+      if (!trigger || !menu) return;
 
-    trigger.addEventListener("click", function (e) {
-      e.stopPropagation();
-      e.preventDefault();
-      if (wrap.classList.contains("is-open")) closeTimezoneMenu(wrap);
-      else {
-        document.querySelectorAll("[data-app-timezone-wrap].is-open").forEach(function (w) {
-          if (w !== wrap) closeTimezoneMenu(w);
+      trigger.addEventListener("click", function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        if (wrap.classList.contains("is-open")) closeTimezoneMenu(wrap);
+        else {
+          document.querySelectorAll("[data-app-timezone-wrap].is-open").forEach(function (w) {
+            if (w !== wrap) closeTimezoneMenu(w);
+          });
+          openTimezoneMenu(wrap);
+        }
+      });
+
+      menu.querySelectorAll("[data-app-timezone-option]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var v = btn.getAttribute("data-value");
+          if (v) applyDisplayTimezone(v);
+          closeTimezoneMenu(wrap);
         });
-        openTimezoneMenu(wrap);
-      }
-    });
-
-    menu.querySelectorAll("[data-app-timezone-option]").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        var v = btn.getAttribute("data-value");
-        if (v) applyDisplayTimezone(v);
-        closeTimezoneMenu(wrap);
       });
     });
 
     document.addEventListener("click", function (e) {
-      if (wrap.contains(e.target)) return;
-      closeTimezoneMenu(wrap);
+      document.querySelectorAll("[data-app-timezone-wrap].is-open").forEach(function (wrap) {
+        if (wrap.contains(e.target)) return;
+        closeTimezoneMenu(wrap);
+      });
     });
   }
 

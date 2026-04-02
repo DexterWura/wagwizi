@@ -64,6 +64,22 @@
                     <p class="field__hint">When disabled, new users cannot sign up.</p>
                   </div>
                 </div>
+                @if($timezonesForSelect->isNotEmpty())
+                <div class="card">
+                  <div class="card__head">Schedules &amp; reports</div>
+                  <div class="card__body">
+                    <div class="field">
+                      <label class="field__label" for="default_display_timezone">Default display timezone</label>
+                      <select class="input" id="default_display_timezone" name="default_display_timezone" required>
+                        @foreach($timezonesForSelect as $tz)
+                          <option value="{{ $tz->identifier }}" {{ ($settings['default_display_timezone'] ?? 'UTC') === $tz->identifier ? 'selected' : '' }}>{{ $tz->identifier }}</option>
+                        @endforeach
+                      </select>
+                      <p class="field__hint">Initial choice for the top-bar timezone picker when no preference is stored in the browser.</p>
+                    </div>
+                  </div>
+                </div>
+                @endif
               </div>
             </div>
             <div class="admin-form-footer">
