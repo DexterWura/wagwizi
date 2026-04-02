@@ -17,7 +17,12 @@
               <div class="page-head__actions">
                 <form method="POST" action="{{ route('admin.migrations.run') }}" class="inline-form">
                   @csrf
-                  <button class="btn btn--primary" type="submit" onclick="return confirm('Run all pending migrations?')">Run All Pending</button>
+                  <button
+                    class="btn btn--primary"
+                    type="submit"
+                    @if($pendingMigrationsCount === 0) disabled aria-disabled="true" title="No pending migrations"@endif
+                    @if($pendingMigrationsCount > 0) onclick="return confirm('Run all pending migrations?')"@endif
+                  >Run All Pending</button>
                 </form>
                 <form method="POST" action="{{ route('admin.migrations.rollback') }}" class="inline-form">
                   @csrf

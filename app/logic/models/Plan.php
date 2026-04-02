@@ -26,6 +26,8 @@ class Plan extends Model
         'lifetime_current_count',
         'sort_order',
         'is_free',
+        'has_free_trial',
+        'free_trial_days',
     ];
 
     protected function casts(): array
@@ -36,6 +38,8 @@ class Plan extends Model
             'is_active'          => 'boolean',
             'is_lifetime'        => 'boolean',
             'is_free'            => 'boolean',
+            'has_free_trial'     => 'boolean',
+            'free_trial_days'    => 'integer',
         ];
     }
 
@@ -89,5 +93,16 @@ class Plan extends Model
         }
 
         return $this->lifetime_current_count >= $this->lifetime_max_subscribers;
+    }
+
+    public function freeTrialSummary(): ?string
+    {
+        if (!$this->has_free_trial || $this->free_trial_days === null || $this->free_trial_days < 1) {
+            return null;
+        }
+
+        $d = (int) $this->free_trial_days;
+
+        return $d === 1 ? '1-day free trial' : "{$d}-day free trial";
     }
 }

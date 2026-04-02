@@ -76,7 +76,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/settings/default-time',  [SettingsController::class, 'updateDefaultTime'])->name('settings.default-time');
     Route::post('/settings/ai',            [SettingsController::class, 'updateAiSettings'])->name('settings.ai');
 
-    Route::post('/support-tickets',  [SupportTicketController::class, 'store'])->name('support-tickets.store');
+    Route::get('/support-tickets',        [SupportTicketController::class, 'index'])->name('support-tickets.index');
+    Route::get('/support-tickets/{id}',   [SupportTicketController::class, 'show'])->name('support-tickets.show')->whereNumber('id');
+    Route::post('/support-tickets/{id}/reply', [SupportTicketController::class, 'reply'])->name('support-tickets.reply')->whereNumber('id');
+    Route::post('/support-tickets',       [SupportTicketController::class, 'store'])->name('support-tickets.store');
 
     Route::get('/notifications',      [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read', [NotificationController::class, 'markAllRead'])->name('notifications.read');
@@ -121,6 +124,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/settings',             [AdminController::class, 'settings'])->name('settings');
         Route::post('/settings',            [AdminController::class, 'updateSettings'])->name('settings.update');
+        Route::post('/settings/clear-cache', [AdminController::class, 'clearSiteCache'])->name('settings.clear-cache');
 
         Route::get('/migrations',           [AdminController::class, 'migrations'])->name('migrations');
         Route::post('/migrations/run',      [AdminController::class, 'runMigrations'])->name('migrations.run');

@@ -30,10 +30,22 @@
               <i class="fa-solid fa-moon" data-app-theme-icon aria-hidden="true"></i>
               <span class="app-theme-toggle__label" data-app-theme-label>Dark</span>
             </button>
-            <button type="button" class="app-topbar__account" aria-label="Account menu">
-              <span class="app-topbar__avatar" aria-hidden="true"></span>
-              <i class="fa-solid fa-chevron-down fa-xs" aria-hidden="true"></i>
-            </button>
+            <div class="app-topbar__account-wrap" data-app-account-wrap>
+              <button type="button" class="app-topbar__account" data-app-account-trigger aria-label="Account menu" aria-haspopup="menu" aria-expanded="false" id="app-topbar-account-trigger">
+                <span class="app-topbar__avatar" aria-hidden="true"></span>
+                <i class="fa-solid fa-chevron-down fa-xs app-topbar__account-chev" aria-hidden="true"></i>
+              </button>
+              <nav class="app-topbar-account-menu" data-app-account-menu id="app-topbar-account-menu" role="menu" aria-labelledby="app-topbar-account-trigger" hidden>
+                <a class="app-topbar-account-menu__link" role="menuitem" href="{{ route('profile') }}">
+                  <i class="fa-solid fa-user fa-fw" aria-hidden="true"></i>
+                  Manage profile
+                </a>
+                <a class="app-topbar-account-menu__link" role="menuitem" href="{{ route('settings') }}">
+                  <i class="fa-solid fa-gear fa-fw" aria-hidden="true"></i>
+                  Settings
+                </a>
+              </nav>
+            </div>
           </div>
         </header>
 @endsection

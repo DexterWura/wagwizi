@@ -20,6 +20,9 @@
           @if(session('success'))
             <div class="alert alert--success">{{ session('success') }}</div>
           @endif
+          @if(session('error'))
+            <div class="alert alert--danger">{{ session('error') }}</div>
+          @endif
 
           <form method="POST" action="{{ route('admin.settings.update') }}">
             @csrf
@@ -114,5 +117,18 @@
               <button class="btn btn--primary" type="submit">Save settings</button>
             </div>
           </form>
+
+          <div class="card admin-settings-cache-card">
+            <div class="card__head">Cache</div>
+            <div class="card__body">
+              <p class="field__hint">Runs <code>php artisan optimize:clear</code> — clears application cache, compiled views, route and config cache, and related caches. Use after deploys or if the app feels stale.</p>
+              <form method="POST" action="{{ route('admin.settings.clear-cache') }}" class="inline-form">
+                @csrf
+                <button type="submit" class="btn btn--outline" onclick="return confirm('Clear all application caches?');">
+                  <i class="fa-solid fa-broom" aria-hidden="true"></i> Clear site cache
+                </button>
+              </form>
+            </div>
+          </div>
         </main>
 @endsection

@@ -39,6 +39,9 @@
                 @if($plan->is_free)
                   <span class="badge badge--info">Free</span>
                 @endif
+                @if($plan->freeTrialSummary())
+                  <span class="badge badge--success">{{ $plan->free_trial_days }}d trial</span>
+                @endif
               </div>
               <div class="card__body">
                 <form method="POST" action="{{ route('admin.plans.update', $plan->id) }}">
@@ -105,6 +108,18 @@
                         <input type="checkbox" name="is_free" value="1" {{ $plan->is_free ? 'checked' : '' }} />
                         <span>Free tier (upgrade CTA hidden for paid plans)</span>
                       </label>
+                    </div>
+                    <div class="field">
+                      <label class="check-line">
+                        <input type="hidden" name="has_free_trial" value="0" />
+                        <input type="checkbox" name="has_free_trial" value="1" {{ $plan->has_free_trial ? 'checked' : '' }} />
+                        <span>Offers a free trial</span>
+                      </label>
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="free-trial-days-{{ $plan->id }}">Trial length (days)</label>
+                      <input class="input input--sm" id="free-trial-days-{{ $plan->id }}" name="free_trial_days" type="number" min="1" max="366" value="{{ $plan->free_trial_days }}" placeholder="e.g. 14" />
+                      <p class="field__hint">Required when free trial is enabled.</p>
                     </div>
                     <div class="field">
                       <label class="check-line">
@@ -194,6 +209,17 @@
                   <input type="checkbox" name="is_free" value="1" />
                   <span>Free tier</span>
                 </label>
+              </div>
+              <div class="field">
+                <label class="check-line">
+                  <input type="hidden" name="has_free_trial" value="0" />
+                  <input type="checkbox" name="has_free_trial" value="1" />
+                  <span>Offers a free trial</span>
+                </label>
+              </div>
+              <div class="field">
+                <label class="field__label" for="modal-free-trial-days">Trial length (days)</label>
+                <input class="input" id="modal-free-trial-days" name="free_trial_days" type="number" min="1" max="366" placeholder="e.g. 14" />
               </div>
               <div class="field">
                 <label class="check-line">

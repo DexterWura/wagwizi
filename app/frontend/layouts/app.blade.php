@@ -13,6 +13,15 @@
         document.documentElement.setAttribute("data-theme", t);
       })();
     </script>
+    <script>
+      (function () {
+        try {
+          if (sessionStorage.getItem("appNavPending")) {
+            document.documentElement.classList.add("app-nav-loading");
+          }
+        } catch (e) {}
+      })();
+    </script>
     <title>@yield('title', config('app.name'))</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -22,6 +31,12 @@
     @stack('styles')
   </head>
   <body class="app" data-app-page="@yield('page-id')">
+    <div class="app-nav-preloader" id="app-nav-preloader" role="status" aria-live="polite" aria-hidden="true">
+      <div class="app-nav-preloader__inner">
+        <div class="app-nav-preloader__orbit" aria-hidden="true"></div>
+        <span class="app-nav-preloader__text">Loading…</span>
+      </div>
+    </div>
     <div class="app-overlay" id="app-drawer-overlay" data-app-drawer-overlay aria-hidden="true"></div>
     <div class="app-shell">
       @include('app-sidebar', ['activePage' => View::yieldContent('page-id')])

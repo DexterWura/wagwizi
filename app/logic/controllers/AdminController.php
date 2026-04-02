@@ -116,12 +116,18 @@ class AdminController extends Controller
             'is_lifetime'                   => 'boolean',
             'lifetime_max_subscribers'      => 'nullable|integer|min:1',
             'sort_order'                    => 'integer|min:0',
+            'has_free_trial'                => 'boolean',
+            'free_trial_days'               => ['nullable', 'integer', 'min:1', 'max:366', Rule::requiredIf(fn () => $request->boolean('has_free_trial'))],
         ]);
 
         $validated['features'] = $this->parseFeaturesList($validated['features'] ?? null);
         $validated['is_active'] = $request->boolean('is_active');
         $validated['is_free'] = $request->boolean('is_free');
         $validated['is_lifetime'] = $request->boolean('is_lifetime');
+        $validated['has_free_trial'] = $request->boolean('has_free_trial');
+        if (!$validated['has_free_trial']) {
+            $validated['free_trial_days'] = null;
+        }
 
         Plan::create($validated);
 
@@ -148,12 +154,18 @@ class AdminController extends Controller
             'is_lifetime'                   => 'boolean',
             'lifetime_max_subscribers'      => 'nullable|integer|min:1',
             'sort_order'                    => 'integer|min:0',
+            'has_free_trial'                => 'boolean',
+            'free_trial_days'               => ['nullable', 'integer', 'min:1', 'max:366', Rule::requiredIf(fn () => $request->boolean('has_free_trial'))],
         ]);
 
         $validated['features'] = $this->parseFeaturesList($validated['features'] ?? null);
         $validated['is_active'] = $request->boolean('is_active');
         $validated['is_free'] = $request->boolean('is_free');
         $validated['is_lifetime'] = $request->boolean('is_lifetime');
+        $validated['has_free_trial'] = $request->boolean('has_free_trial');
+        if (!$validated['has_free_trial']) {
+            $validated['free_trial_days'] = null;
+        }
 
         if (!$request->has('allowed_platforms')) {
             $validated['allowed_platforms'] = null;
@@ -431,8 +443,9 @@ class AdminController extends Controller
     {
         $service    = app(MigrationService::class);
         $migrations = $service->getAllMigrations();
+        $pendingMigrationsCount = collect($migrations)->where('ran', false)->count();
 
-        return view('admin.migrations', compact('migrations'));
+        return view('admin.migrations', compact('migrations', 'pendingMigrationsCount'));
     }
 
     public function runMigrations(Request $request): RedirectResponse
@@ -597,5 +610,10 @@ class AdminController extends Controller
         }
 
         return back()->with('success', 'Application caches cleared (config, routes, views, compiled files, events, cache).');
+    }
+
+    public function clearSiteCache(): RedirectResponse
+    {
+        return $this->clearApplicationCache();
     }
 }

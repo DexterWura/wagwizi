@@ -12,11 +12,25 @@
     </button>
   </div>
   <div class="app-sidebar__search">
-    <label class="search-field">
-      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-      <input type="search" data-app-search-input placeholder="Search…" autocomplete="off" aria-label="Search pages and settings. Keyboard shortcut Control K or Command K." />
-      <kbd title="Focus search: ⌘K on Mac, Ctrl+K on Windows or Linux">⌘K</kbd>
-    </label>
+    <div class="app-sidebar-search-wrap" data-app-sidebar-search>
+      <label class="search-field">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <input
+          type="search"
+          id="app-sidebar-search-input"
+          data-app-search-input
+          placeholder="Search pages…"
+          autocomplete="off"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-controls="app-sidebar-search-results"
+          aria-expanded="false"
+          aria-label="Search pages and settings. Keyboard shortcut Control K or Command K."
+        />
+        <kbd title="Focus search: ⌘K on Mac, Ctrl+K on Windows or Linux">⌘K</kbd>
+      </label>
+      <div class="app-sidebar-search-results" id="app-sidebar-search-results" role="listbox" hidden data-app-sidebar-search-results></div>
+    </div>
   </div>
   <nav class="nav-scroll" aria-label="Main">
     <a class="nav-link {{ $activePage === 'dashboard-home' ? 'nav-link--active' : '' }}" href="{{ route('dashboard') }}">
@@ -46,6 +60,7 @@
       <div class="nav-group__label"><span class="nav-group__dot nav-group__dot--account"></span> Account</div>
       <a class="nav-link nav-link--sub {{ $activePage === 'profile' ? 'nav-link--active' : '' }}" href="{{ route('profile') }}"><i class="fa-solid fa-user fa-fw" aria-hidden="true"></i>Profile</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'settings' ? 'nav-link--active' : '' }}" href="{{ route('settings') }}"><i class="fa-solid fa-gear fa-fw" aria-hidden="true"></i> Settings</a>
+      <a class="nav-link nav-link--sub {{ $activePage === 'support-tickets' ? 'nav-link--active' : '' }}" href="{{ route('support-tickets.index') }}"><i class="fa-solid fa-ticket fa-fw" aria-hidden="true"></i>Support tickets</a>
     </div>
     @if($currentUser?->isSuperAdmin())
     <div class="nav-group">

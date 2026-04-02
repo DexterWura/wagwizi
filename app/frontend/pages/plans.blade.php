@@ -31,7 +31,7 @@
             <div class="card__body">
               <div class="plan-current-banner" role="status" aria-live="polite">
                 <i class="fa-solid fa-crown" aria-hidden="true"></i>
-                <span>Your workspace is on <strong data-app-plan-label>{{ $currentSubscription?->planModel?->name ?? 'No plan' }}</strong>.</span>
+                <span>You are currently on <strong data-app-plan-label>{{ $currentSubscription?->planModel?->name ?? 'No plan' }}</strong>.</span>
               </div>
               <p class="plan-status-msg" data-app-plan-status role="status" aria-live="polite"></p>
             </div>
@@ -54,6 +54,9 @@
               @endif
               <h2 class="plan-card__name">{{ $plan->name }}</h2>
               <span class="plan-card__price">{{ $price }} @if($plan->monthly_price_cents !== null)<span class="plan-card__cycle">/ month</span>@endif</span>
+              @if($plan->freeTrialSummary())
+              <p class="plan-card__trial"><i class="fa-solid fa-gift" aria-hidden="true"></i> {{ $plan->freeTrialSummary() }}</p>
+              @endif
               @if(is_array($plan->features))
               <ul class="plan-card__list">
                 @foreach($plan->features as $feature)

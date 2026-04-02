@@ -27,7 +27,24 @@ class PageController extends Controller
         $plans = Plan::active()->get();
         $faqs = Faq::active()->ordered()->get();
 
-        return view('index', compact('enabledPlatforms', 'testimonials', 'plans', 'faqs'));
+        $heroHeading = trim((string) SiteSetting::get('hero_heading', ''));
+        if ($heroHeading === '') {
+            $heroHeading = 'Your agentic social media scheduling tool';
+        }
+
+        $heroSubheading = trim((string) SiteSetting::get('hero_subheading', ''));
+        if ($heroSubheading === '') {
+            $heroSubheading = 'One workspace to compose, preview every network, schedule with drag-and-drop, and ship with confidence — powered by the same polished app UI you already use.';
+        }
+
+        return view('index', compact(
+            'enabledPlatforms',
+            'testimonials',
+            'plans',
+            'faqs',
+            'heroHeading',
+            'heroSubheading'
+        ));
     }
 
     public function dashboard(): View

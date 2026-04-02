@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{{ config('app.name') }} — Your agentic social media scheduling tool</title>
-    <meta name="description" content="Plan, publish, and grow across every channel — composer, calendar, AI assist, and previews in one workspace." />
+    <title>{{ $heroHeading }} — {{ config('app.name') }}</title>
+    <meta name="description" content="{{ \Illuminate\Support\Str::limit($heroSubheading, 160) }}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
@@ -52,10 +52,8 @@
         <div class="lp-hero__bg" aria-hidden="true"></div>
         <div class="lp-hero__inner">
           <p class="lp-hero__eyebrow" data-lp-reveal><i class="fa-solid fa-sparkles" aria-hidden="true"></i> Social OS</p>
-          <h1 data-lp-reveal>Your agentic social media scheduling tool</h1>
-          <p class="lp-hero__sub" data-lp-reveal>
-            One workspace to compose, preview every network, schedule with drag-and-drop, and ship with confidence — powered by the same polished app UI you already use.
-          </p>
+          <h1 data-lp-reveal>{{ $heroHeading }}</h1>
+          <p class="lp-hero__sub" data-lp-reveal>{{ $heroSubheading }}</p>
           <div class="lp-hero__icons" data-lp-reveal>
             @foreach($enabledPlatforms as $platform)
             <span class="lp-float"><i class="{{ $platform->icon() }}" aria-hidden="true"></i></span>
@@ -263,6 +261,9 @@
                 <span class="lp-pricing-card__suffix" data-lp-price-suffix>/ month</span>
               </p>
               <p class="lp-pricing-card__billing" data-lp-price-billing hidden></p>
+              @if($plan->freeTrialSummary())
+              <p class="lp-pricing-card__trial"><i class="fa-solid fa-gift" aria-hidden="true"></i> {{ $plan->freeTrialSummary() }}</p>
+              @endif
               <ul class="lp-pricing-card__list">
                 @if($plan->max_social_profiles === null)
                 <li>Unlimited social profiles</li>
