@@ -60,8 +60,12 @@
             @endforeach
           </div>
           <div class="lp-hero__cta" data-lp-reveal>
+            @auth
+            <a class="lp-btn lp-btn--primary lp-btn--lg" href="{{ route('composer') }}">Create a post</a>
+            @else
             <a class="lp-btn lp-btn--primary lp-btn--lg" href="{{ route('signup') }}">Get started</a>
             <a class="lp-btn lp-btn--ghost lp-btn--lg" href="{{ route('login') }}">Sign in</a>
+            @endauth
           </div>
 
           @php

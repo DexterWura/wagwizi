@@ -17,6 +17,8 @@ enum Platform: string
     case WordPress      = 'wordpress';
     case GoogleBusiness = 'google_business';
     case Discord        = 'discord';
+    case Bluesky        = 'bluesky';
+    case WhatsappChannels = 'whatsapp_channels';
 
     public function label(): string
     {
@@ -34,6 +36,8 @@ enum Platform: string
             self::WordPress      => 'WordPress',
             self::GoogleBusiness => 'Google Business',
             self::Discord        => 'Discord',
+            self::Bluesky          => 'Bluesky',
+            self::WhatsappChannels => 'WhatsApp Channels',
         };
     }
 
@@ -53,6 +57,8 @@ enum Platform: string
             self::WordPress      => 'fa-brands fa-wordpress',
             self::GoogleBusiness => 'fa-brands fa-google',
             self::Discord        => 'fa-brands fa-discord',
+            self::Bluesky          => 'fa-brands fa-bluesky',
+            self::WhatsappChannels => 'fa-brands fa-whatsapp',
         };
     }
 
@@ -72,11 +78,19 @@ enum Platform: string
             self::WordPress      => 'Publish blog posts via the REST API using an Application Password.',
             self::GoogleBusiness => 'Post updates to your Google Business Profile listing.',
             self::Discord        => 'Send messages to a channel via a webhook URL.',
+            self::Bluesky          => 'Sign in with your handle and an App Password from Bluesky Settings.',
+            self::WhatsappChannels => 'Use a WhatsApp Cloud API token, your Phone number ID, and the Channel or recipient ID used as the API "to" field.',
         };
     }
 
     public function usesOAuth(): bool
     {
-        return !in_array($this, [self::Telegram, self::WordPress, self::Discord]);
+        return !in_array($this, [
+            self::Telegram,
+            self::WordPress,
+            self::Discord,
+            self::Bluesky,
+            self::WhatsappChannels,
+        ]);
     }
 }

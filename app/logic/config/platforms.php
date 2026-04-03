@@ -159,4 +159,25 @@ return [
         'rate_limit'         => 30,
     ],
 
+    'bluesky' => [
+        'enabled'            => true,
+        'service_host'       => env('BLUESKY_SERVICE_HOST', 'https://bsky.social'),
+        'max_content_length' => 300,
+        'supports_images'    => true,
+        'supports_video'     => false,
+        'supports_carousel'  => true,
+        'rate_limit'         => 50,
+    ],
+
+    'whatsapp_channels' => [
+        'enabled'              => true,
+        'graph_api_version'    => env('WHATSAPP_GRAPH_API_VERSION', 'v21.0'),
+        'max_content_length'   => 4096,
+        'max_caption_length'   => 1024,
+        'supports_images'      => true,
+        'supports_video'       => true,
+        'supports_carousel'    => false,
+        'rate_limit'           => 80,
+    ],
+
 ];

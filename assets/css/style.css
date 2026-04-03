@@ -4957,6 +4957,14 @@ button.link-create {
   border-left: 3px solid #0a66c2;
 }
 
+.calendar-post-pill--bl {
+  border-left: 3px solid #0085ff;
+}
+
+.calendar-post-pill--wh {
+  border-left: 3px solid #25d366;
+}
+
 .calendar-queue {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -7265,6 +7273,36 @@ button.link-create {
 
 .app-content--admin-subs .admin-table {
   font-size: 0.82rem;
+}
+
+.admin-analytics-filters .card__body {
+  padding-top: 0.75rem;
+}
+
+.admin-analytics-period {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+}
+
+.admin-analytics-period i {
+  margin-right: 0.35rem;
+  opacity: 0.85;
+}
+
+.admin-analytics-custom-dates {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.admin-analytics-custom-dates--hidden {
+  display: none;
+}
+
+.admin-analytics-footnote {
+  margin: 0.75rem 0 0;
+  font-size: 0.78rem;
 }
 
 @media (max-width: 640px) {

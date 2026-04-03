@@ -6,6 +6,7 @@ use App\Models\Plan;
 use App\Models\SiteSetting;
 use App\Models\Timezone;
 use App\Services\Cron\CronService;
+use App\Services\Platform\Adapters\BlueskyAdapter;
 use App\Services\Platform\Adapters\DiscordAdapter;
 use App\Services\Platform\Adapters\FacebookAdapter;
 use App\Services\Platform\Adapters\GoogleBusinessAdapter;
@@ -18,6 +19,7 @@ use App\Services\Platform\Adapters\ThreadsAdapter;
 use App\Services\Platform\Adapters\TikTokAdapter;
 use App\Services\Platform\Adapters\TwitterAdapter;
 use App\Services\Platform\Adapters\WordPressAdapter;
+use App\Services\Platform\Adapters\WhatsAppChannelsAdapter;
 use App\Services\Platform\Adapters\YouTubeAdapter;
 use App\Services\Platform\PlatformRegistry;
 use App\Services\Post\PostPublishingService;
@@ -59,6 +61,8 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new WordPressAdapter());
             $registry->register(new GoogleBusinessAdapter());
             $registry->register(new DiscordAdapter());
+            $registry->register(new BlueskyAdapter());
+            $registry->register(new WhatsAppChannelsAdapter());
 
             return $registry;
         });

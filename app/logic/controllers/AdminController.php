@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Jobs\PublishPostCommentJob;
 use App\Jobs\PublishPostToPlatformJob;
 use App\Jobs\QueueTemplatedEmailForUserJob;
+use App\Services\Admin\AdminAnalyticsService;
 use App\Services\Admin\MigrationService;
 use App\Services\Admin\PlanAdminValidationService;
 use App\Services\Admin\PaymentTransactionListService;
@@ -776,6 +777,14 @@ class AdminController extends Controller
         $cfg->save($current);
 
         return back()->with('success', 'Payment gateway settings saved.');
+    }
+
+    public function analytics(Request $request, AdminAnalyticsService $analytics): View
+    {
+        $report = $analytics->build($request);
+        $plans = Plan::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'slug']);
+
+        return view('admin.analytics', compact('report', 'plans'));
     }
 
     public function subscriptionsDashboard(SubscriptionInsightsService $insights): View

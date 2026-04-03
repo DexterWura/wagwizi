@@ -162,6 +162,87 @@ class AccountLinkingService
     /**
      * Store a Discord webhook connection (no OAuth — user provides a webhook URL).
      */
+    /**
+     * Bluesky: handle (or email) + App Password. Tokens are JWTs from AT Proto session.
+     */
+    public function linkBluesky(
+        User               $user,
+        string             $identifier,
+        string             $did,
+        string             $handle,
+        string             $accessJwt,
+        string             $refreshJwt,
+        ?string            $avatarUrl,
+        ?\DateTimeInterface $expiresAt,
+    ): SocialAccount {
+        if (trim($did) === '') {
+            throw new InvalidArgumentException('Bluesky DID cannot be empty.');
+        }
+
+        return $this->linkAccount(
+            user:           $user,
+            platform:       Platform::Bluesky,
+            platformUserId: $did,
+            accessToken:    $accessJwt,
+            refreshToken:   $refreshJwt,
+            username:       $handle,
+            displayName:    $handle,
+            avatarUrl:      $avatarUrl,
+            scopes:         null,
+            expiresAt:      $expiresAt,
+            metadata:       [
+                'identifier' => $identifier,
+            ],
+        );
+    }
+
+    /**
+     * WhatsApp Cloud API: permanent or long-lived token, phone number ID, and API "to" recipient (channel / group / phone).
+     */
+    public function linkWhatsappChannels(
+        User   $user,
+        string $accessToken,
+        string $phoneNumberId,
+        string $channelRecipient,
+        string $recipientType,
+        ?string $displayName = null,
+    ): SocialAccount {
+        $token = trim($accessToken);
+        $phoneId = trim($phoneNumberId);
+        $to = trim($channelRecipient);
+        $recipientType = trim($recipientType);
+
+        if ($token === '') {
+            throw new InvalidArgumentException('Access token cannot be empty.');
+        }
+        if ($phoneId === '') {
+            throw new InvalidArgumentException('Phone number ID cannot be empty.');
+        }
+        if ($to === '') {
+            throw new InvalidArgumentException('Channel or recipient ID cannot be empty.');
+        }
+        if (!in_array($recipientType, ['individual', 'group'], true)) {
+            throw new InvalidArgumentException('Recipient type must be individual or group.');
+        }
+
+        return $this->linkAccount(
+            user:           $user,
+            platform:       Platform::WhatsappChannels,
+            platformUserId: $to,
+            accessToken:    $token,
+            refreshToken:   null,
+            username:       $displayName,
+            displayName:    $displayName ?? $to,
+            avatarUrl:      null,
+            scopes:         null,
+            expiresAt:      null,
+            metadata:       [
+                'phone_number_id' => $phoneId,
+                'recipient_type'  => $recipientType,
+            ],
+        );
+    }
+
     public function linkDiscord(
         User    $user,
         string  $webhookUrl,

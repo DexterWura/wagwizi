@@ -67,6 +67,7 @@
       <div class="nav-group__label"><span class="nav-group__dot nav-group__dot--admin"></span> Super Admin</div>
       <span class="nav-subgroup-label">Commerce &amp; billing</span>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-subscriptions' ? 'nav-link--active' : '' }}" href="{{ route('admin.subscriptions') }}"><i class="fa-solid fa-chart-line fa-fw" aria-hidden="true"></i>Subscriptions</a>
+      <a class="nav-link nav-link--sub {{ $activePage === 'admin-analytics' ? 'nav-link--active' : '' }}" href="{{ route('admin.analytics') }}"><i class="fa-solid fa-chart-pie fa-fw" aria-hidden="true"></i>Analytics</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-payment-gateways' ? 'nav-link--active' : '' }}" href="{{ route('admin.payment-gateways') }}"><i class="fa-solid fa-building-columns fa-fw" aria-hidden="true"></i>Payment gateways</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-payment-transactions' ? 'nav-link--active' : '' }}" href="{{ route('admin.payment-transactions') }}"><i class="fa-solid fa-receipt fa-fw" aria-hidden="true"></i>Transactions</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-plans' ? 'nav-link--active' : '' }}" href="{{ route('admin.plans') }}"><i class="fa-solid fa-layer-group fa-fw" aria-hidden="true"></i>Plans &amp; pricing</a>

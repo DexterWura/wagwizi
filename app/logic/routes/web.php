@@ -74,6 +74,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/accounts/telegram',            [SocialAccountController::class, 'storeTelegram'])->name('accounts.telegram');
     Route::post('/accounts/wordpress',           [SocialAccountController::class, 'storeWordPress'])->name('accounts.wordpress');
     Route::post('/accounts/discord',             [SocialAccountController::class, 'storeDiscord'])->name('accounts.discord');
+    Route::post('/accounts/bluesky',             [SocialAccountController::class, 'storeBluesky'])->name('accounts.bluesky');
+    Route::post('/accounts/whatsapp-channels',   [SocialAccountController::class, 'storeWhatsappChannels'])->name('accounts.whatsapp-channels');
     Route::post('/accounts/{accountId}/disconnect', [SocialAccountController::class, 'disconnect'])->name('accounts.disconnect');
 
     Route::post('/profile',          [ProfileController::class, 'update'])->name('profile.update');
@@ -158,6 +160,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/payment-gateways', [AdminController::class, 'updatePaymentGateways'])->name('payment-gateways.update');
 
         Route::get('/subscriptions', [AdminController::class, 'subscriptionsDashboard'])->name('subscriptions');
+        Route::get('/analytics', [AdminController::class, 'analytics'])->name('analytics');
         Route::get('/payment-transactions', [AdminController::class, 'paymentTransactions'])->name('payment-transactions');
 
         Route::get('/operations',                [AdminController::class, 'operations'])->name('operations');

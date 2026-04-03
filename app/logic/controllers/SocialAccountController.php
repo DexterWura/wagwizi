@@ -2,8 +2,10 @@
 
 namespace App\Controllers;
 
+use App\Services\Platform\Adapters\BlueskyAdapter;
 use App\Services\Platform\Adapters\DiscordAdapter;
 use App\Services\Platform\Adapters\GoogleBusinessAdapter;
+use App\Services\Platform\Adapters\WhatsAppChannelsAdapter;
 use App\Services\Platform\Adapters\WordPressAdapter;
 use App\Services\Platform\Platform;
 use App\Services\Platform\PlatformRegistry;
@@ -46,6 +48,16 @@ class SocialAccountController extends Controller
         if ($platformEnum === Platform::Discord) {
             return redirect()->route('accounts')
                 ->with('info', 'Discord uses webhook URLs. Please add your webhook from the accounts page.');
+        }
+
+        if ($platformEnum === Platform::Bluesky) {
+            return redirect()->route('accounts')
+                ->with('info', 'Bluesky uses your handle and an App Password. Add them from the accounts page.');
+        }
+
+        if ($platformEnum === Platform::WhatsappChannels) {
+            return redirect()->route('accounts')
+                ->with('info', 'WhatsApp Channels uses your Cloud API access token and IDs. Add them from the accounts page.');
         }
 
         $scopes = config("platforms.{$platform}.scopes", []);
@@ -253,6 +265,129 @@ class SocialAccountController extends Controller
     /**
      * Store Discord webhook credentials directly (no OAuth).
      */
+    public function storeBluesky(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'identifier'   => ['required', 'string', 'max:255'],
+            'app_password' => ['required', 'string', 'min:8', 'max:500'],
+        ], [
+            'identifier.required' => 'Enter your Bluesky handle (e.g. you.bsky.social) or account email.',
+        ]);
+
+        $adapter = new BlueskyAdapter();
+        $check = $adapter->validateCredentials($validated['identifier'], $validated['app_password']);
+
+        if (!$check['valid']) {
+            return redirect()->route('accounts')
+                ->with('error', $check['error'] ?? 'Could not sign in to Bluesky.');
+        }
+
+        $existingActive = \App\Models\SocialAccount::where('user_id', Auth::id())
+            ->where('platform', 'bluesky')
+            ->where('platform_user_id', $check['did'])
+            ->where('status', 'active')
+            ->exists();
+
+        if ($existingActive) {
+            return redirect()->route('accounts')
+                ->with('error', 'This Bluesky account is already connected.');
+        }
+
+        try {
+            $this->linkingService->linkBluesky(
+                user:        Auth::user(),
+                identifier:  $validated['identifier'],
+                did:         $check['did'],
+                handle:      $check['handle'],
+                accessJwt:   $check['accessJwt'],
+                refreshJwt:  $check['refreshJwt'],
+                avatarUrl:   $check['avatar'] ?? null,
+                expiresAt:   $check['expiresAt'] ?? null,
+            );
+
+            Log::info('Bluesky account connected', [
+                'user_id' => Auth::id(),
+                'did'     => $check['did'],
+            ]);
+
+            return redirect()->route('accounts')
+                ->with('success', 'Bluesky connected successfully.');
+        } catch (\Exception $e) {
+            Log::error('Bluesky connection failed', [
+                'user_id' => Auth::id(),
+                'error'   => $e->getMessage(),
+            ]);
+            report($e);
+
+            return redirect()->route('accounts')
+                ->with('error', 'Failed to connect Bluesky. Please verify your handle and App Password.');
+        }
+    }
+
+    public function storeWhatsappChannels(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'access_token'       => ['required', 'string', 'min:16'],
+            'phone_number_id'    => ['required', 'string', 'regex:/^\d+$/'],
+            'channel_recipient'  => ['required', 'string', 'max:255'],
+            'recipient_type'     => ['nullable', 'in:individual,group'],
+            'channel_name'       => ['nullable', 'string', 'max:255'],
+        ], [
+            'phone_number_id.regex' => 'Phone number ID must contain digits only (from Meta API Setup).',
+        ]);
+
+        $recipientType = $validated['recipient_type'] ?? 'individual';
+        $channelRecipient = trim($validated['channel_recipient']);
+        $accessToken = trim($validated['access_token']);
+        $phoneNumberId = trim($validated['phone_number_id']);
+
+        $adapter = new WhatsAppChannelsAdapter();
+        $check   = $adapter->validateCredentials($accessToken, $phoneNumberId);
+
+        if (!$check['valid']) {
+            return redirect()->route('accounts')
+                ->with('error', $check['error'] ?? 'Could not verify WhatsApp credentials.');
+        }
+
+        $existingActive = \App\Models\SocialAccount::where('user_id', Auth::id())
+            ->where('platform', 'whatsapp_channels')
+            ->where('platform_user_id', $channelRecipient)
+            ->where('status', 'active')
+            ->exists();
+
+        if ($existingActive) {
+            return redirect()->route('accounts')
+                ->with('error', 'This WhatsApp recipient is already connected.');
+        }
+
+        try {
+            $this->linkingService->linkWhatsappChannels(
+                user:           Auth::user(),
+                accessToken:    $accessToken,
+                phoneNumberId:  $phoneNumberId,
+                channelRecipient: $channelRecipient,
+                recipientType:  $recipientType,
+                displayName:    $validated['channel_name'] ?? null,
+            );
+
+            Log::info('WhatsApp Channels connected', [
+                'user_id' => Auth::id(),
+            ]);
+
+            return redirect()->route('accounts')
+                ->with('success', 'WhatsApp Channels connected successfully.');
+        } catch (\Exception $e) {
+            Log::error('WhatsApp Channels connection failed', [
+                'user_id' => Auth::id(),
+                'error'   => $e->getMessage(),
+            ]);
+            report($e);
+
+            return redirect()->route('accounts')
+                ->with('error', 'Failed to connect WhatsApp. Please verify your token, phone number ID, and recipient.');
+        }
+    }
+
     public function storeDiscord(Request $request): RedirectResponse
     {
         $validated = $request->validate([
