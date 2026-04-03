@@ -548,6 +548,25 @@
     refreshComposerMediaConstraints();
   }
 
+  function syncComposerPreviewVisibility() {
+    var selected = {};
+    document.querySelectorAll('[name="platform_accounts[]"]:checked').forEach(function (cb) {
+      var p = cb.getAttribute("data-platform");
+      if (!p) return;
+      selected[p] = true;
+    });
+
+    document.querySelectorAll("[data-app-composer-preview]").forEach(function (card) {
+      var platform = card.getAttribute("data-platform") || "";
+      var wrap = card.closest(".preview-card");
+      if (!wrap) return;
+      var show = !!selected[platform];
+      wrap.hidden = !show;
+      if (show) wrap.removeAttribute("hidden");
+      else wrap.setAttribute("hidden", "");
+    });
+  }
+
   function buildCommentDelayMinutesPayload() {
     var firstCommentEl = document.getElementById("composer-first-comment");
     var firstComment = firstCommentEl ? (firstCommentEl.value || "").trim() : "";
@@ -599,6 +618,7 @@
       if (live) {
         live.textContent = composerTextForPlatform(composerActiveTabKey(), masterText);
       }
+      syncComposerPreviewVisibility();
       syncComposerPreviewMedia();
     }
     function onInput() {
@@ -1376,8 +1396,26 @@
     var descEl = modal.querySelector("[data-feedback-desc]");
     var iconEl = modal.querySelector("[data-feedback-icon]");
     var calLink = modal.querySelector("[data-feedback-calendar-link]");
+    var actionButtons = document.querySelectorAll("[data-app-composer-action]");
 
-    document.querySelectorAll("[data-app-composer-action]").forEach(function (btn) {
+    function setActionBusy(activeBtn, busy, label) {
+      actionButtons.forEach(function (b) {
+        b.disabled = !!busy;
+      });
+      if (!activeBtn) return;
+      if (!activeBtn.dataset.originalText) {
+        activeBtn.dataset.originalText = activeBtn.textContent || "";
+      }
+      if (busy) {
+        activeBtn.textContent = label || "Working…";
+        activeBtn.classList.add("is-loading");
+      } else {
+        activeBtn.textContent = activeBtn.dataset.originalText || activeBtn.textContent;
+        activeBtn.classList.remove("is-loading");
+      }
+    }
+
+    actionButtons.forEach(function (btn) {
       btn.addEventListener("click", function () {
         var action = btn.getAttribute("data-app-composer-action");
         var content = (document.getElementById("composer-master").value || "").trim();
@@ -1406,9 +1444,8 @@
           return;
         }
 
-        btn.disabled = true;
-
         if (action === "draft") {
+          setActionBusy(btn, true, "Saving draft…");
           if (scheduleWrap) scheduleWrap.hidden = true;
           var draftPayload = {
             content: content,
@@ -1422,7 +1459,7 @@
               ? global.App.apiPut("/api/v1/posts/" + editingDraftId, draftPayload)
               : global.App.apiPost("/api/v1/posts", draftPayload);
           draftReq.then(function (res) {
-            btn.disabled = false;
+            setActionBusy(btn, false);
             if (titleEl) titleEl.textContent = "Draft saved";
             if (res._ok && res.post && res.post.id) {
               global.__composerEditingPostId = res.post.id;
@@ -1440,16 +1477,17 @@
             if (calLink) calLink.setAttribute("hidden", "");
             global.App.openModal("modal-composer-feedback");
           }).catch(function () {
-            btn.disabled = false;
+            setActionBusy(btn, false);
             global.App.showFlash("Network error.", "error");
           });
           return;
         }
 
         if (action === "publish") {
+          setActionBusy(btn, true, "Posting now…");
           if (scheduleWrap) scheduleWrap.hidden = true;
           if (!accounts.length) {
-            btn.disabled = false;
+            setActionBusy(btn, false);
             global.App.showFlash("Select at least one connected account.", "error");
             return;
           }
@@ -1462,7 +1500,7 @@
           var editingPubId = global.__composerEditingPostId;
 
           function finishPublish(pubRes) {
-            btn.disabled = false;
+            setActionBusy(btn, false);
             if (pubRes._ok && typeof global.__composerMarkSaved === "function") global.__composerMarkSaved();
             if (titleEl) titleEl.textContent = pubRes._ok ? "Publishing" : "Publish failed";
             if (descEl) descEl.textContent = pubRes._ok
@@ -1476,26 +1514,26 @@
           if (editingPubId && typeof global.App.apiPut === "function") {
             global.App.apiPut("/api/v1/posts/" + editingPubId, publishPayload).then(function (putRes) {
               if (!putRes._ok || !putRes.post) {
-                btn.disabled = false;
+                setActionBusy(btn, false);
                 global.App.showFlash(parseApiError(putRes, "Could not update post."), "error");
                 return;
               }
               return global.App.apiPost("/api/v1/posts/" + editingPubId + "/publish").then(finishPublish);
             }).catch(function () {
-              btn.disabled = false;
+              setActionBusy(btn, false);
               global.App.showFlash("Network error.", "error");
             });
           } else {
             global.App.apiPost("/api/v1/posts", publishPayload).then(function (res) {
               if (!res._ok || !res.post) {
-                btn.disabled = false;
+                setActionBusy(btn, false);
                 global.App.showFlash(parseApiError(res, "Could not create post."), "error");
                 return;
               }
               var postId = res.post.id;
               return global.App.apiPost("/api/v1/posts/" + postId + "/publish").then(finishPublish);
             }).catch(function () {
-              btn.disabled = false;
+              setActionBusy(btn, false);
               global.App.showFlash("Network error.", "error");
             });
           }
@@ -1503,14 +1541,15 @@
         }
 
         if (action === "schedule") {
+          setActionBusy(btn, true, "Scheduling…");
           if (scheduleWrap && scheduleWrap.hidden) {
-            btn.disabled = false;
+            setActionBusy(btn, false);
             scheduleWrap.hidden = false;
             global.App.showFlash("Set date/time (or delay), then click Schedule again.", "error");
             return;
           }
           if (!accounts.length) {
-            btn.disabled = false;
+            setActionBusy(btn, false);
             global.App.showFlash("Select at least one connected account.", "error");
             return;
           }
@@ -1524,7 +1563,7 @@
           var useDelay = !isNaN(delayValue) && delayValue > 0 && (delayUnit === "minutes" || delayUnit === "hours");
 
           if ((!dateVal || !timeVal) && !useDelay) {
-            btn.disabled = false;
+            setActionBusy(btn, false);
             global.App.showFlash("Pick date/time or set a delay in minutes/hours.", "error");
             return;
           }
@@ -1549,7 +1588,7 @@
             : "/api/v1/posts/schedule";
 
           global.App.apiPost(scheduleUrl, schedulePayload).then(function (schedRes) {
-            btn.disabled = false;
+            setActionBusy(btn, false);
             if (schedRes._ok && typeof global.__composerMarkSaved === "function") global.__composerMarkSaved();
             if (titleEl) titleEl.textContent = schedRes._ok ? "Scheduled" : "Schedule failed";
             if (descEl) descEl.textContent = schedRes._ok
@@ -1564,7 +1603,7 @@
             }
             global.App.openModal("modal-composer-feedback");
           }).catch(function () {
-            btn.disabled = false;
+            setActionBusy(btn, false);
             global.App.showFlash("Network error.", "error");
           });
         }

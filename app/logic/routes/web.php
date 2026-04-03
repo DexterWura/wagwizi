@@ -17,6 +17,7 @@ use App\Controllers\SupportTicketController;
 use App\Controllers\PaynowWebhookController;
 use App\Controllers\PesepayWebhookController;
 use App\Controllers\PlanCheckoutController;
+use App\Controllers\PostController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -64,6 +65,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard',     [PageController::class, 'dashboard'])->name('dashboard');
     Route::get('/composer',      [PageController::class, 'composer'])->name('composer');
     Route::get('/posts',         [PageController::class, 'posts'])->name('posts.index');
+    Route::get('/posts/data',    [PostController::class, 'index'])->name('posts.data');
     Route::get('/calendar',      [PageController::class, 'calendar'])->name('calendar');
     Route::get('/media-library', [PageController::class, 'mediaLibrary'])->name('media-library');
     Route::get('/accounts',      [PageController::class, 'accounts'])->name('accounts');

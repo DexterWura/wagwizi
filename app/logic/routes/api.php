@@ -19,7 +19,7 @@ Route::post('/cron/run', [CronController::class, 'run'])->middleware('throttle:1
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/user', function (\Illuminate\Http\Request $request) {
         $u = $request->user();

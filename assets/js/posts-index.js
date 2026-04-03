@@ -184,7 +184,7 @@
       }
 
       var qs = buildQuery(state);
-      global.App.apiGet("/api/v1/posts?" + qs).then(function (res) {
+      global.App.apiGet("/posts/data?" + qs).then(function (res) {
         setLoading(false);
         if (!res._ok || !res.posts) {
           if (global.App.showFlash) global.App.showFlash(res.error || "Could not load posts.", "error");
