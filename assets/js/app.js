@@ -488,6 +488,13 @@
         }
       });
     });
+
+    document.addEventListener("click", function (e) {
+      document.querySelectorAll("[data-app-account-wrap].is-open").forEach(function (accountWrap) {
+        if (accountWrap.contains(e.target)) return;
+        closeAccountMenu(accountWrap);
+      });
+    });
   }
 
   function initLogout() {

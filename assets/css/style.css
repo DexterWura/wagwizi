@@ -1011,6 +1011,11 @@ html.app-nav-loading .app-nav-preloader {
   gap: 0.15rem;
 }
 
+/* [hidden] must win over `display: flex` above (author CSS overrides UA hidden otherwise). */
+.app-topbar-account-menu[hidden] {
+  display: none;
+}
+
 .app-topbar-account-menu__link {
   display: flex;
   align-items: center;
