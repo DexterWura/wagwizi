@@ -59,9 +59,7 @@
             @foreach($plans as $plan)
             @php
                 $isCurrent = $currentPlanSlug === $plan->slug;
-                $price = $plan->monthly_price_cents !== null
-                    ? '$' . number_format($plan->getMonthlyPriceDollars(), 0)
-                    : 'Custom';
+                $price = $currencyDisplay->formatBaseMinorForDisplay($plan->monthly_price_cents);
             @endphp
             <article class="plan-card{{ $isCurrent ? ' plan-card--current' : '' }}{{ $plan->slug === 'growth' ? ' plan-card--featured' : '' }}" data-plan-id="{{ $plan->slug }}" data-plan-sort="{{ $plan->sort_order }}">
               @if($plan->slug === 'growth')

@@ -6322,6 +6322,13 @@ button.link-create {
   grid-column: 1 / -1;
 }
 
+.admin-exchange-rates {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
 .admin-card-actions {
   display: flex;
   align-items: center;

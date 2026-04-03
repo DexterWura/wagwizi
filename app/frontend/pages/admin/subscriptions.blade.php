@@ -139,7 +139,7 @@
                     <tr>
                       <td>{{ $tx->user?->email ?? '—' }}</td>
                       <td>{{ $tx->plan?->name ?? '—' }}</td>
-                      <td>${{ number_format($tx->amount_cents / 100, 2) }}</td>
+                      <td>{{ strtoupper((string) ($tx->currency ?? 'USD')) }} {{ number_format(($tx->amount_cents ?? 0) / 100, 2) }}</td>
                       <td>{{ $tx->status }}</td>
                     </tr>
                     @endforeach

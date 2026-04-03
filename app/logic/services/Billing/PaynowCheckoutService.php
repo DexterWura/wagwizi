@@ -13,7 +13,8 @@ final class PaynowCheckoutService
 {
     public function __construct(
         private PaynowClientFactory $clientFactory,
-        private SubscriptionFulfillmentService $fulfillment
+        private SubscriptionFulfillmentService $fulfillment,
+        private CurrencyDisplayService $currency
     ) {}
 
     /**
@@ -33,17 +34,25 @@ final class PaynowCheckoutService
 
         $reference = 'PN-' . Str::lower(Str::random(10)) . '-' . $user->id;
 
+        $checkoutCurrency = $this->currency->resolvePaynowCheckoutCurrency();
+        $checkoutMajor    = $this->currency->convertBaseMinorToCurrencyMajor($amountCents, $checkoutCurrency);
+        $chargedMinor      = $this->currency->minorUnitsFromMajor($checkoutMajor);
+
         $transaction = PaymentTransaction::create([
             'user_id'     => $user->id,
             'plan_id'     => $plan->id,
             'gateway'     => 'paynow',
             'reference'   => $reference,
-            'amount_cents'=> $amountCents,
-            'currency'    => 'USD',
+            'amount_cents'=> $chargedMinor,
+            'currency'    => $checkoutCurrency,
             'status'      => 'pending',
+            'meta'        => [
+                'base_amount_cents' => $amountCents,
+                'base_currency'     => $this->currency->baseCurrency(),
+            ],
         ]);
 
-        $amountFloat = round($amountCents / 100, 2);
+        $amountFloat = round($checkoutMajor, 2);
         $payment     = $paynow->createPayment($reference, $user->email);
         $payment->add($plan->name . ' subscription', $amountFloat);
 

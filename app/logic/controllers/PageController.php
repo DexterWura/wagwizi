@@ -8,6 +8,7 @@ use App\Models\SiteSetting;
 use App\Models\Subscription;
 use App\Models\Faq;
 use App\Models\Testimonial;
+use App\Services\Billing\CurrencyDisplayService;
 use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Billing\SubscriptionFulfillmentService;
 use App\Services\Insights\AudienceInsightsService;
@@ -54,6 +55,8 @@ class PageController extends Controller
             $landingFeaturesDeep[]  = $row;
         }
 
+        $currencyDisplay = app(CurrencyDisplayService::class);
+
         return view('index', compact(
             'enabledPlatforms',
             'testimonials',
@@ -62,7 +65,8 @@ class PageController extends Controller
             'heroEyebrow',
             'heroHeading',
             'heroSubheading',
-            'landingFeaturesDeep'
+            'landingFeaturesDeep',
+            'currencyDisplay'
         ));
     }
 
@@ -212,11 +216,14 @@ class PageController extends Controller
             ->values()
             ->all();
 
+        $currencyDisplay = app(CurrencyDisplayService::class);
+
         return view('plans', [
             'currentSubscription'     => $subscription,
             'plans'                   => $plans,
             'paynowCheckoutAvailable' => $gatewayCfg->paynowIsReady(),
             'paidPlanSlugs'           => $paidPlanSlugs,
+            'currencyDisplay'         => $currencyDisplay,
         ]);
     }
 

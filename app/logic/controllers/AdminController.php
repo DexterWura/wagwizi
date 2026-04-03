@@ -18,6 +18,7 @@ use App\Jobs\PublishPostCommentJob;
 use App\Jobs\PublishPostToPlatformJob;
 use App\Services\Admin\MigrationService;
 use App\Services\Admin\SubscriptionInsightsService;
+use App\Services\Billing\CurrencyDisplayService;
 use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Auth\SocialLoginAvailability;
 use App\Services\Platform\Platform;
@@ -102,8 +103,9 @@ class AdminController extends Controller
     {
         $plans = Plan::orderBy('sort_order')->get();
         $enabledPlatforms = SiteSetting::getJson('enabled_platforms', []);
+        $pricingBaseCurrency = app(CurrencyDisplayService::class)->baseCurrency();
 
-        return view('admin.plans', compact('plans', 'enabledPlatforms'));
+        return view('admin.plans', compact('plans', 'enabledPlatforms', 'pricingBaseCurrency'));
     }
 
     public function storePlan(Request $request): RedirectResponse
@@ -623,16 +625,62 @@ class AdminController extends Controller
     public function updatePaymentGateways(Request $request, PaymentGatewayConfigService $cfg): RedirectResponse
     {
         $request->validate([
-            'paynow_enabled'          => 'nullable|boolean',
-            'paynow_integration_id'   => 'nullable|string|max:120',
-            'paynow_integration_key'  => 'nullable|string|max:500',
-            'stripe_enabled'          => 'nullable|boolean',
-            'stripe_publishable_key'  => 'nullable|string|max:200',
-            'stripe_secret_key'       => 'nullable|string|max:200',
-            'stripe_webhook_secret'   => 'nullable|string|max:200',
+            'paynow_enabled'             => 'nullable|boolean',
+            'paynow_integration_id'      => 'nullable|string|max:120',
+            'paynow_integration_key'     => 'nullable|string|max:500',
+            'paynow_accepted_currencies' => 'nullable|string|max:500',
+            'pricing_base_currency'      => 'required|string|size:3',
+            'pricing_default_currency'   => 'required|string|size:3',
+            'exchange_rate_codes'        => 'nullable|array',
+            'exchange_rate_codes.*'      => 'nullable|string|max:3',
+            'exchange_rate_values'       => 'nullable|array',
+            'exchange_rate_values.*'     => 'nullable|numeric',
+            'stripe_enabled'             => 'nullable|boolean',
+            'stripe_publishable_key'     => 'nullable|string|max:200',
+            'stripe_secret_key'          => 'nullable|string|max:200',
+            'stripe_webhook_secret'      => 'nullable|string|max:200',
         ]);
 
         $current = $cfg->all();
+
+        $baseCur = strtoupper(trim((string) $request->input('pricing_base_currency', 'USD')));
+        $defCur  = strtoupper(trim((string) $request->input('pricing_default_currency', 'USD')));
+
+        $rates = [];
+        $codes = $request->input('exchange_rate_codes', []);
+        $values = $request->input('exchange_rate_values', []);
+        if (is_array($codes) && is_array($values)) {
+            foreach ($codes as $i => $codeRaw) {
+                $code = strtoupper(trim((string) $codeRaw));
+                if (strlen($code) !== 3) {
+                    continue;
+                }
+                $valRaw = $values[$i] ?? null;
+                if (! is_numeric($valRaw)) {
+                    continue;
+                }
+                $rates[$code] = max(1e-9, (float) $valRaw);
+            }
+        }
+        $rates[$baseCur] = 1.0;
+
+        $current['pricing'] = [
+            'base_currency'    => $baseCur,
+            'default_currency' => $defCur,
+            'exchange_rates'   => $rates,
+        ];
+
+        $acceptedRaw = (string) $request->input('paynow_accepted_currencies', '');
+        $accepted = [];
+        foreach (preg_split('/[\s,]+/', strtoupper(trim($acceptedRaw)), -1, PREG_SPLIT_NO_EMPTY) as $p) {
+            if (strlen($p) === 3) {
+                $accepted[] = $p;
+            }
+        }
+        if ($accepted === []) {
+            $accepted = ['USD'];
+        }
+        $current['paynow']['accepted_currencies'] = array_values(array_unique($accepted));
 
         $current['paynow']['enabled'] = $request->boolean('paynow_enabled');
         $id = trim((string) $request->input('paynow_integration_id', ''));

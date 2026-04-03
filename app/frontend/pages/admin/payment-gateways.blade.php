@@ -27,6 +27,60 @@
           <form method="POST" action="{{ route('admin.payment-gateways.update') }}" class="admin-gateway-stack">
             @csrf
 
+            @php
+              $pricing = $gateways['pricing'] ?? [];
+              $baseCur = strtoupper($pricing['base_currency'] ?? 'USD');
+              $defCur = strtoupper($pricing['default_currency'] ?? 'USD');
+              $rateRows = is_array($pricing['exchange_rates'] ?? null) ? $pricing['exchange_rates'] : ['USD' => 1];
+            @endphp
+
+            <section class="card admin-gateway-card" aria-labelledby="gw-currency-heading">
+              <div class="card__head admin-gateway-card__head">
+                <div>
+                  <h2 id="gw-currency-heading" class="admin-gateway-card__title">Currency &amp; pricing display</h2>
+                  <p class="admin-gateway-card__sub">Plan amounts in the database are stored in <strong>minor units</strong> (e.g. cents) of the <strong>base currency</strong>. The <strong>default currency</strong> is what customers see on the site; exchange rates convert from base to each listed currency.</p>
+                </div>
+              </div>
+              <div class="card__body admin-form-grid">
+                <div class="field">
+                  <label class="field__label" for="pricing_base_currency">Base currency (plan prices)</label>
+                  <input class="input" id="pricing_base_currency" name="pricing_base_currency" value="{{ $baseCur }}" maxlength="3" autocomplete="off" required />
+                  <p class="field__hint">ISO 4217 code (e.g. USD). Admin “Plans” monthly/yearly fields use this currency.</p>
+                </div>
+                <div class="field">
+                  <label class="field__label" for="pricing_default_currency">Default display currency</label>
+                  <input class="input" id="pricing_default_currency" name="pricing_default_currency" value="{{ $defCur }}" maxlength="3" autocomplete="off" required />
+                  <p class="field__hint">Used for pricing on the landing page and in-app Plans.</p>
+                </div>
+                <div class="field field--full">
+                  <label class="field__label">Exchange rates</label>
+                  <p class="field__hint">Each value is how many units of that currency equal <strong>one unit</strong> of the base currency (the base row is forced to <strong>1</strong>).</p>
+                  <div class="admin-exchange-rates">
+                    @foreach($rateRows as $code => $val)
+                    <div class="admin-form-grid">
+                      <div class="field">
+                        <label class="field__label">Code</label>
+                        <input class="input" name="exchange_rate_codes[]" value="{{ $code }}" maxlength="3" placeholder="USD" />
+                      </div>
+                      <div class="field">
+                        <label class="field__label">Rate</label>
+                        <input class="input" name="exchange_rate_values[]" type="number" step="any" min="0" value="{{ $val }}" />
+                      </div>
+                    </div>
+                    @endforeach
+                    <div class="admin-form-grid">
+                      <div class="field">
+                        <input class="input" name="exchange_rate_codes[]" value="" maxlength="3" placeholder="Add code" />
+                      </div>
+                      <div class="field">
+                        <input class="input" name="exchange_rate_values[]" type="number" step="any" min="0" value="" placeholder="Rate" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <section class="card admin-gateway-card" aria-labelledby="gw-paynow-heading">
               <div class="card__head admin-gateway-card__head">
                 <div>
@@ -40,6 +94,11 @@
                 </label>
               </div>
               <div class="card__body admin-form-grid">
+                <div class="field field--full">
+                  <label class="field__label" for="paynow_accepted_currencies">Accepted currencies (Paynow)</label>
+                  <input class="input" id="paynow_accepted_currencies" name="paynow_accepted_currencies" value="{{ implode(', ', array_values((array) ($gateways['paynow']['accepted_currencies'] ?? ['USD']))) }}" placeholder="USD, ZWL" autocomplete="off" />
+                  <p class="field__hint">Comma-separated ISO codes. Checkout uses the default display currency if it appears here; otherwise the first listed. Paynow will be charged in that currency.</p>
+                </div>
                 <div class="field field--full">
                   <label class="field__label" for="paynow_integration_id">Integration ID</label>
                   <input class="input" id="paynow_integration_id" name="paynow_integration_id" value="{{ $gateways['paynow']['integration_id'] ?? '' }}" autocomplete="off" />

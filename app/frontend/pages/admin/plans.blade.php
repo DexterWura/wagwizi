@@ -57,11 +57,12 @@
                       <input class="input input--sm" name="name" value="{{ $plan->name }}" required />
                     </div>
                     <div class="field">
-                      <label class="field__label">Monthly price (cents)</label>
+                      <label class="field__label">Monthly price (minor units)</label>
                       <input class="input input--sm" name="monthly_price_cents" type="number" value="{{ $plan->monthly_price_cents }}" />
+                      <p class="field__hint">Smallest units of <strong>{{ $pricingBaseCurrency ?? 'USD' }}</strong> (e.g. cents). Set base currency under Admin → Payment gateways.</p>
                     </div>
                     <div class="field">
-                      <label class="field__label">Yearly price (cents)</label>
+                      <label class="field__label">Yearly price (minor units)</label>
                       <input class="input input--sm" name="yearly_price_cents" type="number" value="{{ $plan->yearly_price_cents }}" />
                     </div>
                     <div class="field">
@@ -173,11 +174,11 @@
                 <input class="input" name="name" required placeholder="e.g. Pro" />
               </div>
               <div class="field">
-                <label class="field__label">Monthly price (cents)</label>
+                <label class="field__label">Monthly price (minor units, {{ $pricingBaseCurrency ?? 'USD' }})</label>
                 <input class="input" name="monthly_price_cents" type="number" placeholder="990" />
               </div>
               <div class="field">
-                <label class="field__label">Yearly price (cents)</label>
+                <label class="field__label">Yearly price (minor units)</label>
                 <input class="input" name="yearly_price_cents" type="number" placeholder="9900" />
               </div>
               <div class="field">

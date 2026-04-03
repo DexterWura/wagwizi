@@ -59,10 +59,18 @@ final class PaymentGatewayConfigService
     private function defaults(): array
     {
         return [
+            'pricing' => [
+                'base_currency'     => 'USD',
+                'default_currency'  => 'USD',
+                'exchange_rates'    => [
+                    'USD' => 1.0,
+                ],
+            ],
             'paynow' => [
-                'enabled'          => false,
-                'integration_id'   => '',
-                'integration_key'  => '',
+                'enabled'               => false,
+                'integration_id'        => '',
+                'integration_key'       => '',
+                'accepted_currencies'   => ['USD'],
             ],
             'stripe' => [
                 'enabled'        => false,

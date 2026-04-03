@@ -391,7 +391,7 @@
           <p>Same tiers as in the app. Switch billing period to compare monthly vs annual (save about 20% on paid plans).</p>
         </div>
         <div class="lp-wrap">
-          <div class="lp-billing-toggle-wrap" data-lp-reveal>
+          <div class="lp-billing-toggle-wrap" data-lp-reveal data-lp-currency-symbol="{{ $currencyDisplay->symbol($currencyDisplay->defaultCurrency()) }}">
             <div class="lp-billing-toggle" data-lp-billing-toggle role="group" aria-label="Billing period">
               <button type="button" class="lp-billing-toggle__btn is-active" data-lp-billing="monthly" aria-pressed="true">Monthly</button>
               <button type="button" class="lp-billing-toggle__btn" data-lp-billing="yearly" aria-pressed="false">Yearly <span class="lp-billing-toggle__save">Save ~20%</span></button>
@@ -401,8 +401,9 @@
             @forelse($plans as $plan)
             @php
               $isFeatured = strtolower($plan->slug) === 'growth' || strtolower($plan->name) === 'growth';
-              $monthly = $plan->monthly_price_cents !== null ? intdiv($plan->monthly_price_cents, 100) : 0;
-              $yearlyTotal = $plan->yearly_price_cents !== null ? intdiv($plan->yearly_price_cents, 100) : ($monthly * 12);
+              $lp = $currencyDisplay->landingPricingMajors($plan);
+              $monthly = (int) round($lp['monthly']);
+              $yearlyTotal = (int) round($lp['yearly_total']);
             @endphp
             <article class="lp-pricing-card{{ $isFeatured ? ' lp-pricing-card--featured' : '' }}" data-lp-pricing-card data-monthly="{{ $monthly }}" data-yearly-total="{{ $yearlyTotal }}" data-lp-reveal>
               @if($isFeatured)
@@ -411,7 +412,7 @@
               <h3 class="lp-pricing-card__name">{{ $plan->name }}</h3>
               <p class="lp-pricing-card__price">
                 <span class="lp-pricing-card__amount">
-                  <span class="lp-pricing-card__currency">$</span><span data-lp-price-amount>{{ $monthly }}</span>
+                  <span class="lp-pricing-card__currency">{{ $currencyDisplay->symbol($currencyDisplay->defaultCurrency()) }}</span><span data-lp-price-amount>{{ $monthly }}</span>
                 </span>
                 <span class="lp-pricing-card__suffix" data-lp-price-suffix>/ month</span>
               </p>

@@ -348,11 +348,22 @@
     var toggleRoot = document.querySelector("[data-lp-billing-toggle]");
     if (!toggleRoot) return;
 
+    var wrap = toggleRoot.closest("[data-lp-currency-symbol]") || toggleRoot.parentElement;
+    var currencySym = wrap && wrap.getAttribute ? wrap.getAttribute("data-lp-currency-symbol") || "$" : "$";
+
     var buttons = toggleRoot.querySelectorAll("[data-lp-billing]");
     var cards = document.querySelectorAll("[data-lp-pricing-card][data-monthly]");
 
     function monthlyEquivFromYearly(yearlyTotal) {
       return Math.round(yearlyTotal / 12);
+    }
+
+    function annualBillingLabel(total) {
+      var sym = currencySym;
+      if (sym.length === 1) {
+        return "Billed annually (" + sym + total + "/yr)";
+      }
+      return "Billed annually (" + sym + " " + total + "/yr)";
     }
 
     function applyBillingMode(mode) {
@@ -384,7 +395,7 @@
         amountEl.textContent = String(eq);
         suffixEl.textContent = "/ month";
         billingEl.hidden = false;
-        billingEl.textContent = "Billed annually ($" + yearlyTotal + "/yr)";
+        billingEl.textContent = annualBillingLabel(yearlyTotal);
       });
     }
 
