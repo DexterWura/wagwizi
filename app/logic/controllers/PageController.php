@@ -11,6 +11,7 @@ use App\Models\Testimonial;
 use App\Services\Billing\CurrencyDisplayService;
 use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Billing\SubscriptionFulfillmentService;
+use App\Services\Dashboard\DashboardMetricsService;
 use App\Services\Insights\AudienceInsightsService;
 use App\Services\Landing\LandingFeaturesDeepService;
 use App\Services\Media\MediaLibraryService;
@@ -71,35 +72,35 @@ class PageController extends Controller
         ));
     }
 
-    public function dashboard(): View
+    public function dashboard(Request $request): View
     {
         $user = Auth::user();
-        $now  = Carbon::now();
+        $data = app(DashboardMetricsService::class)->build($user, $request);
 
-        $connectedCount  = $user->socialAccounts()->active()->count();
-        $scheduledCount  = $user->posts()->scheduled()->count();
-        $publishedCount  = $user->posts()->published()->count();
+        $range    = $data['range'];
+        $scope    = $data['scope'];
+        $platform = $data['platform'];
 
-        $recentPosts = $user->posts()
-            ->whereIn('status', ['published', 'scheduled', 'draft'])
-            ->orderByDesc('updated_at')
-            ->limit(5)
-            ->get(['id', 'content', 'status', 'scheduled_at', 'published_at', 'updated_at']);
+        $dashUrl = static function (array $overrides) use ($range, $scope, $platform): string {
+            $merged = array_merge([
+                'range' => $range,
+                'scope' => $scope,
+            ], $overrides);
 
-        $nextUp = $user->posts()
-            ->scheduled()
-            ->where('scheduled_at', '>', $now)
-            ->orderBy('scheduled_at')
-            ->limit(5)
-            ->get(['id', 'content', 'scheduled_at']);
+            $effectiveScope = $merged['scope'] ?? $scope;
+            if ($effectiveScope === DashboardMetricsService::SCOPE_PLATFORM) {
+                $plat = $merged['platform'] ?? $platform;
+                if (is_string($plat) && $plat !== '') {
+                    $merged['platform'] = $plat;
+                }
+            } else {
+                unset($merged['platform']);
+            }
 
-        return view('dashboard', [
-            'connectedAccountsCount' => $connectedCount,
-            'scheduledPostsCount'    => $scheduledCount,
-            'publishedPostsCount'    => $publishedCount,
-            'recentPosts'            => $recentPosts,
-            'nextUp'                 => $nextUp,
-        ]);
+            return route('dashboard', array_filter($merged, static fn ($v) => $v !== null && $v !== ''));
+        };
+
+        return view('dashboard', array_merge($data, compact('dashUrl')));
     }
 
     public function composer(): View

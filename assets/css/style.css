@@ -1649,6 +1649,19 @@ th .table-badge {
   border-color: var(--border-strong);
 }
 
+a.pill {
+  text-decoration: none;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.pill[aria-current="page"],
+.pill.pill--active {
+  background: var(--bg-active);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
 .filter-scope {
   display: inline-flex;
   border-radius: var(--radius-md);
@@ -1673,6 +1686,41 @@ th .table-badge {
 .filter-scope button[aria-selected="true"] {
   background: var(--bg-input);
   color: var(--text);
+}
+
+.filter-scope__link {
+  text-decoration: none;
+  color: inherit;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-muted);
+  border-left: 1px solid var(--border);
+}
+
+.filter-scope__link:first-child {
+  border-left: none;
+}
+
+.filter-scope__link--active,
+.filter-scope__link[aria-current="page"] {
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+.filter-platform-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.filter-platform-form__label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 .filter-scope__dot {

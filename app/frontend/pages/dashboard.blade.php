@@ -6,16 +6,28 @@
 @section('content')
         <main class="app-content">
           <div class="filter-row">
-            <div class="pills" data-app-radio-group role="tablist">
-              <button type="button" class="pill" aria-selected="false">Today</button>
-              <button type="button" class="pill" aria-selected="false">This Week</button>
-              <button type="button" class="pill" aria-selected="true">30 Days</button>
-              <button type="button" class="pill" aria-selected="false">90 Days</button>
+            <div class="pills" role="tablist" aria-label="Date range">
+              <a href="{{ $dashUrl(['range' => 'today']) }}" class="pill @if($range === 'today') pill--active @endif" @if($range === 'today') aria-current="page" @endif>Today</a>
+              <a href="{{ $dashUrl(['range' => 'week']) }}" class="pill @if($range === 'week') pill--active @endif" @if($range === 'week') aria-current="page" @endif>This week</a>
+              <a href="{{ $dashUrl(['range' => '30d']) }}" class="pill @if($range === '30d') pill--active @endif" @if($range === '30d') aria-current="page" @endif>30 days</a>
+              <a href="{{ $dashUrl(['range' => '90d']) }}" class="pill @if($range === '90d') pill--active @endif" @if($range === '90d') aria-current="page" @endif>90 days</a>
             </div>
-            <div class="filter-scope" data-app-radio-group>
-              <button type="button" aria-selected="true"><span class="filter-scope__dot filter-scope__dot--primary"></span> All accounts</button>
-              <button type="button" aria-selected="false"><span class="filter-scope__dot filter-scope__dot--muted"></span> Per platform</button>
+            <div class="filter-scope" role="tablist" aria-label="Scope">
+              <a href="{{ $dashUrl(['scope' => 'all']) }}" class="filter-scope__link @if($scope === 'all') filter-scope__link--active @endif" @if($scope === 'all') aria-current="page" @endif><span class="filter-scope__dot filter-scope__dot--primary"></span> All accounts</a>
+              <a href="{{ $dashUrl(['scope' => 'platform']) }}" class="filter-scope__link @if($scope === 'platform') filter-scope__link--active @endif" @if($scope === 'platform') aria-current="page" @endif><span class="filter-scope__dot filter-scope__dot--muted"></span> Per platform</a>
             </div>
+            @if($scope === 'platform' && count($platformOptions) > 0)
+            <form method="get" action="{{ route('dashboard') }}" class="filter-platform-form">
+              <input type="hidden" name="range" value="{{ $range }}" />
+              <input type="hidden" name="scope" value="platform" />
+              <label class="filter-platform-form__label" for="dashboard-platform">Platform</label>
+              <select class="select select--sm" id="dashboard-platform" name="platform" onchange="this.form.submit()">
+                @foreach($platformOptions as $p)
+                  <option value="{{ $p }}" {{ $platform === $p ? 'selected' : '' }}>{{ ucfirst($p) }}</option>
+                @endforeach
+              </select>
+            </form>
+            @endif
           </div>
 
           @if($connectedAccountsCount === 0)
@@ -39,7 +51,7 @@
                 </span>
               </div>
               <div class="metric-card__value">{{ $connectedAccountsCount }}</div>
-              <div class="metric-card__sub">Across networks</div>
+              <div class="metric-card__sub">{{ $scope === 'platform' ? 'This network' : 'Across networks' }}</div>
             </div>
             <div class="metric-card">
               <div class="metric-card__label">
@@ -63,7 +75,7 @@
                 <span class="metric-card__icons"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i></span>
               </div>
               <div class="metric-card__value">{{ $publishedPostsCount }}</div>
-              <div class="metric-card__sub">All time</div>
+              <div class="metric-card__sub">{{ $publishedSubLabel }}</div>
             </div>
             <div class="metric-card">
               <div class="metric-card__label">
@@ -71,7 +83,7 @@
                 <span class="metric-card__icons"><i class="fa-solid fa-clock" aria-hidden="true"></i></span>
               </div>
               <div class="metric-card__value">{{ $scheduledPostsCount }}</div>
-              <div class="metric-card__sub">Upcoming queue</div>
+              <div class="metric-card__sub">{{ $scheduledSubLabel }}</div>
             </div>
           </div>
 
