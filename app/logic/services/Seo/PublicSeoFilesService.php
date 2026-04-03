@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\File;
 class PublicSeoFilesService
 {
     /**
-     * Build and write sitemap.xml to the web root (see bootstrap path.public).
+     * Build and write sitemap.xml next to the front controller (project root; see bootstrap usePublicPath).
      *
      * @return string Absolute path written
      */

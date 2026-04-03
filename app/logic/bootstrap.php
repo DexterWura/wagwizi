@@ -67,7 +67,9 @@ $app->useEnvironmentPath($projectRoot . DIRECTORY_SEPARATOR . 'secrets');
 $app->useStoragePath($storagePath);
 $app->useDatabasePath($logicPath . DIRECTORY_SEPARATOR . 'database');
 
-$app->bind('path.public', fn () => $projectRoot);
+// Web root is the project root (index.php, assets/, sitemap.xml, robots.txt). Laravel defaults
+// to basePath('public') which would be app/logic/public — that folder is not used here.
+$app->usePublicPath($projectRoot);
 
 $app->singleton(
     Illuminate\Contracts\Http\Kernel::class,
