@@ -4503,29 +4503,22 @@ button.link-create {
   outline: none;
 }
 
-.composer-emoji-wrap {
-  position: relative;
-  margin-left: auto;
+.composer-emoji-dock {
+  z-index: 24;
 }
 
-.composer-emoji-wrap .composer-pill--icon {
-  margin-left: 0;
+.composer-emoji-dock__panel {
+  margin: 0;
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
 }
 
 .composer-emoji-picker {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 0.4rem);
-  z-index: 35;
-  width: min(20rem, 82vw);
-  padding: 0.55rem;
+  width: 100%;
+  padding: 0.25rem 0.1rem 0.1rem;
   display: grid;
   grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 0.3rem;
-  border: 1px solid var(--border);
-  border-radius: 0.8rem;
-  background: var(--bg-card);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
 }
 
 .composer-emoji-picker__item {

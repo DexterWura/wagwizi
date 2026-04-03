@@ -106,11 +106,22 @@
                         <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
                         AI Assist
                       </button>
-                      <div class="composer-emoji-wrap" data-app-composer-emoji-wrap>
-                        <button type="button" class="composer-pill composer-pill--icon" data-app-composer-emoji aria-label="Insert emoji" aria-expanded="false" aria-controls="composer-emoji-picker">
-                          <i class="fa-regular fa-face-smile" aria-hidden="true"></i>
-                        </button>
-                        <div class="composer-emoji-picker" id="composer-emoji-picker" data-app-composer-emoji-picker hidden aria-label="Emoji picker">
+                      <button type="button" class="composer-pill composer-pill--icon" data-app-composer-emoji aria-label="Insert emoji" aria-expanded="false" aria-controls="composer-emoji-dock">
+                        <i class="fa-regular fa-face-smile" aria-hidden="true"></i>
+                      </button>
+                    </div>
+                    <div class="composer-emoji-dock composer-ai-dock" id="composer-emoji-dock" data-app-composer-emoji-dock hidden aria-hidden="true" role="dialog" aria-modal="false" aria-label="Emoji picker">
+                      <div class="composer-emoji-dock__panel card card--composer">
+                        <div class="composer-assistant-card__head composer-assistant-card__head--row">
+                          <div class="composer-assistant-card__head-text">
+                            <span class="composer-assistant-card__title">Emoji picker</span>
+                            <span class="composer-assistant-card__hint">Click an emoji to insert it into your draft.</span>
+                          </div>
+                          <button type="button" class="icon-btn composer-ai-dock__close" data-app-composer-emoji-close aria-label="Close emoji picker">
+                            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                          </button>
+                        </div>
+                        <div class="composer-emoji-picker" data-app-composer-emoji-picker aria-label="Emoji options">
                           <button type="button" class="composer-emoji-picker__item" data-composer-emoji="😀" aria-label="Grinning face">😀</button>
                           <button type="button" class="composer-emoji-picker__item" data-composer-emoji="😂" aria-label="Face with tears of joy">😂</button>
                           <button type="button" class="composer-emoji-picker__item" data-composer-emoji="😍" aria-label="Smiling face with heart eyes">😍</button>

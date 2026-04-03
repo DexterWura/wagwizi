@@ -680,23 +680,33 @@
     var master = document.getElementById("composer-master");
     var hashBtn = document.querySelector("[data-app-composer-hashtag]");
     var emojiBtn = document.querySelector("[data-app-composer-emoji]");
-    var emojiWrap = document.querySelector("[data-app-composer-emoji-wrap]");
+    var emojiDock = document.querySelector("[data-app-composer-emoji-dock]");
+    var emojiCloseBtn = document.querySelector("[data-app-composer-emoji-close]");
     var emojiPicker = document.querySelector("[data-app-composer-emoji-picker]");
+    var aiDock = document.querySelector("[data-app-composer-ai-dock]");
+    var aiBtn = document.querySelector("[data-app-composer-ai-focus]");
 
     if (hashBtn && master) {
       hashBtn.addEventListener("click", function () {
         insertAtCursor(master, " #");
       });
     }
-    if (emojiBtn && master && emojiWrap && emojiPicker) {
+    if (emojiBtn && master && emojiDock && emojiPicker) {
       function setEmojiPickerOpen(open) {
-        emojiPicker.hidden = !open;
+        emojiDock.hidden = !open;
+        emojiDock.setAttribute("aria-hidden", open ? "false" : "true");
         emojiBtn.setAttribute("aria-expanded", open ? "true" : "false");
       }
 
       emojiBtn.addEventListener("click", function (e) {
         e.stopPropagation();
-        setEmojiPickerOpen(emojiPicker.hidden);
+        var shouldOpen = emojiDock.hidden;
+        if (shouldOpen && aiDock && !aiDock.hidden) {
+          aiDock.hidden = true;
+          aiDock.setAttribute("aria-hidden", "true");
+          if (aiBtn) aiBtn.setAttribute("aria-expanded", "false");
+        }
+        setEmojiPickerOpen(shouldOpen);
       });
 
       emojiPicker.querySelectorAll("[data-composer-emoji]").forEach(function (opt) {
@@ -706,6 +716,30 @@
           setEmojiPickerOpen(false);
         });
       });
+
+      if (emojiCloseBtn) {
+        emojiCloseBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          setEmojiPickerOpen(false);
+        });
+      }
+
+      document.addEventListener("click", function (e) {
+        if (emojiDock.hidden) return;
+        if (emojiDock.contains(e.target) || emojiBtn.contains(e.target)) return;
+        setEmojiPickerOpen(false);
+      });
+
+      document.addEventListener(
+        "keydown",
+        function (e) {
+          if (e.key !== "Escape" || emojiDock.hidden) return;
+          e.preventDefault();
+          e.stopPropagation();
+          setEmojiPickerOpen(false);
+        },
+        true
+      );
     }
     initComposerAiDock();
   }
