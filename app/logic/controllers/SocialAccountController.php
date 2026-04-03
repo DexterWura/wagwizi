@@ -61,9 +61,10 @@ class SocialAccountController extends Controller
         }
 
         $scopes = config("platforms.{$platform}.scopes", []);
+        $scopes = is_array($scopes) ? $scopes : [];
 
         if ($this->isSocialiteSupported($platformEnum)) {
-            return Socialite::driver($this->socialiteDriver($platformEnum))
+            return $this->socialiteForAccountLinking($platformEnum)
                 ->scopes($scopes)
                 ->redirect();
         }
@@ -106,7 +107,10 @@ class SocialAccountController extends Controller
 
         try {
             if ($this->isSocialiteSupported($platformEnum)) {
-                $socialUser = Socialite::driver($this->socialiteDriver($platformEnum))->user();
+                $socialUser = $this->socialiteForAccountLinking($platformEnum)->user();
+
+                $storedScopes = config("platforms.{$platform}.scopes", []);
+                $storedScopes = is_array($storedScopes) ? $storedScopes : null;
 
                 $this->linkingService->linkAccount(
                     user:           Auth::user(),
@@ -117,7 +121,7 @@ class SocialAccountController extends Controller
                     username:       $socialUser->getNickname(),
                     displayName:    $socialUser->getName(),
                     avatarUrl:      $socialUser->getAvatar(),
-                    scopes:         config("platforms.{$platform}.scopes"),
+                    scopes:         $storedScopes,
                     expiresAt:      $socialUser->expiresIn
                         ? now()->addSeconds($socialUser->expiresIn)
                         : null,
@@ -482,9 +486,39 @@ class SocialAccountController extends Controller
     private function socialiteDriver(Platform $platform): string
     {
         return match ($platform) {
-            Platform::YouTube => 'google',
-            default           => $platform->value,
+            Platform::YouTube  => 'google',
+            Platform::LinkedIn => 'linkedin-openid',
+            default              => $platform->value,
         };
+    }
+
+    /**
+     * Socialite driver with redirect URI for account linking (may differ from social login).
+     * LinkedIn uses the same OpenID app as login but must redirect to /accounts/linkedin/callback.
+     */
+    private function socialiteForAccountLinking(Platform $platform): \Laravel\Socialite\Contracts\Provider
+    {
+        $driver = Socialite::driver($this->socialiteDriver($platform));
+        $slug   = $platform->value;
+
+        $configured = config("platforms.{$slug}.redirect_uri");
+        $full       = null;
+        if (is_string($configured) && trim($configured) !== '') {
+            $u = trim($configured);
+            $full = str_starts_with($u, 'http://') || str_starts_with($u, 'https://')
+                ? $u
+                : url($u);
+        }
+
+        if ($full === null && $platform === Platform::LinkedIn) {
+            $full = route('accounts.callback', ['platform' => $slug], true);
+        }
+
+        if ($full !== null) {
+            $driver->redirectUrl($full);
+        }
+
+        return $driver;
     }
 
     private function customOAuthRedirect(Platform $platform, array $scopes): RedirectResponse
