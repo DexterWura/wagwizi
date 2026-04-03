@@ -49,12 +49,28 @@
           <div class="card card--app-section">
             <div class="card__head">Choose a plan</div>
             <div class="card__body">
+          @if(($checkoutRequiresGatewayChoice ?? false) && $paynowCheckoutAvailable)
+            <div class="plans-gateway-picker" role="radiogroup" aria-labelledby="plans-gateway-picker-label">
+              <span id="plans-gateway-picker-label" class="plans-gateway-picker__label">Pay with</span>
+              <label class="plans-gateway-picker__opt">
+                <input type="radio" name="plans_checkout_gateway" value="paynow" {{ ($defaultCheckoutGateway ?? 'paynow') === 'paynow' ? 'checked' : '' }} />
+                Paynow
+              </label>
+              <label class="plans-gateway-picker__opt">
+                <input type="radio" name="plans_checkout_gateway" value="pesepay" {{ ($defaultCheckoutGateway ?? '') === 'pesepay' ? 'checked' : '' }} />
+                Pesepay
+              </label>
+            </div>
+          @endif
           <div
             class="plans-grid"
             data-app-plans
             data-app-plans-server="1"
             data-current-plan-slug="{{ $currentPlanSlug ?? '' }}"
-            data-paynow-checkout="{{ $paynowCheckoutAvailable ? '1' : '0' }}"
+            data-checkout-available="{{ $paynowCheckoutAvailable ? '1' : '0' }}"
+            data-checkout-mode="{{ ($checkoutRequiresGatewayChoice ?? false) ? 'choose' : 'single' }}"
+            data-default-gateway="{{ $defaultCheckoutGateway ?? 'none' }}"
+            data-checkout-gateway="{{ $checkoutGateway ?? 'none' }}"
           >
             @foreach($plans as $plan)
             @php

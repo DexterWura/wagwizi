@@ -81,6 +81,25 @@
               </div>
             </section>
 
+            <section class="card admin-gateway-card" aria-labelledby="gw-checkout-primary-heading">
+              <div class="card__head admin-gateway-card__head">
+                <div>
+                  <h2 id="gw-checkout-primary-heading" class="admin-gateway-card__title">Primary subscription checkout</h2>
+                  <p class="admin-gateway-card__sub">When a paid plan requires online payment, this gateway is used first if it is enabled and configured. The other gateway remains available as a fallback when the preferred one is not ready.</p>
+                </div>
+              </div>
+              <div class="card__body admin-form-grid">
+                <div class="field field--full">
+                  <label class="field__label" for="checkout_gateway">Preferred gateway</label>
+                  <select class="input" id="checkout_gateway" name="checkout_gateway" required>
+                    <option value="paynow" {{ ($gateways['checkout_gateway'] ?? 'paynow') === 'paynow' ? 'selected' : '' }}>Paynow</option>
+                    <option value="pesepay" {{ ($gateways['checkout_gateway'] ?? '') === 'pesepay' ? 'selected' : '' }}>Pesepay</option>
+                  </select>
+                  <p class="field__hint">See <a href="https://developers.pesepay.com/api-reference/initiate-transaction" target="_blank" rel="noopener noreferrer">Pesepay initiate transaction</a> for redirect flow details.</p>
+                </div>
+              </div>
+            </section>
+
             <section class="card admin-gateway-card" aria-labelledby="gw-paynow-heading">
               <div class="card__head admin-gateway-card__head">
                 <div>
@@ -114,6 +133,43 @@
                   <p class="field__hint admin-gateway-hint">
                     <strong>Webhook URL</strong> (set in Paynow as “Result URL”): <span class="admin-mono">{{ url('/paynow/result') }}</span><br />
                     <strong>Return URL</strong> is generated for each checkout (customer returns to Plans after paying).
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section class="card admin-gateway-card" aria-labelledby="gw-pesepay-heading">
+              <div class="card__head admin-gateway-card__head">
+                <div>
+                  <h2 id="gw-pesepay-heading" class="admin-gateway-card__title">Pesepay</h2>
+                  <p class="admin-gateway-card__sub">Redirect checkout (SDK in <code class="admin-code-tag">app/logic/gateways/Pesepay</code>). Uses the same locked checkout currency as Paynow above.</p>
+                </div>
+                <label class="admin-toggle">
+                  <input type="checkbox" name="pesepay_enabled" value="1" {{ !empty($gateways['pesepay']['enabled']) ? 'checked' : '' }} />
+                  <span class="admin-toggle__slider" aria-hidden="true"></span>
+                  <span>Enabled</span>
+                </label>
+              </div>
+              <div class="card__body admin-form-grid">
+                <div class="field field--full">
+                  <label class="field__label" for="pesepay_integration_key">Integration key</label>
+                  <input class="input" id="pesepay_integration_key" name="pesepay_integration_key" type="password" placeholder="{{ ($gateways['pesepay']['integration_key'] ?? '') !== '' ? 'Leave blank to keep current key' : 'From Pesepay dashboard' }}" autocomplete="new-password" />
+                  @if(!empty($gateways['pesepay']['integration_key_masked']))
+                    <p class="field__hint">Current key: {{ $gateways['pesepay']['integration_key_masked'] }}</p>
+                  @endif
+                </div>
+                <div class="field field--full">
+                  <label class="field__label" for="pesepay_encryption_key">Encryption key</label>
+                  <input class="input" id="pesepay_encryption_key" name="pesepay_encryption_key" type="password" maxlength="32" placeholder="{{ ($gateways['pesepay']['encryption_key'] ?? '') !== '' ? 'Leave blank to keep current key' : '16, 24, or 32 characters' }}" autocomplete="new-password" />
+                  @if(!empty($gateways['pesepay']['encryption_key_masked']))
+                    <p class="field__hint">Current key ends with: {{ $gateways['pesepay']['encryption_key_masked'] }}</p>
+                  @endif
+                  <p class="field__hint">Must be 16, 24, or 32 characters (AES-256-CBC per Pesepay SDK).</p>
+                </div>
+                <div class="field field--full">
+                  <p class="field__hint admin-gateway-hint">
+                    <strong>Result URL</strong> (server callback in Pesepay dashboard): <span class="admin-mono">{{ url('/pesepay/result') }}</span><br />
+                    <strong>Return URL</strong> is set per checkout (customer returns to Plans after paying).
                   </p>
                 </div>
               </div>

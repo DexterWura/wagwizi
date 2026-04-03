@@ -342,6 +342,12 @@ If you're unsure where code goes: if it touches the database or contains a busin
 - Environment secrets go in `secrets/`.
 - **Never place files outside their designated directory.**
 
+### 9. Exceptions require explicit approval
+
+- These rules are **non-negotiable by default**. Do not ship code that breaks them without the project owner’s **explicit approval**.
+- If the only practical way to implement something would **violate** any rule above (layered architecture, backend-only data access, CSS placement, commenting discipline, error handling, etc.), **stop and ask first**—do not merge or present the rule-breaking approach as the only option without disclosure.
+- When requesting an exception, give a **concise, concrete explanation**: why staying within the rules is blocked or unreasonably costly, and what **alternatives** you considered that would comply (even if imperfect).
+
 ---
 
 ## Coding Standards
@@ -599,6 +605,8 @@ If you are an AI agent (Cursor, Copilot, Codex, or similar) working on this code
 19. **Server-side is the trust boundary.** Every permission check, every validation, every limit enforcement must happen on the server. Frontend restrictions (hidden buttons, disabled fields, JS checks) are UX — not security.
 
 20. **Four pillars on every change.** Before submitting any code, verify it satisfies: **Security** (no leaks, no trust of client), **Scalability** (works at 10M users), **Efficiency** (no wasted work), **Maintainability** (clean, readable, well-placed).
+
+21. **Ask before breaking rules.** If you cannot implement a request without violating this README, **stop and ask the human for permission** before writing that code. Explain **why** an exception is needed and what **rule-compliant alternatives** you considered (and why they fall short, if they do). Never treat rule-breaking as the silent default.
 
 ---
 

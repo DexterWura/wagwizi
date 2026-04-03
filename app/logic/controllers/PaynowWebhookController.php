@@ -13,7 +13,6 @@ class PaynowWebhookController extends Controller
         try {
             $checkout->handleResultPost($request->request->all());
         } catch (\Throwable) {
-            // Paynow expects a response; avoid leaking details.
         }
 
         return response('OK', 200);

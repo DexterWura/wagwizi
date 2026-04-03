@@ -1675,7 +1675,9 @@
     var root = document.querySelector("[data-app-plans]");
     if (!root || root.getAttribute("data-app-plans-server") !== "1") return;
 
-    var paynowOn = root.getAttribute("data-paynow-checkout") === "1";
+    var checkoutOn =
+      root.getAttribute("data-checkout-available") === "1" ||
+      root.getAttribute("data-paynow-checkout") === "1";
     var paidSlugs = [];
     try {
       if (global.__paidPlanSlugs && Array.isArray(global.__paidPlanSlugs)) {
@@ -1697,8 +1699,31 @@
 
       var status = document.querySelector("[data-app-plan-status]");
 
-      if (paynowOn && slugNeedsPaynow(planSlug)) {
-        apiPost("/plans/paynow/start", { plan_slug: planSlug }).then(function (res) {
+      if (checkoutOn && slugNeedsPaynow(planSlug)) {
+        var mode = root.getAttribute("data-checkout-mode") || "single";
+        var gw = null;
+        if (mode === "choose") {
+          var sel = root.parentElement
+            ? root.parentElement.querySelector('input[name="plans_checkout_gateway"]:checked')
+            : null;
+          if (!sel) {
+            sel = document.querySelector('input[name="plans_checkout_gateway"]:checked');
+          }
+          gw = sel ? sel.value : null;
+          if (!gw) {
+            if (status) status.textContent = "Select Paynow or Pesepay before choosing a plan.";
+            if (global.App && global.App.showFlash) {
+              global.App.showFlash("Select Paynow or Pesepay first.", "error");
+            }
+            return;
+          }
+        } else {
+          gw = (root.getAttribute("data-default-gateway") || "paynow").toLowerCase();
+          if (gw === "none") {
+            gw = "paynow";
+          }
+        }
+        apiPost("/plans/checkout/start", { plan_slug: planSlug, gateway: gw }).then(function (res) {
           if (res.success && res.redirect_url) {
             global.location.href = res.redirect_url;
             return;

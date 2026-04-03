@@ -17,9 +17,6 @@ final class PaynowCheckoutService
         private CurrencyDisplayService $currency
     ) {}
 
-    /**
-     * @return array{redirect_url: string, reference: string}
-     */
     public function startHostedCheckout(User $user, Plan $plan, string $returnUrl, string $resultUrl): array
     {
         $amountCents = $this->fulfillment->planChargeAmountCents($plan);
@@ -83,9 +80,6 @@ final class PaynowCheckoutService
         ];
     }
 
-    /**
-     * Verify Paynow server callback and complete the subscription if paid.
-     */
     public function handleResultPost(array $payload): void
     {
         $key = $this->clientFactory->integrationKey();
@@ -130,9 +124,6 @@ final class PaynowCheckoutService
         $this->fulfillment->fulfillAfterPayment($user, $plan, $transaction);
     }
 
-    /**
-     * When the customer returns in-browser, poll Paynow and fulfill if paid.
-     */
     public function tryCompleteFromPoll(PaymentTransaction $transaction): bool
     {
         if ($transaction->isCompleted() || ! $transaction->isPending()) {
@@ -172,10 +163,6 @@ final class PaynowCheckoutService
         return true;
     }
 
-    /**
-     * Reject fulfillment when Paynow reports a paid amount that does not match our pending transaction.
-     * If amount is absent in the payload (-1), we rely on hash verification and paid status only.
-     */
     private function paynowReportedAmountMatchesTransaction(StatusResponse $status, PaymentTransaction $transaction): bool
     {
         $reported = $status->amount();

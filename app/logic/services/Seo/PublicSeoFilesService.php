@@ -6,11 +6,6 @@ use Illuminate\Support\Facades\File;
 
 class PublicSeoFilesService
 {
-    /**
-     * Build and write sitemap.xml next to the front controller (project root; see bootstrap usePublicPath).
-     *
-     * @return string Absolute path written
-     */
     public function writeSitemap(): string
     {
         $base = rtrim((string) config('app.url'), '/');
@@ -46,11 +41,6 @@ class PublicSeoFilesService
         return $path;
     }
 
-    /**
-     * Write robots.txt with common Disallow rules for the app and a Sitemap line.
-     *
-     * @return string Absolute path written
-     */
     public function writeRobotsTxt(): string
     {
         $base = rtrim((string) config('app.url'), '/');

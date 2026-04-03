@@ -220,11 +220,14 @@ class PageController extends Controller
         $currencyDisplay = app(CurrencyDisplayService::class);
 
         return view('plans', [
-            'currentSubscription'     => $subscription,
-            'plans'                   => $plans,
-            'paynowCheckoutAvailable' => $gatewayCfg->paynowIsReady(),
-            'paidPlanSlugs'           => $paidPlanSlugs,
-            'currencyDisplay'         => $currencyDisplay,
+            'currentSubscription'           => $subscription,
+            'plans'                         => $plans,
+            'paynowCheckoutAvailable'       => $gatewayCfg->hostedCheckoutAvailable(),
+            'checkoutGateway'               => $gatewayCfg->activeCheckoutGateway(),
+            'checkoutRequiresGatewayChoice' => $gatewayCfg->checkoutRequiresGatewayChoice(),
+            'defaultCheckoutGateway'        => $gatewayCfg->defaultCheckoutGatewayForUi(),
+            'paidPlanSlugs'                 => $paidPlanSlugs,
+            'currencyDisplay'               => $currencyDisplay,
         ]);
     }
 
@@ -281,11 +284,11 @@ class PageController extends Controller
 
         $fulfillment = app(SubscriptionFulfillmentService::class);
         $gateways    = app(PaymentGatewayConfigService::class);
-        if ($gateways->paynowIsReady() && $fulfillment->requiresOnlinePayment($newPlan)) {
+        if ($gateways->hostedCheckoutAvailable() && $fulfillment->requiresOnlinePayment($newPlan)) {
             return response()->json([
                 'success'           => false,
                 'checkout_required' => true,
-                'message'           => 'Complete checkout with Paynow to activate this plan.',
+                'message'           => 'Complete checkout to activate this plan.',
             ], 402);
         }
 

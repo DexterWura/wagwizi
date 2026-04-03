@@ -620,16 +620,29 @@ class AdminController extends Controller
             ? '••••••••' . substr($paynowKey, -4)
             : '';
 
+        $pesepayKey = (string) ($gateways['pesepay']['integration_key'] ?? '');
+        $gateways['pesepay']['integration_key_masked'] = $pesepayKey !== ''
+            ? '••••••••' . substr($pesepayKey, -4)
+            : '';
+        $pesepayEnc = (string) ($gateways['pesepay']['encryption_key'] ?? '');
+        $gateways['pesepay']['encryption_key_masked'] = $pesepayEnc !== ''
+            ? '••••••••' . substr($pesepayEnc, -4)
+            : '';
+
         return view('admin.payment-gateways', compact('gateways'));
     }
 
     public function updatePaymentGateways(Request $request, PaymentGatewayConfigService $cfg): RedirectResponse
     {
         $request->validate([
+            'checkout_gateway'             => 'required|string|in:paynow,pesepay',
             'paynow_enabled'               => 'nullable|boolean',
             'paynow_integration_id'        => 'nullable|string|max:120',
             'paynow_integration_key'       => 'nullable|string|max:500',
             'paynow_checkout_currency'     => 'required|string|size:3',
+            'pesepay_enabled'              => 'nullable|boolean',
+            'pesepay_integration_key'      => 'nullable|string|max:500',
+            'pesepay_encryption_key'       => 'nullable|string|max:64',
             'pricing_base_currency'        => 'required|string|size:3',
             'pricing_default_currency'     => 'required|string|size:3',
             'exchange_rate_codes'          => 'nullable|array',
@@ -679,6 +692,9 @@ class AdminController extends Controller
             $billingRow->update($billingAttrs);
         }
 
+        $cg = strtolower(trim((string) $request->input('checkout_gateway', 'paynow')));
+        $current['checkout_gateway'] = $cg === 'pesepay' ? 'pesepay' : 'paynow';
+
         $current['paynow']['enabled'] = $request->boolean('paynow_enabled');
         $id = trim((string) $request->input('paynow_integration_id', ''));
         if ($id !== '') {
@@ -687,6 +703,16 @@ class AdminController extends Controller
         $key = $request->input('paynow_integration_key');
         if (is_string($key) && trim($key) !== '') {
             $current['paynow']['integration_key'] = trim($key);
+        }
+
+        $current['pesepay']['enabled'] = $request->boolean('pesepay_enabled');
+        $pKey = $request->input('pesepay_integration_key');
+        if (is_string($pKey) && trim($pKey) !== '') {
+            $current['pesepay']['integration_key'] = trim($pKey);
+        }
+        $pEnc = $request->input('pesepay_encryption_key');
+        if (is_string($pEnc) && trim($pEnc) !== '') {
+            $current['pesepay']['encryption_key'] = trim($pEnc);
         }
 
         $current['stripe']['enabled'] = $request->boolean('stripe_enabled');

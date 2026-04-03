@@ -12,6 +12,7 @@ use App\Controllers\SocialAccountController;
 use App\Controllers\StatusController;
 use App\Controllers\SupportTicketController;
 use App\Controllers\PaynowWebhookController;
+use App\Controllers\PesepayWebhookController;
 use App\Controllers\PlanCheckoutController;
 use Illuminate\Support\Facades\Route;
 
@@ -45,6 +46,7 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
 Route::post('/paynow/result', [PaynowWebhookController::class, 'result'])->name('paynow.result');
+Route::match(['get', 'post'], '/pesepay/result', [PesepayWebhookController::class, 'result'])->name('pesepay.result');
 
 /*
 |--------------------------------------------------------------------------
@@ -92,8 +94,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
 
     Route::post('/plans/change', [PageController::class, 'changePlan'])->name('plans.change');
+    Route::post('/plans/checkout/start', [PlanCheckoutController::class, 'startCheckout'])->name('plans.checkout.start');
     Route::post('/plans/paynow/start', [PlanCheckoutController::class, 'startPaynow'])->name('plans.paynow.start');
     Route::get('/plans/paynow/return', [PlanCheckoutController::class, 'paynowReturn'])->name('plans.paynow.return');
+    Route::post('/plans/pesepay/start', [PlanCheckoutController::class, 'startPesepay'])->name('plans.pesepay.start');
+    Route::get('/plans/pesepay/return', [PlanCheckoutController::class, 'pesepayReturn'])->name('plans.pesepay.return');
 
     /*
     |----------------------------------------------------------------------
