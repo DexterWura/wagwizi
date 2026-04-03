@@ -125,6 +125,13 @@ body.lp {
   filter: brightness(0) invert(1);
 }
 
+.lp-logo .brand-logo-svg {
+  height: 28px;
+  width: auto;
+  filter: none;
+  color: var(--lp-text);
+}
+
 .lp-nav {
   display: none;
   align-items: center;
@@ -629,6 +636,14 @@ body.lp-nav-open {
   width: auto;
   filter: brightness(0) invert(1);
   opacity: 0.95;
+}
+
+.lp-mockup-app__brand .brand-logo-svg {
+  height: 22px;
+  width: auto;
+  filter: none;
+  opacity: 0.95;
+  color: var(--ma-text);
 }
 
 .lp-mockup-app__collapse {

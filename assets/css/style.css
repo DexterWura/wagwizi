@@ -217,6 +217,15 @@ html.app-nav-loading .app-nav-preloader {
   display: flex;
 }
 
+.app-sidebar__brand .brand-logo-svg {
+  display: block;
+  height: 28px;
+  width: auto;
+  flex-shrink: 0;
+  filter: none;
+  color: var(--text);
+}
+
 .app-sidebar__brand img {
   height: 28px;
   width: auto;
@@ -2916,7 +2925,8 @@ button.link-create {
     justify-content: center;
   }
 
-  body.app-sidebar-collapsed .app-sidebar__brand img {
+  body.app-sidebar-collapsed .app-sidebar__brand img,
+  body.app-sidebar-collapsed .app-sidebar__brand .brand-logo-svg {
     height: 26px;
     max-width: 100%;
     object-fit: contain;
@@ -3424,6 +3434,13 @@ button.link-create {
 .login-page__brand {
   margin-bottom: 1.5rem;
   text-align: center;
+}
+
+.login-page__brand .brand-logo-svg {
+  display: block;
+  margin: 0 auto 0.5rem;
+  filter: none;
+  color: var(--text);
 }
 
 .login-page__brand img {
@@ -5940,6 +5957,18 @@ button.link-create {
     width: 100%;
     max-width: none;
   }
+}
+
+.error-page__brand .brand-logo-svg {
+  display: block;
+  opacity: 0.35;
+  filter: none;
+  color: var(--text);
+  transition: opacity 0.2s;
+}
+
+.error-page__brand .brand-logo-svg:hover {
+  opacity: 0.6;
 }
 
 .error-page__brand img {

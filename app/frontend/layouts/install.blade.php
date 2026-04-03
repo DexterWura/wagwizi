@@ -21,7 +21,8 @@
   </head>
   <body class="login-page">
     <div class="login-page__brand">
-      <img src="{{ asset('assets/images/logo.svg') }}" width="120" height="32" alt="PostAI" />
+      <span class="sr-only">{{ config('app.name') }}</span>
+      @include('brand-logo')
     </div>
 
     <div class="installer">

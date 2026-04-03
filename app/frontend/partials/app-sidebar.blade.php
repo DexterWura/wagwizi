@@ -5,7 +5,7 @@
       <i class="fa-solid fa-angles-left" aria-hidden="true"></i>
     </button>
     <a href="{{ route('landing') }}" aria-label="{{ config('app.name') }} home">
-      <img src="{{ asset('assets/images/logo.svg') }}" width="120" height="32" alt="{{ config('app.name') }}" />
+      @include('brand-logo')
     </a>
     <button type="button" class="menu-btn menu-btn--close" data-app-drawer-close aria-label="Close menu">
       <i class="fa-solid fa-xmark" aria-hidden="true"></i>

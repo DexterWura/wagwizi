@@ -36,7 +36,8 @@
         </p>
       </div>
       <div class="error-page__brand">
-        <img src="{{ asset('assets/images/logo.svg') }}" width="100" height="26" alt="{{ config('app.name') }}" />
+        <span class="sr-only">{{ config('app.name') }}</span>
+        @include('brand-logo')
       </div>
     </div>
 

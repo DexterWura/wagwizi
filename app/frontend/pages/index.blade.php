@@ -15,7 +15,7 @@
     <header id="lp-header">
       <div class="lp-header__inner">
         <a class="lp-logo" href="{{ route('landing') }}" aria-label="{{ config('app.name') }} home">
-          <img src="{{ asset('assets/images/logo.svg') }}" width="112" height="28" alt="{{ config('app.name') }}" />
+          @include('brand-logo')
         </a>
         <nav class="lp-nav" aria-label="Primary">
           <a href="#product">Product</a>
@@ -85,7 +85,7 @@
                 <aside class="lp-mockup-app__sidebar" id="lp-mockup-app-sidebar">
                   <div class="lp-mockup-app__brand">
                     <span class="lp-mockup-app__collapse" title="Navigation"><i class="fa-solid fa-angles-left" aria-hidden="true"></i></span>
-                    <img src="{{ asset('assets/images/logo.svg') }}" width="100" height="26" alt="" decoding="async" />
+                    @include('brand-logo')
                     <button type="button" class="lp-mockup-app__drawer-close" data-lp-mockup-drawer-close aria-label="Close menu">
                       <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                     </button>
@@ -519,7 +519,7 @@
       <div class="lp-footer__grid">
         <div class="lp-footer__brand">
           <a class="lp-logo" href="{{ route('landing') }}" aria-label="{{ config('app.name') }} home">
-            <img src="{{ asset('assets/images/logo.svg') }}" width="112" height="28" alt="{{ config('app.name') }}" />
+            @include('brand-logo')
           </a>
           <p>Social scheduling and analytics UI — bring your own backend.</p>
           <div class="lp-footer__social">
