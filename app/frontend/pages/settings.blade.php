@@ -36,7 +36,7 @@
                   <button type="button" class="btn btn--primary" data-app-modal-open="modal-settings-saved">Save workspace</button>
                 </div>
               </div>
-              <div class="card">
+              <div class="card card--settings-notifications">
                 <div class="card__head">Notifications</div>
                 <div class="card__body">
                   <label class="check-line check-line--spaced">
@@ -47,9 +47,13 @@
                     <input type="checkbox" {{ ($notifPreferences['weekly_digest'] ?? true) ? 'checked' : '' }} />
                     <span>Weekly digest of reach and engagement</span>
                   </label>
-                  <label class="check-line">
+                  <label class="check-line check-line--spaced">
                     <input type="checkbox" {{ ($notifPreferences['product_updates'] ?? false) ? 'checked' : '' }} />
                     <span>Product updates and tips</span>
+                  </label>
+                  <label class="check-line">
+                    <input type="checkbox" {{ $marketingEmailOptIn ? 'checked' : '' }} />
+                    <span>Marketing emails from {{ config('app.name') }} (offers, announcements)</span>
                   </label>
                 </div>
               </div>

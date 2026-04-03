@@ -77,6 +77,11 @@
       <span class="nav-subgroup-label">Marketing content</span>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-testimonials' ? 'nav-link--active' : '' }}" href="{{ route('admin.testimonials') }}"><i class="fa-solid fa-quote-left fa-fw" aria-hidden="true"></i>Testimonials</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-faqs' ? 'nav-link--active' : '' }}" href="{{ route('admin.faqs') }}"><i class="fa-solid fa-circle-question fa-fw" aria-hidden="true"></i>FAQs</a>
+      <span class="nav-subgroup-label">Notifications</span>
+      <a class="nav-link nav-link--sub {{ $activePage === 'admin-notification-settings' ? 'nav-link--active' : '' }}" href="{{ route('admin.notifications.settings') }}"><i class="fa-solid fa-envelope-open-text fa-fw" aria-hidden="true"></i>Channel settings</a>
+      <a class="nav-link nav-link--sub {{ $activePage === 'admin-email-templates' ? 'nav-link--active' : '' }}" href="{{ route('admin.email-templates.index') }}"><i class="fa-solid fa-file-lines fa-fw" aria-hidden="true"></i>Email templates</a>
+      <a class="nav-link nav-link--sub {{ $activePage === 'admin-notification-deliveries' ? 'nav-link--active' : '' }}" href="{{ route('admin.notification-deliveries') }}"><i class="fa-solid fa-paper-plane fa-fw" aria-hidden="true"></i>Delivery log</a>
+      <a class="nav-link nav-link--sub {{ $activePage === 'admin-marketing-campaigns' ? 'nav-link--active' : '' }}" href="{{ route('admin.marketing-campaigns.index') }}"><i class="fa-solid fa-bullhorn fa-fw" aria-hidden="true"></i>Marketing campaigns</a>
       <span class="nav-subgroup-label">System</span>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-settings' ? 'nav-link--active' : '' }}" href="{{ route('admin.settings') }}"><i class="fa-solid fa-sliders fa-fw" aria-hidden="true"></i>Site settings</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-migrations' ? 'nav-link--active' : '' }}" href="{{ route('admin.migrations') }}"><i class="fa-solid fa-database fa-fw" aria-hidden="true"></i>Migrations</a>

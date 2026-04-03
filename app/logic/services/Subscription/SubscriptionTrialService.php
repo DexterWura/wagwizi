@@ -8,6 +8,7 @@ use App\Models\Plan;
 use App\Models\PlanChange;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Jobs\QueueTemplatedEmailForUserJob;
 use Illuminate\Support\Facades\DB;
 
 final class SubscriptionTrialService
@@ -92,6 +93,13 @@ final class SubscriptionTrialService
                     'change_type'  => 'upgrade',
                 ]);
             }
+
+            DB::afterCommit(function () use ($user, $newPlan): void {
+                QueueTemplatedEmailForUserJob::dispatch($user->id, 'subscription.updated', [
+                    'planName'     => $newPlan->name,
+                    'trialStarted' => true,
+                ]);
+            });
 
             return $subscription;
         });

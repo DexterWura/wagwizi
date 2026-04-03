@@ -40,6 +40,8 @@ class AuthService
             ];
         }
 
+        $user->forceFill(['last_login_at' => now()])->save();
+
         Log::info('User logged in', ['user_id' => $user->id, 'email' => $email]);
         return ['success' => true, 'user' => $user];
     }
@@ -158,6 +160,9 @@ class AuthService
         }
 
         Auth::login($user, true);
+
+        $user->forceFill(['last_login_at' => now()])->save();
+
         Log::info('User logged in via social auth', [
             'user_id'    => $user->id,
             'provider'   => $provider,

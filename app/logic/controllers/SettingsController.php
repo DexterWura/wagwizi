@@ -30,14 +30,20 @@ class SettingsController extends Controller
     public function updateNotifications(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'email_on_failure' => 'required|boolean',
-            'weekly_digest'    => 'required|boolean',
-            'product_updates'  => 'required|boolean',
+            'email_on_failure'       => 'required|boolean',
+            'weekly_digest'          => 'required|boolean',
+            'product_updates'        => 'required|boolean',
+            'marketing_email_opt_in' => 'required|boolean',
         ]);
 
         $user = Auth::user();
         $user->update([
-            'notification_preferences' => $validated,
+            'notification_preferences' => [
+                'email_on_failure' => $validated['email_on_failure'],
+                'weekly_digest'    => $validated['weekly_digest'],
+                'product_updates'  => $validated['product_updates'],
+            ],
+            'marketing_email_opt_in' => $validated['marketing_email_opt_in'],
         ]);
 
         return response()->json([

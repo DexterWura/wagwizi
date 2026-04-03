@@ -1429,14 +1429,15 @@
       });
     }
 
-    var notifChecks = document.querySelectorAll(".card .check-line input[type='checkbox']");
+    var notifChecks = document.querySelectorAll(".card--settings-notifications .check-line input[type='checkbox']");
     notifChecks.forEach(function (cb) {
       cb.addEventListener("change", function () {
-        var checks = document.querySelectorAll(".card .check-line input[type='checkbox']");
+        var checks = document.querySelectorAll(".card--settings-notifications .check-line input[type='checkbox']");
         apiPost("/settings/notifications", {
           email_on_failure: checks[0] ? checks[0].checked : true,
           weekly_digest: checks[1] ? checks[1].checked : true,
-          product_updates: checks[2] ? checks[2].checked : false
+          product_updates: checks[2] ? checks[2].checked : false,
+          marketing_email_opt_in: checks[3] ? checks[3].checked : false
         });
       });
     });

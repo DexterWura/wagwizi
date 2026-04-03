@@ -6618,6 +6618,87 @@ button.link-create {
   justify-content: center;
 }
 
+.admin-filter-bar--wrap {
+  align-items: flex-end;
+}
+
+.admin-notification-form__master,
+.admin-email-template__body {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.admin-notification-test {
+  margin-top: 1.5rem;
+}
+
+.admin-form-actions {
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-table__cell-clip {
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-pill--queued {
+  background: rgba(234, 179, 8, 0.18);
+  color: #facc15;
+}
+
+.admin-pill--sent {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.admin-pill--failed {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.admin-pill--draft {
+  background: rgba(148, 163, 184, 0.15);
+  color: #cbd5e1;
+}
+
+.admin-pill--scheduled {
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+}
+
+.admin-pill--sending {
+  background: rgba(234, 179, 8, 0.18);
+  color: #facc15;
+}
+
+.admin-pill--completed {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.admin-pill--cancelled {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+}
+
+.admin-table__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.marketing-campaign-actions .card__body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .inline-form {
   display: inline-flex;
   align-items: center;

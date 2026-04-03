@@ -1,6 +1,8 @@
 <?php
 
 use App\Controllers\AdminController;
+use App\Controllers\AdminMarketingController;
+use App\Controllers\AdminNotificationController;
 use App\Controllers\Auth\AuthController;
 use App\Controllers\Auth\SocialAuthController;
 use App\Controllers\MediaController;
@@ -155,6 +157,26 @@ Route::middleware('auth')->group(function () {
         Route::post('/operations/retry-publish', [AdminController::class, 'retryPublish'])->name('operations.retry-publish');
         Route::post('/operations/retry-comment', [AdminController::class, 'retryComment'])->name('operations.retry-comment');
         Route::post('/operations/settings',      [AdminController::class, 'updateOperationsSettings'])->name('operations.settings');
+
+        Route::get('/notifications/settings', [AdminNotificationController::class, 'notificationSettings'])->name('notifications.settings');
+        Route::post('/notifications/settings', [AdminNotificationController::class, 'updateNotificationSettings'])->name('notifications.settings.update');
+        Route::post('/notifications/test-email', [AdminNotificationController::class, 'sendTestEmail'])->name('notifications.test-email');
+
+        Route::get('/email-templates', [AdminNotificationController::class, 'emailTemplates'])->name('email-templates.index');
+        Route::get('/email-templates/{id}/edit', [AdminNotificationController::class, 'editEmailTemplate'])->name('email-templates.edit');
+        Route::put('/email-templates/{id}', [AdminNotificationController::class, 'updateEmailTemplate'])->name('email-templates.update');
+        Route::get('/email-templates/{id}/preview', [AdminNotificationController::class, 'previewEmailTemplate'])->name('email-templates.preview');
+
+        Route::get('/notification-deliveries', [AdminNotificationController::class, 'notificationDeliveries'])->name('notification-deliveries');
+
+        Route::get('/marketing-campaigns', [AdminMarketingController::class, 'index'])->name('marketing-campaigns.index');
+        Route::get('/marketing-campaigns/create', [AdminMarketingController::class, 'create'])->name('marketing-campaigns.create');
+        Route::post('/marketing-campaigns', [AdminMarketingController::class, 'store'])->name('marketing-campaigns.store');
+        Route::get('/marketing-campaigns/{id}/edit', [AdminMarketingController::class, 'edit'])->name('marketing-campaigns.edit');
+        Route::put('/marketing-campaigns/{id}', [AdminMarketingController::class, 'update'])->name('marketing-campaigns.update');
+        Route::delete('/marketing-campaigns/{id}', [AdminMarketingController::class, 'destroy'])->name('marketing-campaigns.destroy');
+        Route::post('/marketing-campaigns/{id}/test', [AdminMarketingController::class, 'sendTest'])->name('marketing-campaigns.test');
+        Route::post('/marketing-campaigns/{id}/send', [AdminMarketingController::class, 'startSend'])->name('marketing-campaigns.send');
     });
 
     Route::prefix('api/v1')->group(function () {

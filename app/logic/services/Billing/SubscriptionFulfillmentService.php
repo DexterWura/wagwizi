@@ -7,6 +7,7 @@ use App\Models\Plan;
 use App\Models\PlanChange;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Jobs\QueueTemplatedEmailForUserJob;
 use Illuminate\Support\Facades\DB;
 
 final class SubscriptionFulfillmentService
@@ -69,6 +70,20 @@ final class SubscriptionFulfillmentService
                 'status'       => 'completed',
                 'completed_at' => now(),
             ]);
+
+            if ($oldPlanId !== $newPlan->id) {
+                $oldPlan = $oldPlanId ? Plan::find($oldPlanId) : null;
+                DB::afterCommit(function () use ($user, $newPlan, $oldPlan): void {
+                    $templateKey = ($oldPlan && ! $oldPlan->is_free && $newPlan->is_free)
+                        ? 'subscription.downgrade'
+                        : 'subscription.updated';
+
+                    QueueTemplatedEmailForUserJob::dispatch($user->id, $templateKey, [
+                        'planName'         => $newPlan->name,
+                        'previousPlanName' => $oldPlan?->name ?? '',
+                    ]);
+                });
+            }
 
             return $subscription;
         });

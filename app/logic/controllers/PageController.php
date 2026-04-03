@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Jobs\QueueTemplatedEmailForUserJob;
 use App\Models\Plan;
 use App\Models\PlanChange;
 use App\Models\SiteSetting;
@@ -269,6 +270,7 @@ class PageController extends Controller
             'workspaceName'        => $user->workspace_name ?? 'Personal brand',
             'workspaceSlug'        => $user->workspace_slug ?? 'personal-brand',
             'defaultPostingTime'   => $user->default_posting_time ?? '09:00',
+            'marketingEmailOptIn'  => (bool) ($user->marketing_email_opt_in ?? false),
             'notifPreferences'     => $user->notification_preferences ?? [
                 'email_on_failure' => true,
                 'weekly_digest'    => true,
@@ -366,6 +368,18 @@ class PageController extends Controller
                 'from_plan_id' => $oldPlanId,
                 'to_plan_id'   => $newPlan->id,
                 'change_type'  => 'upgrade',
+            ]);
+        }
+
+        if ($oldPlanId !== $newPlan->id) {
+            $oldPlan = $oldPlanId ? Plan::find($oldPlanId) : null;
+            $templateKey = ($oldPlan && ! $oldPlan->is_free && $newPlan->is_free)
+                ? 'subscription.downgrade'
+                : 'subscription.updated';
+
+            QueueTemplatedEmailForUserJob::dispatch($user->id, $templateKey, [
+                'planName'         => $newPlan->name,
+                'previousPlanName' => $oldPlan?->name ?? '',
             ]);
         }
 

@@ -31,6 +31,8 @@ class User extends Authenticatable
         'workspace_slug',
         'default_posting_time',
         'notification_preferences',
+        'marketing_email_opt_in',
+        'last_login_at',
         'ai_source',
         'ai_provider',
         'ai_base_url',
@@ -48,6 +50,8 @@ class User extends Authenticatable
             'password'                 => 'hashed',
             'profile_completed'        => 'boolean',
             'notification_preferences' => 'array',
+            'last_login_at'            => 'datetime',
+            'marketing_email_opt_in' => 'boolean',
         ];
     }
 
@@ -99,6 +103,16 @@ class User extends Authenticatable
     public function supportTickets(): HasMany
     {
         return $this->hasMany(SupportTicket::class);
+    }
+
+    public function notificationDeliveries(): HasMany
+    {
+        return $this->hasMany(NotificationDelivery::class);
+    }
+
+    public function marketingCampaignsCreated(): HasMany
+    {
+        return $this->hasMany(MarketingCampaign::class, 'created_by');
     }
 
     /**
