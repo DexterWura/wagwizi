@@ -40,17 +40,17 @@
     @stack('styles')
   </head>
   <body class="app" data-app-page="@yield('page-id')">
+    <div class="app-nav-preloader" id="app-nav-preloader" role="status" aria-live="polite" aria-hidden="true">
+      <div class="app-nav-preloader__inner">
+        <div class="app-nav-preloader__orbit" aria-hidden="true"></div>
+        <span class="app-nav-preloader__text">Loading…</span>
+      </div>
+    </div>
     <div class="app-overlay" id="app-drawer-overlay" data-app-drawer-overlay aria-hidden="true"></div>
     <div class="app-shell">
       @include('app-sidebar', ['activePage' => View::yieldContent('page-id')])
 
       <div class="app-main">
-        <div class="app-nav-preloader" id="app-nav-preloader" role="status" aria-live="polite" aria-hidden="true">
-          <div class="app-nav-preloader__inner">
-            <div class="app-nav-preloader__orbit" aria-hidden="true"></div>
-            <span class="app-nav-preloader__text">Loading…</span>
-          </div>
-        </div>
         @section('topbar')
         @include('app-topbar')
         @show

@@ -1050,10 +1050,9 @@
     }
 
     function navigate(href) {
-      try {
-        global.sessionStorage.setItem("appNavPending", "1");
-        document.documentElement.classList.add("app-nav-loading");
-      } catch (err) {}
+      if (global.App && typeof global.App.armNavLoading === "function") {
+        global.App.armNavLoading();
+      }
       global.location.href = href;
     }
 
@@ -1529,7 +1528,7 @@
 
     var done = {};
     var timers = {};
-    var delayMs = 320;
+    var delayMs = 180;
 
     document.querySelectorAll(".app-sidebar a[href]").forEach(function (a) {
       var href = a.getAttribute("href");
@@ -1565,6 +1564,9 @@
   function initNavPreloader() {
     var preloader = document.getElementById("app-nav-preloader");
     var html = document.documentElement;
+    /** Only show overlay if navigation takes longer than this (avoids flash on fast loads). */
+    var NAV_LOAD_DELAY_MS = 160;
+    var navLoadTimer = null;
 
     function setPreloaderVisible(visible) {
       if (preloader) {
@@ -1572,7 +1574,15 @@
       }
     }
 
+    function disarmNavLoading() {
+      if (navLoadTimer) {
+        global.clearTimeout(navLoadTimer);
+        navLoadTimer = null;
+      }
+    }
+
     function hideNavLoading() {
+      disarmNavLoading();
       html.classList.remove("app-nav-loading");
       setPreloaderVisible(false);
       try {
@@ -1588,6 +1598,14 @@
       } catch (e) {}
     }
 
+    function armNavLoading() {
+      disarmNavLoading();
+      navLoadTimer = global.setTimeout(function () {
+        navLoadTimer = null;
+        showNavLoading();
+      }, NAV_LOAD_DELAY_MS);
+    }
+
     var hadPending = false;
     try {
       hadPending = !!global.sessionStorage.getItem("appNavPending");
@@ -1596,6 +1614,8 @@
     if (hadPending) {
       setPreloaderVisible(true);
     }
+
+    global.addEventListener("pagehide", disarmNavLoading, false);
 
     global.addEventListener(
       "pageshow",
@@ -1637,18 +1657,18 @@
           return;
         }
 
-        showNavLoading();
+        armNavLoading();
       },
       true
     );
 
     if (hadPending) {
       global.requestAnimationFrame(function () {
-        setTimeout(function () {
-          hideNavLoading();
-        }, 72);
+        hideNavLoading();
       });
     }
+
+    return { armNavLoading: armNavLoading, hideNavLoading: hideNavLoading };
   }
 
   function initPlansServerSync() {
@@ -1712,7 +1732,9 @@
 
   var App = {
     init: function () {
-      initNavPreloader();
+      var navPreloadCtl = initNavPreloader();
+      App.armNavLoading = navPreloadCtl.armNavLoading;
+      App.hideNavLoading = navPreloadCtl.hideNavLoading;
       initNavPrefetch();
       initTopbarDate();
       initTheme();
@@ -1750,7 +1772,9 @@
     apiGet: apiGet,
     apiUpload: apiUpload,
     showFlash: showFlash,
-    getCsrfToken: getCsrfToken
+    getCsrfToken: getCsrfToken,
+    armNavLoading: function () {},
+    hideNavLoading: function () {}
   };
 
   global.App = App;
