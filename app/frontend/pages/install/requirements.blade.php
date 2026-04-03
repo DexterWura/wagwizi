@@ -50,9 +50,9 @@
 
   <div class="installer__actions">
     @if ($passed)
-      <a href="/install/database" class="btn btn--primary">Continue <i class="fa-solid fa-arrow-right"></i></a>
+      <a href="{{ $installPath }}/database" class="btn btn--primary">Continue <i class="fa-solid fa-arrow-right"></i></a>
     @else
-      <a href="/install/requirements" class="btn btn--outline"><i class="fa-solid fa-rotate-right"></i> Re-check</a>
+      <a href="{{ $installPath }}/requirements" class="btn btn--outline"><i class="fa-solid fa-rotate-right"></i> Re-check</a>
       <p class="installer__warn">Please fix the failed requirements above before continuing.</p>
     @endif
   </div>

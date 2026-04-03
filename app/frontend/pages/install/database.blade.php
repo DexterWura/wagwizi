@@ -14,7 +14,7 @@
   </div>
   @endif
 
-  <form method="POST" action="/install/database">
+  <form method="POST" action="{{ $installPath }}/database">
     <input type="hidden" name="_installer_csrf" value="{{ $csrfToken }}" />
     <div class="installer__field-row">
       <div class="field">
@@ -43,7 +43,7 @@
     </div>
 
     <div class="installer__actions">
-      <a href="/install/requirements" class="btn btn--outline"><i class="fa-solid fa-arrow-left"></i> Back</a>
+      <a href="{{ $installPath }}/requirements" class="btn btn--outline"><i class="fa-solid fa-arrow-left"></i> Back</a>
       <button type="submit" class="btn btn--primary">Test &amp; Continue <i class="fa-solid fa-arrow-right"></i></button>
     </div>
   </form>

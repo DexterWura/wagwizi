@@ -20,6 +20,8 @@ $app = require_once LOGIC_PATH . '/bootstrap.php';
 
 $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
+\App\Services\Installer\InstallerRequestContext::applyUrlGenerator();
+
 $path = isset($_GET['__path__']) ? (string) $_GET['__path__'] : '';
 
 \App\Services\Installer\StandaloneInstaller::run($path);

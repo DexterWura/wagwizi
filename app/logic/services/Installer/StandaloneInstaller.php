@@ -53,23 +53,24 @@ final class StandaloneInstaller
         }
 
         match ($step) {
-            'index' => $this->redirect('/install/requirements'),
+            'index' => $this->redirect(InstallerRequestContext::installUrl('requirements')),
             'requirements' => $this->stepRequirements(),
             'database' => $this->stepDatabase(),
             'admin' => $this->stepAdmin(),
-            'complete' => $this->redirect('/install/requirements'),
-            default => $this->redirect('/install/requirements'),
+            'complete' => $this->redirect(InstallerRequestContext::installUrl('requirements')),
+            default => $this->redirect(InstallerRequestContext::installUrl('requirements')),
         };
     }
 
     /**
-     * @return array{csrfToken: string, old: array<string, mixed>}
+     * @return array{csrfToken: string, old: array<string, mixed>, installPath: string}
      */
     private function sharedViewData(): array
     {
         return [
-            'csrfToken' => $this->csrfToken(),
-            'old' => $_SESSION[self::OLD_INPUT_KEY] ?? [],
+            'csrfToken'   => $this->csrfToken(),
+            'old'         => $_SESSION[self::OLD_INPUT_KEY] ?? [],
+            'installPath' => InstallerRequestContext::installPathPrefix(),
         ];
     }
 
@@ -160,7 +161,7 @@ final class StandaloneInstaller
             $this->installer->saveDatabaseConfig($credentials);
             unset($_SESSION[self::OLD_INPUT_KEY]);
             $_SESSION[self::DB_OK_KEY] = true;
-            $this->redirect('/install/admin');
+            $this->redirect(InstallerRequestContext::installUrl('admin'));
         }
 
         unset($_SESSION[self::OLD_INPUT_KEY]);
@@ -170,7 +171,7 @@ final class StandaloneInstaller
     private function stepAdmin(): void
     {
         if (empty($_SESSION[self::DB_OK_KEY])) {
-            $this->redirect('/install/database');
+            $this->redirect(InstallerRequestContext::installUrl('database'));
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -210,7 +211,7 @@ final class StandaloneInstaller
                 $this->installer->seedCronTasks();
                 $this->installer->markInstalled();
                 unset($_SESSION[self::DB_OK_KEY], $_SESSION[self::OLD_INPUT_KEY]);
-                $this->redirect('/install/complete');
+                $this->redirect(InstallerRequestContext::installUrl('complete'));
             } catch (Throwable $e) {
                 $_SESSION[self::OLD_INPUT_KEY] = $_POST;
                 $bag = new ViewErrorBag();
@@ -240,11 +241,7 @@ final class StandaloneInstaller
 
     private function defaultAppUrl(): string
     {
-        $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
-        $scheme = $https ? 'https' : 'http';
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-
-        return $scheme . '://' . $host;
+        return rtrim(InstallerRequestContext::publicRootUrl(), '/');
     }
 
     private function toErrorBag(\Illuminate\Contracts\Validation\Validator $validator): ViewErrorBag

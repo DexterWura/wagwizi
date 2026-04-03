@@ -1,9 +1,9 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Redirect trailing slashes
+    # Redirect trailing slashes (relative target keeps subdirectory installs like /wagwizi/...)
     RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)/$ /$1 [L,R=301]
+    RewriteRule ^(.*)/$ $1 [L,R=301]
 
     # Serve static assets directly
     RewriteCond %{REQUEST_URI} ^/assets/ [OR]
