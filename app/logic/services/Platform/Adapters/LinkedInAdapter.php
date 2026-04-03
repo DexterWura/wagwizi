@@ -46,29 +46,6 @@ class LinkedInAdapter extends AbstractPlatformAdapter
             }
         }
 
-        $payload = [
-            'author'         => "urn:li:person:{$authorId}",
-            'lifecycleState' => 'PUBLISHED',
-            'visibility'     => [
-                'com.linkedin.ugc.MemberNetworkVisibility' => 'PUBLIC',
-            ],
-            'specificContent' => [
-                'com.linkedin.ugc.ShareContent' => [
-                    'shareCommentary' => [
-                        'text' => $text,
-                    ],
-                    'shareMediaCategory' => empty($mediaUrls) ? 'NONE' : 'IMAGE',
-                ],
-            ],
-        ];
-
-        if (!empty($mediaUrls)) {
-            $uploadedMedia = $this->uploadImages($account, $authorId, $mediaUrls);
-            if (!empty($uploadedMedia)) {
-                $payload['specificContent']['com.linkedin.ugc.ShareContent']['media'] = $uploadedMedia;
-            }
-        }
-
         $response = $this->httpClient($account)
             ->withHeaders([
                 'X-Restli-Protocol-Version' => '2.0.0',

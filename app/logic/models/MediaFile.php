@@ -62,6 +62,18 @@ class MediaFile extends Model
         return $query->where('is_premium', true);
     }
 
+    public function getUrlAttribute(): ?string
+    {
+        if ($this->path === null || trim($this->path) === '') {
+            return null;
+        }
+
+        $base = rtrim((string) config('app.url'), '/');
+        $path = ltrim($this->path, '/');
+
+        return $base . '/' . $path;
+    }
+
     public function getPriceDollars(): ?float
     {
         return $this->price_cents !== null

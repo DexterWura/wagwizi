@@ -119,31 +119,43 @@ class PublishPostToPlatformJob implements ShouldQueue
 
         $mediaUrls = $this->resolveMediaUrls($post);
 
-        $result = $adapter->publish(
-            account:         $account,
-            content:         $post->content,
-            mediaUrls:       $mediaUrls,
-            platformContent: $postPlatform->platform_content,
-        );
-
-        if (
-            !$result->success
-            && !empty($mediaUrls)
-            && $this->isTextFallbackEnabled()
-            && $this->canFallbackToTextOnly($platform, $result->errorMessage)
-        ) {
-            Log::warning('Retrying publish without media fallback', [
-                'post_platform_id' => $postPlatform->id,
-                'platform' => $platform->value,
-                'reason' => $result->errorMessage,
-            ]);
-
+        try {
             $result = $adapter->publish(
                 account:         $account,
                 content:         $post->content,
-                mediaUrls:       [],
+                mediaUrls:       $mediaUrls,
                 platformContent: $postPlatform->platform_content,
             );
+
+            if (
+                !$result->success
+                && !empty($mediaUrls)
+                && $this->isTextFallbackEnabled()
+                && $this->canFallbackToTextOnly($platform, $result->errorMessage)
+            ) {
+                Log::warning('Retrying publish without media fallback', [
+                    'post_platform_id' => $postPlatform->id,
+                    'platform' => $platform->value,
+                    'reason' => $result->errorMessage,
+                ]);
+
+                $result = $adapter->publish(
+                    account:         $account,
+                    content:         $post->content,
+                    mediaUrls:       [],
+                    platformContent: $postPlatform->platform_content,
+                );
+            }
+        } catch (\Throwable $e) {
+            Log::error('Platform adapter threw exception during publish', [
+                'post_platform_id' => $postPlatform->id,
+                'platform'         => $platform->value,
+                'error'            => $e->getMessage(),
+            ]);
+
+            $this->markFailed($postPlatform, 'Platform error: ' . $e->getMessage());
+            $postPublishingService->finalizePostStatus($post);
+            return;
         }
 
         if ($result->success) {

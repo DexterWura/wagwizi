@@ -8,6 +8,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -75,7 +76,7 @@ final class DashboardMetricsService
                 $q->whereRaw('0 = 1');
             })
             ->when(! $emptyPlatformScope && $platformSlug !== null, function (Builder $q) use ($platformSlug): void {
-                $q->whereJsonContains('platforms', $platformSlug);
+                $q->whereHas('postPlatforms', fn (Builder $pp) => $pp->where('platform', $platformSlug));
             })
             ->count();
 
@@ -87,7 +88,7 @@ final class DashboardMetricsService
                 $q->whereRaw('0 = 1');
             })
             ->when(! $emptyPlatformScope && $platformSlug !== null, function (Builder $q) use ($platformSlug): void {
-                $q->whereJsonContains('platforms', $platformSlug);
+                $q->whereHas('postPlatforms', fn (Builder $pp) => $pp->where('platform', $platformSlug));
             })
             ->count();
 
@@ -104,7 +105,7 @@ final class DashboardMetricsService
                 $q->whereRaw('0 = 1');
             })
             ->when(! $emptyPlatformScope && $platformSlug !== null, function (Builder $q) use ($platformSlug): void {
-                $q->whereJsonContains('platforms', $platformSlug);
+                $q->whereHas('postPlatforms', fn (Builder $pp) => $pp->where('platform', $platformSlug));
             })
             ->orderByDesc('updated_at')
             ->limit(5)
@@ -118,7 +119,7 @@ final class DashboardMetricsService
                 $q->whereRaw('0 = 1');
             })
             ->when(! $emptyPlatformScope && $platformSlug !== null, function (Builder $q) use ($platformSlug): void {
-                $q->whereJsonContains('platforms', $platformSlug);
+                $q->whereHas('postPlatforms', fn (Builder $pp) => $pp->where('platform', $platformSlug));
             })
             ->orderBy('scheduled_at')
             ->limit(5)
@@ -166,7 +167,18 @@ final class DashboardMetricsService
         return $any ? $total : null;
     }
 
+    private const AUDIENCE_CACHE_TTL = 86400;
+
     private function audienceForAccount(SocialAccount $account): ?int
+    {
+        $cacheKey = "dashboard_audience:{$account->id}";
+
+        return Cache::remember($cacheKey, self::AUDIENCE_CACHE_TTL, function () use ($account): ?int {
+            return $this->fetchAudienceForAccount($account);
+        });
+    }
+
+    private function fetchAudienceForAccount(SocialAccount $account): ?int
     {
         try {
             /** @var TokenRefreshService $refresh */
