@@ -21,7 +21,7 @@
         <label class="field__label" for="db_host">Database Host</label>
         <input class="input" id="db_host" type="text" name="db_host" value="{{ $old['db_host'] ?? '127.0.0.1' }}" required />
       </div>
-      <div class="field" style="max-width: 120px;">
+      <div class="field field--port">
         <label class="field__label" for="db_port">Port</label>
         <input class="input" id="db_port" type="number" name="db_port" value="{{ $old['db_port'] ?? '3306' }}" required />
       </div>

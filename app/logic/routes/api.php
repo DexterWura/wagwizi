@@ -21,11 +21,18 @@ Route::post('/cron/run', [CronController::class, 'run'])->middleware('throttle:1
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/user', function (\Illuminate\Http\Request $request) {
-        return $request->user();
+        $u = $request->user();
+
+        return response()->json([
+            'id'    => $u->id,
+            'name'  => $u->name,
+            'email' => $u->email,
+        ]);
     });
 
     Route::post('/posts',              [PostController::class, 'store']);
     Route::get('/posts',               [PostController::class, 'index']);
+    Route::post('/posts/schedule',     [PostController::class, 'scheduleNew']);
     Route::put('/posts/{id}',          [PostController::class, 'update']);
     Route::delete('/posts/{id}',       [PostController::class, 'destroy']);
     Route::post('/posts/{id}/schedule', [PostController::class, 'schedule']);

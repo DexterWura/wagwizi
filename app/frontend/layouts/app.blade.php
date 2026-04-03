@@ -39,7 +39,7 @@
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}" />
     @stack('styles')
   </head>
-  <body class="app" data-app-page="@yield('page-id')">
+  <body class="app" data-app-page="@yield('page-id')" @if(!empty($aiClientConfig)) data-app-ai-config="{{ e(json_encode($aiClientConfig)) }}" @endif>
     <div class="app-nav-preloader" id="app-nav-preloader" role="status" aria-live="polite" aria-hidden="true">
       <div class="app-nav-preloader__inner">
         <div class="app-nav-preloader__orbit" aria-hidden="true"></div>

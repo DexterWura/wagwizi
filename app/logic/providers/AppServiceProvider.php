@@ -25,6 +25,8 @@ use App\Services\SocialAccount\TokenRefreshService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
+use App\Services\Ai\PlatformAiQuotaService;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -84,6 +86,11 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if (filter_var(config('app.force_https', true), FILTER_VALIDATE_BOOLEAN)
+            && ! $this->app->environment('local', 'testing')) {
+            URL::forceScheme('https');
+        }
+
         $this->app->booted(function (): void {
             try {
                 if (Schema::hasTable('site_settings')) {
@@ -142,6 +149,7 @@ class AppServiceProvider extends ServiceProvider
                 // Installer, missing DB, or migrations not run yet.
             }
             $view->with('showFloatingHelp', $showFloatingHelp);
+            $view->with('aiClientConfig', null);
 
             if (str_starts_with((string) $view->name(), 'install.')) {
                 $view->with('currentUser', null);
@@ -190,6 +198,37 @@ class AppServiceProvider extends ServiceProvider
             }
             $view->with('subscriptionRenewalDaysLeft', $subscriptionRenewalDaysLeft);
             $view->with('showSubscriptionRenewalBanner', $showSubscriptionRenewalBanner);
+
+            $aiClientConfig = null;
+            if (Auth::check()) {
+                try {
+                    $u = Auth::user();
+                    try {
+                        $tokenSummary = app(PlatformAiQuotaService::class)->summaryForLayout($u);
+                    } catch (\Throwable) {
+                        $tokenSummary = ['remaining' => 0, 'budget' => 0, 'applies' => false];
+                    }
+                    $aiClientConfig = [
+                        'source'    => $u->ai_source === 'byok' ? 'byok' : 'platform',
+                        'provider'  => in_array($u->ai_provider, ['openai', 'anthropic', 'custom'], true)
+                            ? $u->ai_provider
+                            : 'openai',
+                        'baseUrl'   => (string) ($u->ai_base_url ?? ''),
+                        'hasApiKey' => $u->hasAiApiKeyStored(),
+                        'platformTokensRemaining' => $tokenSummary['remaining'],
+                        'platformTokensBudget'    => $tokenSummary['budget'],
+                        'platformTokensApplies'   => $tokenSummary['applies'],
+                    ];
+                } catch (\Throwable) {
+                    $aiClientConfig = [
+                        'source'    => 'platform',
+                        'provider'  => 'openai',
+                        'baseUrl'   => '',
+                        'hasApiKey' => false,
+                    ];
+                }
+            }
+            $view->with('aiClientConfig', $aiClientConfig);
 
             $view->with('currentUser', Auth::user());
         });

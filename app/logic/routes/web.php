@@ -1,6 +1,7 @@
 <?php
 
 use App\Controllers\AdminController;
+use App\Controllers\ComposerAiController;
 use App\Controllers\AdminMarketingController;
 use App\Controllers\AdminNotificationController;
 use App\Controllers\Auth\AuthController;
@@ -82,7 +83,12 @@ Route::middleware('auth')->group(function () {
     Route::post('/settings/workspace',     [SettingsController::class, 'updateWorkspace'])->name('settings.workspace');
     Route::post('/settings/notifications', [SettingsController::class, 'updateNotifications'])->name('settings.notifications');
     Route::post('/settings/default-time',  [SettingsController::class, 'updateDefaultTime'])->name('settings.default-time');
-    Route::post('/settings/ai',            [SettingsController::class, 'updateAiSettings'])->name('settings.ai');
+    Route::post('/settings/ai',            [SettingsController::class, 'updateAiSettings'])
+        ->middleware('throttle:20,1')
+        ->name('settings.ai');
+    Route::post('/composer/ai',            [ComposerAiController::class, 'chat'])
+        ->middleware('throttle:30,1')
+        ->name('composer.ai');
 
     Route::get('/support-tickets',        [SupportTicketController::class, 'index'])->name('support-tickets.index');
     Route::get('/support-tickets/{id}',   [SupportTicketController::class, 'show'])->name('support-tickets.show')->whereNumber('id');
@@ -177,17 +183,5 @@ Route::middleware('auth')->group(function () {
         Route::delete('/marketing-campaigns/{id}', [AdminMarketingController::class, 'destroy'])->name('marketing-campaigns.destroy');
         Route::post('/marketing-campaigns/{id}/test', [AdminMarketingController::class, 'sendTest'])->name('marketing-campaigns.test');
         Route::post('/marketing-campaigns/{id}/send', [AdminMarketingController::class, 'startSend'])->name('marketing-campaigns.send');
-    });
-
-    Route::prefix('api/v1')->group(function () {
-        Route::get('/posts',               [\App\Controllers\PostController::class, 'index']);
-        Route::post('/posts',              [\App\Controllers\PostController::class, 'store']);
-        Route::post('/posts/schedule',     [\App\Controllers\PostController::class, 'scheduleNew']);
-        Route::put('/posts/{id}',          [\App\Controllers\PostController::class, 'update']);
-        Route::delete('/posts/{id}',       [\App\Controllers\PostController::class, 'destroy']);
-        Route::post('/posts/{id}/schedule', [\App\Controllers\PostController::class, 'schedule']);
-        Route::post('/posts/{id}/publish',  [\App\Controllers\PostController::class, 'publish']);
-        Route::post('/posts/{id}/cancel',   [\App\Controllers\PostController::class, 'cancel']);
-        Route::patch('/posts/{id}/reschedule', [\App\Controllers\PostController::class, 'reschedule']);
     });
 });

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Ai\PlatformAiConfigService;
+use App\Services\Ai\PlatformAiQuotaService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -36,11 +38,13 @@ class User extends Authenticatable
         'ai_source',
         'ai_provider',
         'ai_base_url',
+        'ai_api_key',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'ai_api_key',
     ];
 
     protected function casts(): array
@@ -52,7 +56,15 @@ class User extends Authenticatable
             'notification_preferences' => 'array',
             'last_login_at'            => 'datetime',
             'marketing_email_opt_in' => 'boolean',
+            'ai_api_key'             => 'encrypted',
         ];
+    }
+
+    public function hasAiApiKeyStored(): bool
+    {
+        $raw = $this->getAttributes()['ai_api_key'] ?? null;
+
+        return $raw !== null && $raw !== '';
     }
 
     public function isSuperAdmin(): bool
@@ -131,14 +143,10 @@ class User extends Authenticatable
     }
 
     /**
-     * Composer “AI Assist” for non–free plans with an active or trialing subscription; super admins always allowed.
+     * Paid (non-free) plan with an active or trialing subscription — used for platform-billed AI only.
      */
-    public function canAccessComposerAi(): bool
+    public function hasPaidActiveSubscriptionForAi(): bool
     {
-        if ($this->isSuperAdmin()) {
-            return true;
-        }
-
         $this->loadMissing('subscription.planModel');
         $sub  = $this->subscription;
         $plan = $sub?->planModel;
@@ -148,6 +156,46 @@ class User extends Authenticatable
         }
 
         return $sub->isActive() || $sub->isTrialing();
+    }
+
+    /**
+     * Whether the user is using bring-your-own-key (stored key + explicit BYOK mode).
+     */
+    public function usesComposerAiByok(): bool
+    {
+        return $this->ai_source === 'byok' && $this->hasAiApiKeyStored();
+    }
+
+    /**
+     * Composer AI Assist: super admins; or BYOK with a saved key (any plan, including free);
+     * or platform AI for paid active/trialing users when OPENAI_API_KEY is configured server-side.
+     */
+    public function canAccessComposerAi(): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($this->usesComposerAiByok()) {
+            return true;
+        }
+
+        if (($this->ai_source ?? 'platform') !== 'platform') {
+            return false;
+        }
+
+        if (! $this->hasPaidActiveSubscriptionForAi()) {
+            return false;
+        }
+
+        if (! app(PlatformAiConfigService::class)->isConfigured()) {
+            return false;
+        }
+
+        $quota = app(PlatformAiQuotaService::class);
+
+        return ! $quota->isPlatformAiDisabledOnPlan($this)
+            && ! $quota->isPlatformAiQuotaExhausted($this);
     }
 
     /**

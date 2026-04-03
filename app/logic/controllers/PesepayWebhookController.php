@@ -5,6 +5,8 @@ namespace App\Controllers;
 use App\Services\Billing\PesepayCheckoutService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class PesepayWebhookController extends Controller
 {
@@ -26,7 +28,11 @@ class PesepayWebhookController extends Controller
                 }
             }
             $checkout->handleResultPost($body);
-        } catch (\Throwable) {
+        } catch (Throwable $e) {
+            Log::error('Pesepay webhook handling failed', [
+                'message' => $e->getMessage(),
+                'class'   => $e::class,
+            ]);
         }
 
         return response('OK', 200);

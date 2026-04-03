@@ -17,6 +17,7 @@ use App\Services\Subscription\SubscriptionAccessService;
 use App\Services\Subscription\SubscriptionTrialService;
 use App\Services\Insights\AudienceInsightsService;
 use App\Services\Landing\LandingFeaturesDeepService;
+use App\Services\Ai\PlatformAiQuotaService;
 use App\Services\Media\MediaLibraryService;
 use App\Services\Platform\Platform;
 use App\Services\Platform\PlatformRegistry;
@@ -103,8 +104,12 @@ class PageController extends Controller
             return route('dashboard', array_filter($merged, static fn ($v) => $v !== null && $v !== ''));
         };
 
+        $quota = app(PlatformAiQuotaService::class);
+
         return view('dashboard', array_merge($data, compact('dashUrl'), [
-            'composerAiLocked' => ! $user->canAccessComposerAi(),
+            'composerAiLocked'           => ! $user->canAccessComposerAi(),
+            'composerAiQuotaExhausted'     => $quota->isPlatformAiQuotaExhausted($user),
+            'composerAiPlanNoPlatformAi' => $quota->isPlatformAiDisabledOnPlan($user),
         ]));
     }
 
@@ -115,11 +120,15 @@ class PageController extends Controller
         $audienceInsights = app(AudienceInsightsService::class)->buildForUser($user);
         $composerMediaCounts = app(MediaLibraryService::class)->typeCountsForUser($user);
 
+        $quota = app(PlatformAiQuotaService::class);
+
         return view('composer', [
-            'socialAccounts'       => $user->socialAccounts()->active()->get(['id', 'platform', 'username', 'display_name']),
-            'audienceInsights'     => $audienceInsights,
-            'composerAiLocked'     => ! $user->canAccessComposerAi(),
-            'composerMediaCounts'  => $composerMediaCounts,
+            'socialAccounts'             => $user->socialAccounts()->active()->get(['id', 'platform', 'username', 'display_name']),
+            'audienceInsights'           => $audienceInsights,
+            'composerAiLocked'           => ! $user->canAccessComposerAi(),
+            'composerAiQuotaExhausted'   => $quota->isPlatformAiQuotaExhausted($user),
+            'composerAiPlanNoPlatformAi' => $quota->isPlatformAiDisabledOnPlan($user),
+            'composerMediaCounts'        => $composerMediaCounts,
         ]);
     }
 
@@ -276,6 +285,7 @@ class PageController extends Controller
                 'weekly_digest'    => true,
                 'product_updates'  => false,
             ],
+            'platformAiTokenSummary' => app(PlatformAiQuotaService::class)->summaryForLayout($user),
         ]);
     }
 
@@ -348,10 +358,12 @@ class PageController extends Controller
             $directPayload['gateway_subscription_id'] = null;
         }
 
-        Subscription::updateOrCreate(
+        $subscription = Subscription::updateOrCreate(
             ['user_id' => $user->id],
             $directPayload
         );
+
+        app(PlatformAiQuotaService::class)->applyPlanBudgetToSubscription($subscription, $newPlan);
 
         if ($newPlan->is_lifetime && $oldPlanId !== $newPlan->id) {
             $newPlan->increment('lifetime_current_count');

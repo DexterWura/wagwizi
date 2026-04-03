@@ -6,10 +6,12 @@ use App\Models\EmailTemplate;
 use App\Models\NotificationChannelSetting;
 use App\Models\SiteSetting;
 use App\Models\User;
-use Illuminate\Support\Facades\Blade;
 
 class EmailTemplateRenderService
 {
+    public function __construct(
+        private readonly SafeEmailPlaceholderRenderer $placeholders,
+    ) {}
     public function siteName(): string
     {
         return (string) SiteSetting::get('app_name', config('app.name'));
@@ -49,19 +51,21 @@ class EmailTemplateRenderService
     {
         $master = NotificationChannelSetting::current();
 
-        $subject = Blade::render($template->subject, $vars);
+        $subject = $this->sanitizeSubject(
+            $this->placeholders->render($template->subject, $vars, [])
+        );
 
-        $bodyHtml = Blade::render($template->body_html, $vars);
+        $bodyHtml = $this->placeholders->render($template->body_html, $vars, []);
 
         $masterHtml = $master->master_template_html
-            ? Blade::render($master->master_template_html, array_merge($vars, [
+            ? $this->placeholders->render($master->master_template_html, array_merge($vars, [
                 'bodyHtml' => $bodyHtml,
-            ]))
+            ]), ['bodyHtml'])
             : $bodyHtml;
 
         $text = null;
         if ($template->body_text) {
-            $text = Blade::render($template->body_text, $vars);
+            $text = $this->placeholders->render($template->body_text, $vars, []);
         }
 
         return [
@@ -69,5 +73,12 @@ class EmailTemplateRenderService
             'html'    => $masterHtml,
             'text'    => $text,
         ];
+    }
+
+    private function sanitizeSubject(string $subject): string
+    {
+        $s = str_replace(["\r", "\n"], ' ', $subject);
+
+        return trim($s);
     }
 }

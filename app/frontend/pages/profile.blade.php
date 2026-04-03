@@ -6,7 +6,7 @@
 @section('content')
         <main class="app-content app-content--profile">
           @if(session('info'))
-          <div class="alert alert--info" role="alert" style="margin-bottom: 1rem;">
+          <div class="alert alert--info alert--spaced" role="alert">
             <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
             <span>{{ session('info') }}</span>
           </div>

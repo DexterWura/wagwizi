@@ -7,6 +7,7 @@ namespace App\Services\Subscription;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\Ai\PlatformAiQuotaService;
 
 final class DefaultSubscriptionService
 {
@@ -22,7 +23,7 @@ final class DefaultSubscriptionService
             return;
         }
 
-        Subscription::updateOrCreate(
+        $sub = Subscription::updateOrCreate(
             ['user_id' => $user->id],
             [
                 'plan_id'              => $plan->id,
@@ -32,5 +33,7 @@ final class DefaultSubscriptionService
                 'current_period_end'   => null,
             ],
         );
+
+        app(PlatformAiQuotaService::class)->applyPlanBudgetToSubscription($sub, $plan);
     }
 }

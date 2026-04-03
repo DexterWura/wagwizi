@@ -8,6 +8,7 @@ use App\Models\PlanChange;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Jobs\QueueTemplatedEmailForUserJob;
+use App\Services\Ai\PlatformAiQuotaService;
 use Illuminate\Support\Facades\DB;
 
 final class SubscriptionFulfillmentService
@@ -43,6 +44,8 @@ final class SubscriptionFulfillmentService
                     'trial_ends_at'           => null,
                 ]
             );
+
+            app(PlatformAiQuotaService::class)->applyPlanBudgetToSubscription($subscription, $newPlan);
 
             if ($oldPlanId !== $newPlan->id) {
                 if ($newPlan->is_lifetime) {

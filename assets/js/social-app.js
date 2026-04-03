@@ -218,7 +218,7 @@
     renderTabState();
   }
 
-  function initComposerAiMock() {
+  function initComposerAi() {
     var form = document.querySelector("[data-app-composer-ai]");
     if (!form) return;
     var dock = document.querySelector("[data-app-composer-ai-dock]");
@@ -228,25 +228,55 @@
     var input = form.querySelector("input[type='text'], textarea");
     var messages = document.getElementById("composer-ai-messages");
     var master = document.getElementById("composer-master");
-    if (!input || !messages) return;
-    var suggestedCopy =
-      "One composer. Every channel. Clear previews — calmer social planning.";
+    var submitBtn = form.querySelector("button[type='submit']");
+    if (!input || !messages || !global.App || typeof global.App.apiPost !== "function") return;
     form.addEventListener("submit", function (e) {
       e.preventDefault();
       if (input.disabled) return;
       var text = (input.value || "").trim();
       if (!text) return;
       var draftBefore = master ? (master.value || "").trim() : "";
+      var draftCurrent = draftBefore;
       appendMsg(messages, text, "user");
       input.value = "";
-      global.setTimeout(function () {
-        appendMsg(
-          messages,
-          "Suggested revision is in the feed preview. Edit the master draft to dismiss it.",
-          "assistant"
-        );
-        showComposerFeedDiff(draftBefore, suggestedCopy);
-      }, 400);
+      input.disabled = true;
+      if (submitBtn) submitBtn.disabled = true;
+      global.App.apiPost("/composer/ai", {
+        message: text,
+        draft: draftCurrent
+      })
+        .then(function (res) {
+          if (!res._ok || !res.success) {
+            var msg = res.message || "Assistant request failed.";
+            if (
+              res.error_code === "platform_ai_quota_exhausted" ||
+              res.error_code === "platform_ai_plan_no_tokens"
+            ) {
+              msg =
+                res.message ||
+                "You have reached your platform AI limit. Wait until your plan renews or add your own API key under Settings → AI.";
+            }
+            appendMsg(messages, msg, "assistant");
+            if (global.App.showFlash) global.App.showFlash(msg, "error");
+            return;
+          }
+          var reply = (res.reply || "").trim();
+          if (!reply) {
+            appendMsg(messages, "No reply from the model.", "assistant");
+            return;
+          }
+          appendMsg(messages, reply, "assistant");
+          showComposerFeedDiff(draftBefore, reply);
+        })
+        .catch(function () {
+          appendMsg(messages, "Network error. Try again.", "assistant");
+          if (global.App.showFlash) global.App.showFlash("Network error.", "error");
+        })
+        .then(function () {
+          input.disabled = false;
+          if (submitBtn) submitBtn.disabled = false;
+          input.focus();
+        });
     });
   }
 
@@ -692,7 +722,7 @@
           }
         }
 
-        if (global.App && global.App.apiPost) {
+        if (global.App && global.App.apiPatch) {
           var scheduledAt = null;
           if (day && day !== "Queue") {
             var parsed = new Date(day + " 09:00:00");
@@ -701,9 +731,8 @@
             }
           }
 
-          global.App.apiPost("/api/v1/posts/" + id + "/reschedule", {
-            scheduled_at: scheduledAt,
-            _method: "PATCH"
+          global.App.apiPatch("/api/v1/posts/" + id + "/reschedule", {
+            scheduled_at: scheduledAt
           }).then(function (res) {
             if (!res._ok) {
               global.App.showFlash(res.error || "Could not reschedule.", "error");
@@ -741,7 +770,20 @@
     var el = document.querySelector("[data-app-composer-ai-source-hint]");
     if (!el || !global.App || typeof global.App.readAiConfig !== "function") return;
     var cfg = global.App.readAiConfig();
-    el.textContent = cfg.source === "byok" ? "— Your API key" : "— PostAI platform";
+    if (cfg.source === "byok") {
+      el.textContent = cfg.hasApiKey
+        ? "— Using your API key (requests billed by your provider)."
+        : "— Add your API key under Settings → AI.";
+    } else if (cfg.platformTokensApplies && cfg.platformTokensRemaining != null && cfg.platformTokensBudget != null) {
+      el.textContent =
+        "— Platform credits: " +
+        cfg.platformTokensRemaining.toLocaleString() +
+        " / " +
+        cfg.platformTokensBudget.toLocaleString() +
+        " tokens left this period.";
+    } else {
+      el.textContent = "— Using the platform API key (included with your subscription).";
+    }
   }
 
   function initComposerAudienceSlots() {
@@ -764,7 +806,7 @@
   document.addEventListener("DOMContentLoaded", function () {
     initComposerPreviewSync();
     initComposerToolbar();
-    initComposerAiMock();
+    initComposerAi();
     initComposerAiSourceHint();
     initComposerPlatformOverrides();
     initComposerAudienceSlots();

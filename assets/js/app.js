@@ -6,10 +6,6 @@
     legacyTheme: "creem-clone-theme",
     displayTimezone: "app-display-timezone",
     legacyDisplayCurrency: "app-display-currency",
-    aiSource: "postai-ai-source",
-    aiProvider: "postai-ai-provider",
-    aiBaseUrl: "postai-ai-base-url",
-    aiApiKey: "postai-ai-api-key",
     planHistory: "postai-plan-history"
   };
 
@@ -748,28 +744,92 @@
     });
   }
 
+  function initInsightsDynamicCharts() {
+    if (!document.body || document.body.getAttribute("data-app-page") !== "insights") {
+      return;
+    }
+
+    document.querySelectorAll("[data-insights-bar-pct]").forEach(function (el) {
+      var v = parseFloat(el.getAttribute("data-insights-bar-pct"), 10);
+      if (!isNaN(v)) {
+        el.style.width = Math.max(0, Math.min(100, v)) + "%";
+      }
+    });
+
+    document.querySelectorAll("[data-insights-heat-pct]").forEach(function (el) {
+      var pct = parseFloat(el.getAttribute("data-insights-heat-pct"), 10);
+      if (!isNaN(pct)) {
+        el.style.height = Math.max(3, pct * 0.72) + "px";
+      }
+    });
+
+    document.querySelectorAll("[data-insights-conic]").forEach(function (el) {
+      var g = el.getAttribute("data-insights-conic");
+      if (g) {
+        el.style.background = "conic-gradient(" + g + ")";
+      }
+    });
+
+    document.querySelectorAll("[data-insights-swatch]").forEach(function (el) {
+      var c = el.getAttribute("data-insights-swatch");
+      if (c) {
+        el.style.background = c;
+      }
+    });
+
+    document.querySelectorAll("[data-insights-week-h]").forEach(function (el) {
+      var h = parseFloat(el.getAttribute("data-insights-week-h"), 10);
+      if (!isNaN(h)) {
+        el.style.height = h + "px";
+      }
+    });
+
+    document.querySelectorAll("[data-insights-format-pct]").forEach(function (el) {
+      var w = parseFloat(el.getAttribute("data-insights-format-pct"), 10);
+      if (!isNaN(w)) {
+        el.style.width = Math.max(0, Math.min(100, w)) + "%";
+      }
+    });
+  }
+
   function readAiConfig() {
     try {
-      var source = global.localStorage.getItem(STORAGE.aiSource);
-      if (source !== "byok") source = "platform";
-      var provider = global.localStorage.getItem(STORAGE.aiProvider);
-      if (provider !== "openai" && provider !== "anthropic" && provider !== "custom") {
-        provider = "openai";
+      var raw = document.body && document.body.getAttribute("data-app-ai-config");
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        var prov = parsed.provider;
+        if (prov !== "openai" && prov !== "anthropic" && prov !== "custom") {
+          prov = "openai";
+        }
+        return {
+          source: parsed.source === "byok" ? "byok" : "platform",
+          provider: prov,
+          baseUrl: typeof parsed.baseUrl === "string" ? parsed.baseUrl : "",
+          hasApiKey: !!parsed.hasApiKey,
+          platformTokensRemaining:
+            typeof parsed.platformTokensRemaining === "number" ? parsed.platformTokensRemaining : null,
+          platformTokensBudget:
+            typeof parsed.platformTokensBudget === "number" ? parsed.platformTokensBudget : null,
+          platformTokensApplies: !!parsed.platformTokensApplies
+        };
       }
-      return {
-        source: source,
-        provider: provider,
-        baseUrl: global.localStorage.getItem(STORAGE.aiBaseUrl) || "",
-        hasApiKey: !!global.localStorage.getItem(STORAGE.aiApiKey)
-      };
-    } catch (e) {
-      return { source: "platform", provider: "openai", baseUrl: "", hasApiKey: false };
-    }
+    } catch (e) {}
+    return {
+      source: "platform",
+      provider: "openai",
+      baseUrl: "",
+      hasApiKey: false,
+      platformTokensRemaining: null,
+      platformTokensBudget: null,
+      platformTokensApplies: false
+    };
   }
 
   function initSettingsAi() {
     var root = document.querySelector("[data-app-settings-ai]");
     if (!root) return;
+
+    var selectedAiSource = readAiConfig().source;
 
     var group = root.querySelector("[data-app-ai-source-group]");
     var byokPanel = root.querySelector("[data-app-ai-byok]");
@@ -810,7 +870,7 @@
         return;
       }
       if (cfg.hasApiKey && keyInput && !(keyInput.value || "").trim()) {
-        keyHint.textContent = "A key is saved for this browser. Paste a new key to replace it.";
+        keyHint.textContent = "A key is saved on the server. Paste a new key to replace it.";
       } else {
         keyHint.textContent = "";
       }
@@ -822,8 +882,7 @@
         if (cfg.source === "platform") {
           statusEl.textContent = "Composer and assistant use PostAI platform models (per your plan).";
         } else if (cfg.hasApiKey) {
-          statusEl.textContent =
-            "Using your API key from this browser. Route requests through your backend in production.";
+          statusEl.textContent = "Using your API key stored securely on the server.";
         } else {
           statusEl.textContent = "Bring your own key is selected — add and save an API key to enable.";
         }
@@ -835,6 +894,7 @@
 
     function hydrate() {
       var cfg = readAiConfig();
+      selectedAiSource = cfg.source;
       setSourceButtons(cfg.source);
       applyByokVisibility(cfg.source);
       if (providerEl) {
@@ -854,9 +914,7 @@
         btn.addEventListener("click", function () {
           var v = btn.getAttribute("data-ai-source");
           if (v !== "platform" && v !== "byok") return;
-          try {
-            global.localStorage.setItem(STORAGE.aiSource, v);
-          } catch (e) {}
+          selectedAiSource = v;
           setSourceButtons(v);
           applyByokVisibility(v);
           refreshKeyHint();
@@ -871,12 +929,30 @@
 
     if (clearKeyBtn) {
       clearKeyBtn.addEventListener("click", function () {
-        try {
-          global.localStorage.removeItem(STORAGE.aiApiKey);
-        } catch (e) {}
-        if (keyInput) keyInput.value = "";
-        refreshKeyHint();
-        refreshStatus();
+        var provider = providerEl ? providerEl.value : "openai";
+        if (provider !== "openai" && provider !== "anthropic" && provider !== "custom") {
+          provider = "openai";
+        }
+        var baseVal = provider === "custom" && baseInput ? (baseInput.value || "").trim() : null;
+        clearKeyBtn.disabled = true;
+        apiPost("/settings/ai", {
+          ai_source: selectedAiSource,
+          ai_provider: provider,
+          ai_base_url: baseVal,
+          ai_clear_api_key: true
+        }).then(function (res) {
+          clearKeyBtn.disabled = false;
+          if (keyInput) keyInput.value = "";
+          if (res._ok) {
+            showFlash(res.message || "API key removed.");
+            global.location.reload();
+          } else {
+            showFlash(res.message || "Could not remove key.", "error");
+          }
+        }).catch(function () {
+          clearKeyBtn.disabled = false;
+          showFlash("Network error.", "error");
+        });
       });
     }
 
@@ -886,28 +962,32 @@
         if (provider !== "openai" && provider !== "anthropic" && provider !== "custom") {
           provider = "openai";
         }
-        try {
-          global.localStorage.setItem(STORAGE.aiProvider, provider);
-          var baseVal = baseInput ? (baseInput.value || "").trim() : "";
-          if (provider === "custom" && baseVal) {
-            global.localStorage.setItem(STORAGE.aiBaseUrl, baseVal);
-          } else {
-            global.localStorage.removeItem(STORAGE.aiBaseUrl);
-          }
-          var keyVal = keyInput ? (keyInput.value || "").trim() : "";
-          if (keyVal) {
-            global.localStorage.setItem(STORAGE.aiApiKey, keyVal);
-          }
-          if (keyInput) keyInput.value = "";
-        } catch (e) {}
-        refreshKeyHint();
-        refreshStatus();
-        apiPost("/settings/ai", {
-          ai_source: global.localStorage.getItem(STORAGE.aiSource) || "platform",
+        var baseVal = provider === "custom" && baseInput ? (baseInput.value || "").trim() : null;
+        var keyVal = keyInput ? (keyInput.value || "").trim() : "";
+        var payload = {
+          ai_source: selectedAiSource,
           ai_provider: provider,
-          ai_base_url: provider === "custom" ? (baseInput ? (baseInput.value || "").trim() : "") : null
+          ai_base_url: baseVal
+        };
+        if (keyVal) {
+          payload.ai_api_key = keyVal;
+        }
+        saveBtn.disabled = true;
+        apiPost("/settings/ai", payload).then(function (res) {
+          saveBtn.disabled = false;
+          if (keyInput) keyInput.value = "";
+          refreshKeyHint();
+          refreshStatus();
+          if (res._ok) {
+            openModal("modal-settings-saved");
+            global.location.reload();
+          } else {
+            showFlash(res.message || "Save failed.", "error");
+          }
+        }).catch(function () {
+          saveBtn.disabled = false;
+          showFlash("Network error.", "error");
         });
-        openModal("modal-settings-saved");
       });
     }
 
@@ -1231,6 +1311,26 @@
         "X-Requested-With": "XMLHttpRequest"
       },
       credentials: "same-origin"
+    }).then(function (r) {
+      return r.json().then(function (json) {
+        json._status = r.status;
+        json._ok = r.ok;
+        return json;
+      });
+    });
+  }
+
+  function apiPatch(url, data) {
+    return fetch(url, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-CSRF-TOKEN": getCsrfToken(),
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      credentials: "same-origin",
+      body: JSON.stringify(data || {})
     }).then(function (r) {
       return r.json().then(function (json) {
         json._status = r.status;
@@ -1805,6 +1905,7 @@
       initPlansPage();
       initPlanHistoryPage();
       initSettingsAi();
+      initInsightsDynamicCharts();
       initProfilePage();
       initSettingsPage();
       initHelpTicketSubmit();
@@ -1819,6 +1920,7 @@
     closeModal: closeModal,
     apiPost: apiPost,
     apiGet: apiGet,
+    apiPatch: apiPatch,
     apiUpload: apiUpload,
     showFlash: showFlash,
     getCsrfToken: getCsrfToken,

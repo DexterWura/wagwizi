@@ -188,12 +188,21 @@
                 <span>{{ config('app.name') }} assistant</span>
                 <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
               </div>
-              <div class="ai-disabled">Draft captions, adapt tone per platform, and review diffs in the composer.</div>
+              <div class="ai-disabled">
+                Draft captions, adapt tone per platform, and review diffs in the composer.
+                @if($composerAiLocked)
+                  @if(!empty($composerAiQuotaExhausted))
+                  <span class="ai-panel__note">Platform AI credits are used up for this period — renew your plan or use your own API key in Settings.</span>
+                  @elseif(!empty($composerAiPlanNoPlatformAi))
+                  <span class="ai-panel__note">This plan has no platform AI credits — add your own API key in Settings or upgrade.</span>
+                  @endif
+                @endif
+              </div>
               <div class="ai-input">
                 <input type="text" placeholder="Ask in Composer…" disabled aria-disabled="true" />
                 @if($composerAiLocked)
-                  <a href="{{ route('plans') }}" class="ai-input__pro-link" aria-label="Upgrade plan to unlock AI assistant">
-                    <span class="composer-ai-paywall__badge"><i class="fa-solid fa-crown" aria-hidden="true"></i> Pro</span>
+                  <a href="{{ route('settings') }}" class="ai-input__pro-link" aria-label="Open AI settings or upgrade plan">
+                    <span class="composer-ai-paywall__badge"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> AI</span>
                   </a>
                 @else
                   <a href="{{ route('composer') }}" class="ai-input__composer-link" aria-label="Open composer">

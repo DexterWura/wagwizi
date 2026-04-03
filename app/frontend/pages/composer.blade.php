@@ -129,12 +129,23 @@
                             </form>
                           </div>
                           @if($composerAiLocked)
-                          <div class="composer-ai-paywall" role="region" aria-label="Upgrade required for AI Assist">
+                          <div class="composer-ai-paywall" role="region" aria-label="How to unlock AI Assist">
                             <div class="composer-ai-paywall__card">
-                              <span class="composer-ai-paywall__badge" aria-hidden="true"><i class="fa-solid fa-crown"></i> Pro</span>
-                              <p class="composer-ai-paywall__title">AI Assist is for paid plans</p>
-                              <p class="composer-ai-paywall__text">Upgrade your plan to unlock AI Assist.</p>
-                              <a class="btn btn--primary" href="{{ route('plans') }}">View plans</a>
+                              <span class="composer-ai-paywall__badge" aria-hidden="true"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</span>
+                              @if(!empty($composerAiQuotaExhausted))
+                              <p class="composer-ai-paywall__title">Platform AI limit reached</p>
+                              <p class="composer-ai-paywall__text">You have used all platform AI credits for this billing period. Wait until your plan renews to get a fresh allowance, or add your own API key under Settings → AI (any plan).</p>
+                              @elseif(!empty($composerAiPlanNoPlatformAi))
+                              <p class="composer-ai-paywall__title">No platform AI on this plan</p>
+                              <p class="composer-ai-paywall__text">Your current plan does not include platform AI credits. Add your own API key under Settings → AI, or upgrade to a plan that includes credits.</p>
+                              @else
+                              <p class="composer-ai-paywall__title">Unlock AI Assist</p>
+                              <p class="composer-ai-paywall__text">Use platform AI with a paid plan that includes credits, or add your own API key in Settings (any plan, billed by your provider).</p>
+                              @endif
+                              <div class="composer-ai-paywall__actions">
+                                <a class="btn btn--primary" href="{{ route('settings') }}">AI settings</a>
+                                <a class="btn btn--outline" href="{{ route('plans') }}">View plans</a>
+                              </div>
                             </div>
                           </div>
                           @endif

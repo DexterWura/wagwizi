@@ -36,15 +36,18 @@
                   <input class="input" id="name" name="name" value="{{ old('name', $template->name) }}" required />
                 </div>
                 <div class="field">
-                  <label class="field__label" for="subject">Subject (Blade)</label>
+                  <label class="field__label" for="subject">Subject</label>
+                  <p class="field__hint">Only <code>{{ '{{ $variableName }}' }}</code>-style placeholders; no Blade directives.</p>
                   <input class="input" id="subject" name="subject" value="{{ old('subject', $template->subject) }}" required />
                 </div>
                 <div class="field">
-                  <label class="field__label" for="body_html">Body HTML (Blade)</label>
+                  <label class="field__label" for="body_html">Body HTML</label>
+                  <p class="field__hint">Use only <code>{{ '{{ $variableName }}' }}</code> placeholders (for example <code>{{ '{{ $userName }}' }}</code>). Blade directives, PHP, and unescaped raw HTML inserts are not allowed.</p>
                   <textarea class="input admin-email-template__body" id="body_html" name="body_html" rows="16" spellcheck="false" required>{{ old('body_html', $template->body_html) }}</textarea>
                 </div>
                 <div class="field">
                   <label class="field__label" for="body_text">Body plain text (optional)</label>
+                  <p class="field__hint">Same placeholder rules as HTML.</p>
                   <textarea class="input" id="body_text" name="body_text" rows="8" spellcheck="false">{{ old('body_text', $template->body_text) }}</textarea>
                 </div>
                 <div class="field">

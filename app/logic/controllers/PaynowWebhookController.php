@@ -5,6 +5,8 @@ namespace App\Controllers;
 use App\Services\Billing\PaynowCheckoutService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class PaynowWebhookController extends Controller
 {
@@ -12,7 +14,11 @@ class PaynowWebhookController extends Controller
     {
         try {
             $checkout->handleResultPost($request->request->all());
-        } catch (\Throwable) {
+        } catch (Throwable $e) {
+            Log::error('Paynow webhook handling failed', [
+                'message' => $e->getMessage(),
+                'class'   => $e::class,
+            ]);
         }
 
         return response('OK', 200);

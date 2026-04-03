@@ -10,6 +10,12 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    /*
+    | When true (default), HTTP requests are redirected to HTTPS and generated URLs use https,
+    | except in local/testing. Set FORCE_HTTPS=false if you must run without TLS (not recommended).
+    */
+    'force_https' => filter_var(env('FORCE_HTTPS', true), FILTER_VALIDATE_BOOLEAN),
+
     'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     'locale' => env('APP_LOCALE', 'en'),

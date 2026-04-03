@@ -82,6 +82,11 @@
                       <label class="field__label">Max posts/month</label>
                       <input class="input input--sm" name="max_scheduled_posts_per_month" type="number" value="{{ $plan->max_scheduled_posts_per_month }}" placeholder="Unlimited" />
                     </div>
+                    <div class="field field--full">
+                      <label class="field__label">Platform AI tokens / billing period</label>
+                      <input class="input input--sm" name="platform_ai_tokens_per_period" type="number" min="0" max="999999999999" value="{{ (int) ($plan->platform_ai_tokens_per_period ?? 0) }}" required />
+                      <p class="field__hint">Total API tokens (prompt + completion) subscribers may use per period with the <strong>admin</strong> API key. Set to <strong>0</strong> to disable platform AI on this plan (users must use their own key). Resets when they renew or when you change this value.</p>
+                    </div>
                     <div class="field">
                       <label class="field__label">Sort order</label>
                       <input class="input input--sm" name="sort_order" type="number" value="{{ $plan->sort_order }}" />
@@ -197,6 +202,11 @@
               <div class="field">
                 <label class="field__label">Max posts/month</label>
                 <input class="input" name="max_scheduled_posts_per_month" type="number" placeholder="Unlimited" />
+              </div>
+              <div class="field field--full">
+                <label class="field__label">Platform AI tokens / billing period</label>
+                <input class="input" name="platform_ai_tokens_per_period" type="number" min="0" max="999999999999" value="0" required />
+                <p class="field__hint">0 = no platform AI credits (BYOK only). Typical paid tiers: 50k–500k+ depending on pricing.</p>
               </div>
               <div class="field">
                 <label class="field__label">Sort order</label>

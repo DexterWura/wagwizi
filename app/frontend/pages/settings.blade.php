@@ -87,8 +87,17 @@
             <div class="card__head">AI &amp; assistant</div>
             <div class="profile-card__body">
               <p class="prose-muted profile-note settings-ai-lede">
-                Use {{ config('app.name') }}'s built-in models (included with your plan) or connect your own provider. In production, API keys should live only on your server — this demo stores preferences in the browser.
+                Choose <strong>platform</strong> to use the server API key (paid plans only, configured by the admin). Choose <strong>your API key</strong> to use your own provider account on <strong>any plan</strong>; keys are stored encrypted on the server and never sent to the browser after saving.
               </p>
+              @if(!empty($platformAiTokenSummary['applies']))
+              <p class="prose-muted profile-note" role="status">
+                Platform AI credits this period:
+                <strong>{{ number_format($platformAiTokenSummary['remaining']) }}</strong>
+                /
+                {{ number_format($platformAiTokenSummary['budget']) }}
+                tokens remaining. When this reaches zero, switch to your own API key or wait until your plan renews.
+              </p>
+              @endif
               <div class="field">
                 <span class="field__label" id="ai-source-label">AI source</span>
                 <div class="segmented" data-app-ai-source-group role="group" aria-labelledby="ai-source-label">

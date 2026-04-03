@@ -1638,6 +1638,11 @@ section#video .lp-wrap {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
 }
 
+.lp-glass__body--hint {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
 .lp-feature-visual-photo {
   border-radius: var(--lp-radius-lg);
   overflow: hidden;

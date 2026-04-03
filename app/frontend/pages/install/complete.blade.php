@@ -16,7 +16,7 @@
     <div class="installer__actions installer__actions--center">
       <a href="{{ $appUrl }}" class="btn btn--primary"><i class="fa-solid fa-arrow-right"></i> Go to your site</a>
     </div>
-    <p class="installer__hint" style="margin-top: 1rem;">
+    <p class="installer__hint installer__hint--stack">
       You can sign in with the admin credentials you just created.
     </p>
   </div>

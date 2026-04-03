@@ -33,6 +33,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -129,8 +130,9 @@ class AdminController extends Controller
             'is_lifetime'                   => 'boolean',
             'lifetime_max_subscribers'      => 'nullable|integer|min:1',
             'sort_order'                    => 'integer|min:0',
-            'has_free_trial'                => 'boolean',
-            'free_trial_days'               => ['nullable', 'integer', 'min:1', 'max:366', Rule::requiredIf(fn () => $request->boolean('has_free_trial'))],
+            'has_free_trial'                   => 'boolean',
+            'free_trial_days'                  => ['nullable', 'integer', 'min:1', 'max:366', Rule::requiredIf(fn () => $request->boolean('has_free_trial'))],
+            'platform_ai_tokens_per_period'    => 'required|integer|min:0|max:999999999999',
         ]);
 
         $validated['features'] = $this->parseFeaturesList($validated['features'] ?? null);
@@ -148,6 +150,8 @@ class AdminController extends Controller
             $validated['free_trial_days'] = null;
         }
 
+        $validated['platform_ai_tokens_per_period'] = (int) $validated['platform_ai_tokens_per_period'];
+
         Plan::create($validated);
 
         return back()->with('success', "Plan \"{$validated['name']}\" created.");
@@ -156,6 +160,7 @@ class AdminController extends Controller
     public function updatePlan(Request $request, int $id): RedirectResponse
     {
         $plan = Plan::findOrFail($id);
+        $previousPlatformAiBudget = (int) $plan->platform_ai_tokens_per_period;
 
         $validated = $request->validate([
             'slug'                          => "required|string|max:50|unique:plans,slug,{$id}",
@@ -173,8 +178,9 @@ class AdminController extends Controller
             'is_lifetime'                   => 'boolean',
             'lifetime_max_subscribers'      => 'nullable|integer|min:1',
             'sort_order'                    => 'integer|min:0',
-            'has_free_trial'                => 'boolean',
-            'free_trial_days'               => ['nullable', 'integer', 'min:1', 'max:366', Rule::requiredIf(fn () => $request->boolean('has_free_trial'))],
+            'has_free_trial'                   => 'boolean',
+            'free_trial_days'                  => ['nullable', 'integer', 'min:1', 'max:366', Rule::requiredIf(fn () => $request->boolean('has_free_trial'))],
+            'platform_ai_tokens_per_period'    => 'required|integer|min:0|max:999999999999',
         ]);
 
         $validated['features'] = $this->parseFeaturesList($validated['features'] ?? null);
@@ -196,7 +202,17 @@ class AdminController extends Controller
             $validated['allowed_platforms'] = null;
         }
 
+        $validated['platform_ai_tokens_per_period'] = (int) $validated['platform_ai_tokens_per_period'];
+
         $plan->update($validated);
+        $plan->refresh();
+
+        if ($previousPlatformAiBudget !== (int) $plan->platform_ai_tokens_per_period) {
+            Subscription::query()
+                ->where('plan_id', $plan->id)
+                ->whereIn('status', ['active', 'trialing'])
+                ->update(['platform_ai_tokens_remaining' => (int) $plan->platform_ai_tokens_per_period]);
+        }
 
         return back()->with('success', "Plan \"{$plan->name}\" updated.");
     }
@@ -596,7 +612,9 @@ class AdminController extends Controller
 
             return back()->with('success', count($ran) . ' migration(s) executed.');
         } catch (\Throwable $e) {
-            return back()->with('error', 'Migration failed: ' . $e->getMessage());
+            Log::error('Admin migration run failed', ['message' => $e->getMessage(), 'class' => $e::class]);
+
+            return back()->with('error', 'Migration failed. Check application logs for details.');
         }
     }
 
@@ -620,7 +638,9 @@ class AdminController extends Controller
 
             return back()->with('success', count($rolled) . ' migration(s) rolled back.');
         } catch (\Throwable $e) {
-            return back()->with('error', 'Rollback failed: ' . $e->getMessage());
+            Log::error('Admin migration rollback failed', ['message' => $e->getMessage(), 'class' => $e::class]);
+
+            return back()->with('error', 'Rollback failed. Check application logs for details.');
         }
     }
 

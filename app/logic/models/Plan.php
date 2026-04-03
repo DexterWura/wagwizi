@@ -28,6 +28,7 @@ class Plan extends Model
         'is_free',
         'has_free_trial',
         'free_trial_days',
+        'platform_ai_tokens_per_period',
     ];
 
     protected function casts(): array
@@ -39,7 +40,8 @@ class Plan extends Model
             'is_lifetime'        => 'boolean',
             'is_free'            => 'boolean',
             'has_free_trial'     => 'boolean',
-            'free_trial_days'    => 'integer',
+            'free_trial_days'                 => 'integer',
+            'platform_ai_tokens_per_period'   => 'integer',
         ];
     }
 

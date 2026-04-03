@@ -355,7 +355,7 @@
                   <i class="{{ $platform->icon() }} fa-2x" aria-hidden="true"></i>
                   @endforeach
                 @else
-                  <p class="lp-glass__body" style="margin:0;font-size:0.85rem;">Add platform icons in admin or enable networks.</p>
+                  <p class="lp-glass__body lp-glass__body--hint">Add platform icons in admin or enable networks.</p>
                 @endif
               </div>
               @elseif(($feature['visual'] ?? '') === 'image' && !empty($feature['image']))

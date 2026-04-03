@@ -20,6 +20,7 @@ class Subscription extends Model
         'current_period_start',
         'current_period_end',
         'trial_ends_at',
+        'platform_ai_tokens_remaining',
     ];
 
     protected function casts(): array
@@ -27,7 +28,8 @@ class Subscription extends Model
         return [
             'current_period_start' => 'datetime',
             'current_period_end'   => 'datetime',
-            'trial_ends_at'        => 'datetime',
+            'trial_ends_at'                  => 'datetime',
+            'platform_ai_tokens_remaining'   => 'integer',
         ];
     }
 

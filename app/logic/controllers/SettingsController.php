@@ -2,9 +2,11 @@
 
 namespace App\Controllers;
 
+use App\Services\Ai\AiOutboundUrlValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class SettingsController extends Controller
 {
@@ -72,21 +74,45 @@ class SettingsController extends Controller
     public function updateAiSettings(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'ai_source'   => 'required|string|in:platform,byok',
-            'ai_provider' => 'nullable|string|in:openai,anthropic,custom',
-            'ai_base_url' => 'nullable|url|max:500',
+            'ai_source'         => 'required|string|in:platform,byok',
+            'ai_provider'       => 'nullable|string|in:openai,anthropic,custom',
+            'ai_base_url'       => 'nullable|url|max:500',
+            'ai_api_key'        => 'nullable|string|max:8192',
+            'ai_clear_api_key'  => 'sometimes|boolean',
         ]);
 
+        $provider = $validated['ai_provider'] ?? null;
+        if ($provider === 'custom' && ! empty($validated['ai_base_url'])) {
+            try {
+                app(AiOutboundUrlValidator::class)->assertSafeForServerSideHttp($validated['ai_base_url']);
+            } catch (\InvalidArgumentException $e) {
+                throw ValidationException::withMessages([
+                    'ai_base_url' => [$e->getMessage()],
+                ]);
+            }
+        }
+
         $user = Auth::user();
-        $user->update([
+
+        $attrs = [
             'ai_source'   => $validated['ai_source'],
             'ai_provider' => $validated['ai_provider'] ?? null,
             'ai_base_url' => $validated['ai_base_url'] ?? null,
-        ]);
+        ];
+
+        if ($request->boolean('ai_clear_api_key')) {
+            $attrs['ai_api_key'] = null;
+        } elseif ($request->filled('ai_api_key')) {
+            $attrs['ai_api_key'] = $validated['ai_api_key'];
+        }
+
+        $user->update($attrs);
+        $user->refresh();
 
         return response()->json([
-            'success' => true,
-            'message' => 'AI settings saved.',
+            'success'     => true,
+            'message'     => 'AI settings saved.',
+            'has_api_key' => $user->hasAiApiKeyStored(),
         ]);
     }
 }

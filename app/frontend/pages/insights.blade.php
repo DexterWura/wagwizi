@@ -134,7 +134,7 @@
                 @php $w = (int) round(100 * $tp['score'] / $maxTopScore); @endphp
                 <div class="insights-bar-rank__row">
                   <span class="insights-bar-rank__label" title="{{ $tp['platforms'] }}">#{{ $tp['id'] }} · {{ $tp['excerpt'] }}</span>
-                  <div class="insights-bar-rank__track" title="Relative score"><span class="insights-bar-rank__fill" style="width: {{ $w }}%"></span></div>
+                  <div class="insights-bar-rank__track" title="Relative score"><span class="insights-bar-rank__fill" data-insights-bar-pct="{{ $w }}"></span></div>
                 </div>
                 @empty
                 <p class="prose-muted insights-bar-rank__empty">No published posts in this range yet.</p>
@@ -148,7 +148,7 @@
             <div class="insights-hour-heat" role="img" aria-label="Relative activity by hour of day">
               @foreach($audienceInsights->hourlyScores as $h => $pct)
               <div class="insights-hour-heat__col" title="{{ sprintf('%02d:00 — %d%%', $h, $pct) }}">
-                <span class="insights-hour-heat__bar" style="height: {{ max(3, $pct * 0.72) }}px"></span>
+                <span class="insights-hour-heat__bar" data-insights-heat-pct="{{ $pct }}"></span>
                 <span class="insights-hour-heat__label">{{ $h % 6 === 0 ? $h : '' }}</span>
               </div>
               @endforeach
@@ -173,10 +173,10 @@
             <div class="card">
               <div class="card__head"><span><i class="fa-solid fa-chart-pie" aria-hidden="true"></i> Signal mix by platform</span></div>
               <div class="insights-donut-block">
-                <div class="insights-donut insights-donut--dynamic" style="background: conic-gradient({{ $conicCss }})" role="img" aria-label="Platform mix from your data"></div>
+                <div class="insights-donut insights-donut--dynamic" data-insights-conic="{{ $conicCss }}" role="img" aria-label="Platform mix from your data"></div>
                 <ul class="insights-donut-legend">
                   @forelse($mix as $i => $row)
-                  <li><span class="insights-donut-legend__swatch" style="background: {{ $donutColors[$i % count($donutColors)] }}"></span> {{ $row['label'] }} · {{ $row['pct'] }}%</li>
+                  <li><span class="insights-donut-legend__swatch" data-insights-swatch="{{ $donutColors[$i % count($donutColors)] }}"></span> {{ $row['label'] }} · {{ $row['pct'] }}%</li>
                   @empty
                   <li class="prose-muted">No platform data in range</li>
                   @endforelse
@@ -193,7 +193,7 @@
                 @foreach($dows as $i => $d)
                 @php $pct = $audienceInsights->weekdayScores[$i] ?? 0; $isPeak = $pct >= $peak && $pct > 0; $h = max(6, round($pct * 0.88)); @endphp
                 <div class="insights-week-bars__col">
-                  <span class="insights-week-bars__bar{{ $isPeak ? ' insights-week-bars__bar--peak' : '' }}" style="height: {{ $h }}px"></span>
+                  <span class="insights-week-bars__bar{{ $isPeak ? ' insights-week-bars__bar--peak' : '' }}" data-insights-week-h="{{ $h }}"></span>
                   <span class="insights-week-bars__dow">{{ $d }}</span>
                 </div>
                 @endforeach
@@ -204,17 +204,17 @@
               <div class="insights-format-chart">
                 <div class="insights-format-chart__row">
                   <span>Video</span>
-                  <div class="insights-format-chart__track"><span class="insights-format-chart__fill insights-format-chart__fill--video" data-w="62"></span></div>
+                  <div class="insights-format-chart__track"><span class="insights-format-chart__fill insights-format-chart__fill--video" data-insights-format-pct="62"></span></div>
                   <span class="insights-format-chart__pct">62%</span>
                 </div>
                 <div class="insights-format-chart__row">
                   <span>Carousel</span>
-                  <div class="insights-format-chart__track"><span class="insights-format-chart__fill insights-format-chart__fill--carousel" data-w="24"></span></div>
+                  <div class="insights-format-chart__track"><span class="insights-format-chart__fill insights-format-chart__fill--carousel" data-insights-format-pct="24"></span></div>
                   <span class="insights-format-chart__pct">24%</span>
                 </div>
                 <div class="insights-format-chart__row">
                   <span>Single image</span>
-                  <div class="insights-format-chart__track"><span class="insights-format-chart__fill insights-format-chart__fill--image" data-w="14"></span></div>
+                  <div class="insights-format-chart__track"><span class="insights-format-chart__fill insights-format-chart__fill--image" data-insights-format-pct="14"></span></div>
                   <span class="insights-format-chart__pct">14%</span>
                 </div>
               </div>
