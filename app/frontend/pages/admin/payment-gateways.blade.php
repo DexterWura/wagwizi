@@ -95,9 +95,9 @@
               </div>
               <div class="card__body admin-form-grid">
                 <div class="field field--full">
-                  <label class="field__label" for="paynow_accepted_currencies">Accepted currencies (Paynow)</label>
-                  <input class="input" id="paynow_accepted_currencies" name="paynow_accepted_currencies" value="{{ implode(', ', array_values((array) ($gateways['paynow']['accepted_currencies'] ?? ['USD']))) }}" placeholder="USD, ZWL" autocomplete="off" />
-                  <p class="field__hint">Comma-separated ISO codes. Checkout uses the default display currency if it appears here; otherwise the first listed. Paynow will be charged in that currency.</p>
+                  <label class="field__label" for="paynow_checkout_currency">Paynow checkout currency (locked)</label>
+                  <input class="input" id="paynow_checkout_currency" name="paynow_checkout_currency" value="{{ strtoupper($gateways['paynow']['checkout_currency'] ?? ($gateways['paynow']['accepted_currencies'][0] ?? 'USD')) }}" maxlength="3" placeholder="USD" required autocomplete="off" />
+                  <p class="field__hint">Single ISO 4217 code (e.g. USD, ZWL, ZWG). The amount sent to Paynow is converted to this currency, and the initiate request includes a <code class="admin-code-tag">currency</code> field so the hosted page does not let customers choose a cheaper currency. If Paynow returns an error, set <code class="admin-code-tag">PAYNOW_SEND_CURRENCY_FIELD=false</code> in <code class="admin-code-tag">secrets/.env</code> and contact Paynow support.</p>
                 </div>
                 <div class="field field--full">
                   <label class="field__label" for="paynow_integration_id">Integration ID</label>

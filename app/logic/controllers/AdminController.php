@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Models\BillingCurrencySetting;
 use App\Models\PaymentTransaction;
 use App\Models\Plan;
 use App\Models\PostPlatform;
@@ -625,26 +626,27 @@ class AdminController extends Controller
     public function updatePaymentGateways(Request $request, PaymentGatewayConfigService $cfg): RedirectResponse
     {
         $request->validate([
-            'paynow_enabled'             => 'nullable|boolean',
-            'paynow_integration_id'      => 'nullable|string|max:120',
-            'paynow_integration_key'     => 'nullable|string|max:500',
-            'paynow_accepted_currencies' => 'nullable|string|max:500',
-            'pricing_base_currency'      => 'required|string|size:3',
-            'pricing_default_currency'   => 'required|string|size:3',
-            'exchange_rate_codes'        => 'nullable|array',
-            'exchange_rate_codes.*'      => 'nullable|string|max:3',
-            'exchange_rate_values'       => 'nullable|array',
-            'exchange_rate_values.*'     => 'nullable|numeric',
-            'stripe_enabled'             => 'nullable|boolean',
-            'stripe_publishable_key'     => 'nullable|string|max:200',
-            'stripe_secret_key'          => 'nullable|string|max:200',
-            'stripe_webhook_secret'      => 'nullable|string|max:200',
+            'paynow_enabled'               => 'nullable|boolean',
+            'paynow_integration_id'        => 'nullable|string|max:120',
+            'paynow_integration_key'       => 'nullable|string|max:500',
+            'paynow_checkout_currency'     => 'required|string|size:3',
+            'pricing_base_currency'        => 'required|string|size:3',
+            'pricing_default_currency'     => 'required|string|size:3',
+            'exchange_rate_codes'          => 'nullable|array',
+            'exchange_rate_codes.*'        => 'nullable|string|max:3',
+            'exchange_rate_values'         => 'nullable|array',
+            'exchange_rate_values.*'       => 'nullable|numeric',
+            'stripe_enabled'               => 'nullable|boolean',
+            'stripe_publishable_key'       => 'nullable|string|max:200',
+            'stripe_secret_key'            => 'nullable|string|max:200',
+            'stripe_webhook_secret'        => 'nullable|string|max:200',
         ]);
 
         $current = $cfg->all();
 
         $baseCur = strtoupper(trim((string) $request->input('pricing_base_currency', 'USD')));
         $defCur  = strtoupper(trim((string) $request->input('pricing_default_currency', 'USD')));
+        $paynowCur = strtoupper(trim((string) $request->input('paynow_checkout_currency', 'USD')));
 
         $rates = [];
         $codes = $request->input('exchange_rate_codes', []);
@@ -664,23 +666,18 @@ class AdminController extends Controller
         }
         $rates[$baseCur] = 1.0;
 
-        $current['pricing'] = [
-            'base_currency'    => $baseCur,
-            'default_currency' => $defCur,
-            'exchange_rates'   => $rates,
+        $billingRow = BillingCurrencySetting::query()->first();
+        $billingAttrs = [
+            'base_currency'            => $baseCur,
+            'default_display_currency' => $defCur,
+            'paynow_checkout_currency' => strlen($paynowCur) === 3 ? $paynowCur : 'USD',
+            'exchange_rates'           => $rates,
         ];
-
-        $acceptedRaw = (string) $request->input('paynow_accepted_currencies', '');
-        $accepted = [];
-        foreach (preg_split('/[\s,]+/', strtoupper(trim($acceptedRaw)), -1, PREG_SPLIT_NO_EMPTY) as $p) {
-            if (strlen($p) === 3) {
-                $accepted[] = $p;
-            }
+        if ($billingRow === null) {
+            BillingCurrencySetting::query()->create($billingAttrs);
+        } else {
+            $billingRow->update($billingAttrs);
         }
-        if ($accepted === []) {
-            $accepted = ['USD'];
-        }
-        $current['paynow']['accepted_currencies'] = array_values(array_unique($accepted));
 
         $current['paynow']['enabled'] = $request->boolean('paynow_enabled');
         $id = trim((string) $request->input('paynow_integration_id', ''));

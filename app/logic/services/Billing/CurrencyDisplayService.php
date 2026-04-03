@@ -71,30 +71,18 @@ final class CurrencyDisplayService
      */
     public function paynowAcceptedCurrencies(): array
     {
-        $raw = $this->gatewayConfig->all()['paynow']['accepted_currencies'] ?? ['USD'];
-        if (! is_array($raw)) {
-            return ['USD'];
-        }
-        $out = [];
-        foreach ($raw as $c) {
-            if (! is_string($c) || strlen(trim($c)) !== 3) {
-                continue;
-            }
-            $out[] = strtoupper(trim($c));
-        }
-
-        return $out !== [] ? array_values(array_unique($out)) : ['USD'];
+        return [$this->resolvePaynowCheckoutCurrency()];
     }
 
     public function resolvePaynowCheckoutCurrency(): string
     {
-        $accepted = $this->paynowAcceptedCurrencies();
-        $def = $this->defaultCurrency();
-        if (in_array($def, $accepted, true)) {
-            return $def;
+        $p = $this->gatewayConfig->all()['paynow'] ?? [];
+        $locked = strtoupper(trim((string) ($p['checkout_currency'] ?? '')));
+        if (strlen($locked) === 3) {
+            return $locked;
         }
 
-        return $accepted[0];
+        return $this->defaultCurrency();
     }
 
     /**

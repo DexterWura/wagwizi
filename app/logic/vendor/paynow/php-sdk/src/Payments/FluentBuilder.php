@@ -74,7 +74,12 @@ class FluentBuilder
      * @var string
      */
     protected $_auth_email = '';
-	
+
+    /**
+     * ISO 4217 code sent to Paynow on initiate (optional; locks hosted checkout currency when supported).
+     */
+    protected $_currency = null;
+
 	/**
      * Default constructor
      *
@@ -198,7 +203,21 @@ class FluentBuilder
         $this->_ov_description = $description;
         $this->_override_description = true;
     }
-		
+
+    /**
+     * @return $this
+     */
+    public function setCurrency($currency)
+    {
+        if ($currency === null || $currency === '') {
+            $this->_currency = null;
+        } else {
+            $this->_currency = strtoupper(substr(trim((string) $currency), 0, 3));
+        }
+
+        return $this;
+    }
+
     /**
      * Get the description 
      *
@@ -231,15 +250,20 @@ class FluentBuilder
      */
     public function toArray()
     {
-        return [
+        $out = [
             'resulturl' => '',
             'returnurl' => '',
             'reference' => $this->_ref,
             'amount' => $this->total,
-            'id' => '',
-            'additionalinfo' => $this->itemsDescription(),
-            'authemail' => '',
-            'status' => 'Message'
         ];
+        if ($this->_currency !== null && $this->_currency !== '') {
+            $out['currency'] = $this->_currency;
+        }
+        $out['id'] = '';
+        $out['additionalinfo'] = $this->itemsDescription();
+        $out['authemail'] = '';
+        $out['status'] = 'Message';
+
+        return $out;
     }
 }

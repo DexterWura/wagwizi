@@ -249,6 +249,11 @@ cd app/logic && php artisan migrate
 
 **0 is not a substitute for NULL.** If a value is absent or not applicable, it must be `NULL`, not `0`, `""`, or any other sentinel value. Nullable columns must be declared as `->nullable()` in migrations.
 
+### Billing currency
+
+- Table **`billing_currency_settings`** stores base currency, default display currency, Paynow checkout currency (single locked code), and exchange rates. It is populated by migration `2026_04_03_000001_create_billing_currency_settings_table` (which also imports from legacy `site_settings.payment_gateways` JSON when present).
+- Paynow initiate requests may include a `currency` field (see `config/services.php` and `PAYNOW_SEND_CURRENCY_FIELD` in `secrets/.env`) so hosted checkout aligns with the configured checkout currency.
+
 ---
 
 ## Project Rules

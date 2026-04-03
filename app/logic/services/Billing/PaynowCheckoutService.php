@@ -54,6 +54,9 @@ final class PaynowCheckoutService
 
         $amountFloat = round($checkoutMajor, 2);
         $payment     = $paynow->createPayment($reference, $user->email);
+        if (config('services.paynow.send_currency_field', true)) {
+            $payment->setCurrency($checkoutCurrency);
+        }
         $payment->add($plan->name . ' subscription', $amountFloat);
 
         $response = $paynow->send($payment);
@@ -113,6 +116,10 @@ final class PaynowCheckoutService
             return;
         }
 
+        if (! $this->paynowReportedAmountMatchesTransaction($status, $transaction)) {
+            return;
+        }
+
         $plan = $transaction->plan;
         $user = $transaction->user;
 
@@ -152,6 +159,10 @@ final class PaynowCheckoutService
             return false;
         }
 
+        if (! $this->paynowReportedAmountMatchesTransaction($status, $transaction)) {
+            return false;
+        }
+
         $transaction->update([
             'paynow_reference' => $status->paynowReference() ?: $transaction->paynow_reference,
         ]);
@@ -159,5 +170,21 @@ final class PaynowCheckoutService
         $this->fulfillment->fulfillAfterPayment($transaction->user, $transaction->plan, $transaction);
 
         return true;
+    }
+
+    /**
+     * Reject fulfillment when Paynow reports a paid amount that does not match our pending transaction.
+     * If amount is absent in the payload (-1), we rely on hash verification and paid status only.
+     */
+    private function paynowReportedAmountMatchesTransaction(StatusResponse $status, PaymentTransaction $transaction): bool
+    {
+        $reported = $status->amount();
+        if ($reported < 0) {
+            return true;
+        }
+
+        $expectedMajor = $transaction->amount_cents / 100;
+
+        return abs((float) $reported - $expectedMajor) <= 0.02;
     }
 }

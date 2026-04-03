@@ -10,13 +10,15 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class PlanCheckoutController extends Controller
 {
     public function startPaynow(Request $request, PaynowCheckoutService $checkout): JsonResponse
     {
         $validated = $request->validate([
-            'plan_slug' => 'required|string|exists:plans,slug',
+            'plan_slug' => ['required', 'string', Rule::exists('plans', 'slug')->where('is_active', true)],
         ]);
 
         $user = Auth::user();
@@ -42,9 +44,15 @@ class PlanCheckoutController extends Controller
             $resultUrl = url('/paynow/result');
             $payload   = $checkout->startHostedCheckout($user, $plan, $returnUrl, $resultUrl);
         } catch (\Throwable $e) {
+            Log::warning('Paynow checkout start failed', [
+                'user_id'     => $user->id,
+                'plan_slug'   => $validated['plan_slug'],
+                'exception'   => $e,
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage() ?: 'Could not start checkout.',
+                'message' => 'Could not start checkout. Please try again or contact support.',
             ], 422);
         }
 

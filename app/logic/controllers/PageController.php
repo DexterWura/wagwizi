@@ -20,6 +20,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class PageController extends Controller
@@ -263,11 +264,11 @@ class PageController extends Controller
     public function changePlan(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'plan_slug' => 'required|string|exists:plans,slug',
+            'plan_slug' => ['required', 'string', Rule::exists('plans', 'slug')->where('is_active', true)],
         ]);
 
         $user    = Auth::user();
-        $newPlan = Plan::where('slug', $validated['plan_slug'])->firstOrFail();
+        $newPlan = Plan::where('slug', $validated['plan_slug'])->where('is_active', true)->firstOrFail();
         $oldSub  = $user->subscription;
         $oldPlanId = $oldSub?->plan_id;
 

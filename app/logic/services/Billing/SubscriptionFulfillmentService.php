@@ -17,6 +17,11 @@ final class SubscriptionFulfillmentService
     public function fulfillAfterPayment(User $user, Plan $newPlan, PaymentTransaction $transaction): Subscription
     {
         return DB::transaction(function () use ($user, $newPlan, $transaction) {
+            $locked = PaymentTransaction::query()->whereKey($transaction->id)->lockForUpdate()->first();
+            if ($locked === null || $locked->isCompleted()) {
+                return $user->subscription()->firstOrFail();
+            }
+
             $oldSub    = $user->subscription;
             $oldPlanId = $oldSub?->plan_id;
 
@@ -59,7 +64,7 @@ final class SubscriptionFulfillmentService
                 ]);
             }
 
-            $transaction->update(['status' => 'completed']);
+            $locked->update(['status' => 'completed']);
 
             return $subscription;
         });
