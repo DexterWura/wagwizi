@@ -58,8 +58,8 @@
                 Total audience
                 <span class="metric-card__icons"><i class="fa-solid fa-users" aria-hidden="true"></i></span>
               </div>
-              <div class="metric-card__value">—</div>
-              <div class="metric-card__sub">Followers &amp; subscribers</div>
+              <div class="metric-card__value">{{ $totalAudienceCount !== null ? number_format($totalAudienceCount) : '—' }}</div>
+              <div class="metric-card__sub">{{ $totalAudienceCount !== null ? 'Followers & subscribers across connected accounts' : 'Connect accounts/permissions to load follower counts' }}</div>
             </div>
             <div class="metric-card">
               <div class="metric-card__label">

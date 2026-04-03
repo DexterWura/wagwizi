@@ -33,10 +33,10 @@ class PostPublishingService
             return 0;
         }
 
-        $post->update(['status' => 'queued']);
+        $post->update(['status' => 'publishing']);
 
         foreach ($pendingPlatforms as $postPlatform) {
-            $postPlatform->update(['status' => 'queued']);
+            $postPlatform->update(['status' => 'publishing']);
             PublishPostToPlatformJob::dispatch($postPlatform->id);
         }
 

@@ -1879,7 +1879,7 @@
       }
       var post = res.post;
       var st = String(post.status || "").toLowerCase();
-      if (st === "published" || st === "queued") {
+      if (st === "published" || st === "publishing") {
         if (global.App.showFlash) global.App.showFlash("This post can't be edited in the composer.", "error");
         try {
           global.history.replaceState({}, "", global.location.pathname);

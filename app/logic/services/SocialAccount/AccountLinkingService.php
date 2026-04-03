@@ -292,12 +292,12 @@ class AccountLinkingService
         }
 
         $hasPendingPosts = $account->postPlatforms()
-            ->whereIn('status', ['pending', 'queued'])
+            ->whereIn('status', ['pending', 'publishing'])
             ->exists();
 
         if ($hasPendingPosts) {
             throw new InvalidArgumentException(
-                'This account has pending or queued posts. Cancel them before disconnecting.'
+                'This account has pending or publishing posts. Cancel them before disconnecting.'
             );
         }
 

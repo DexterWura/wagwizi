@@ -54,7 +54,7 @@ class PostSchedulingService
             throw new InvalidArgumentException('Cannot update a published post.');
         }
 
-        if (in_array($post->status, ['queued'])) {
+        if (in_array($post->status, ['publishing'])) {
             throw new InvalidArgumentException('Cannot update a post that is currently being published.');
         }
 
@@ -139,7 +139,7 @@ class PostSchedulingService
             $post = Post::create([
                 'user_id' => $userId,
                 'content' => trim($data['content']),
-                'status'  => 'queued',
+                'status'  => 'publishing',
             ]);
 
             $this->syncPlatformAccounts(
@@ -183,7 +183,7 @@ class PostSchedulingService
         ]);
 
         $post->postPlatforms()
-            ->whereIn('status', ['pending', 'queued'])
+            ->whereIn('status', ['pending', 'publishing'])
             ->update(['status' => 'cancelled']);
 
         Log::info('Scheduled post cancelled', ['user_id' => $userId, 'post_id' => $postId]);
@@ -199,7 +199,7 @@ class PostSchedulingService
             throw new InvalidArgumentException('Cannot delete a published post. Use unpublish first.');
         }
 
-        if ($post->status === 'queued') {
+        if ($post->status === 'publishing') {
             throw new InvalidArgumentException('Cannot delete a post that is currently being published.');
         }
 
@@ -213,7 +213,7 @@ class PostSchedulingService
     {
         $post = Post::where('user_id', $userId)->findOrFail($postId);
 
-        if (in_array($post->status, ['published', 'queued'], true)) {
+        if (in_array($post->status, ['published', 'publishing'], true)) {
             throw new InvalidArgumentException("Cannot schedule a post with status '{$post->status}'.");
         }
 

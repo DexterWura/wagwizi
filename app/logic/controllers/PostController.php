@@ -178,7 +178,7 @@ class PostController extends Controller
                 return response()->json(['error' => 'This post has already been published.'], 422);
             }
 
-            if ($post->status === 'queued') {
+            if ($post->status === 'publishing') {
                 return response()->json(['error' => 'This post is already being published.'], 422);
             }
 
@@ -216,7 +216,7 @@ class PostController extends Controller
         return $this->tryServiceCall(function () use ($id, $validated) {
             $post = \App\Models\Post::where('user_id', Auth::id())->findOrFail($id);
 
-            if ($post->status === 'published' || $post->status === 'queued') {
+            if ($post->status === 'published' || $post->status === 'publishing') {
                 return response()->json([
                     'error' => "Cannot reschedule a post with status '{$post->status}'.",
                 ], 422);
