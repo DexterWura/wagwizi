@@ -5,6 +5,7 @@ namespace App\Services\SocialAccount;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Services\Platform\Platform;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -85,6 +86,8 @@ class AccountLinkingService
                 ],
             );
         });
+
+        Cache::forget("dashboard_audience:{$account->id}");
 
         Log::info('Social account linked', [
             'user_id'    => $user->id,
@@ -303,7 +306,7 @@ class AccountLinkingService
 
         $account->update([
             'status'        => 'disconnected',
-            'access_token'  => null,
+            'access_token'  => '',
             'refresh_token' => null,
         ]);
 

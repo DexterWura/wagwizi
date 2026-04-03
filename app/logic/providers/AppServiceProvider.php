@@ -26,6 +26,7 @@ use App\Services\Post\PostPublishingService;
 use App\Services\SocialAccount\TokenRefreshService;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use App\Services\Ai\PlatformAiQuotaService;
 use App\Services\Notifications\InAppNotificationService;
@@ -118,48 +119,12 @@ class AppServiceProvider extends ServiceProvider
         View::composer('*', function ($view) {
             $view->with('appName', config('app.name'));
 
-            $displayTimezonesList = collect();
-            $displayTimezonesMeta = [];
-            $defaultDisplayTimezoneIdentifier = 'UTC';
+            $timezoneData = $this->cachedTimezoneData();
+            $view->with('displayTimezonesList', $timezoneData['list']);
+            $view->with('displayTimezonesMeta', $timezoneData['meta']);
+            $view->with('defaultDisplayTimezoneIdentifier', $timezoneData['default']);
 
-            try {
-                if (Schema::hasTable('timezones')) {
-                    $list = Timezone::query()->orderBy('identifier')->get();
-                    if ($list->isNotEmpty()) {
-                        $displayTimezonesList = $list;
-                        $displayTimezonesMeta = $list->mapWithKeys(static function (Timezone $tz): array {
-                            return [
-                                $tz->identifier => [
-                                    'code'   => $tz->label_short,
-                                    'name'   => $tz->label_long,
-                                    'symbol' => '',
-                                ],
-                            ];
-                        })->all();
-                        $defaultDisplayTimezoneIdentifier = SiteSetting::get('default_display_timezone', 'UTC');
-                        if (! $list->contains('identifier', $defaultDisplayTimezoneIdentifier)) {
-                            $defaultDisplayTimezoneIdentifier = $list->first()->identifier;
-                        }
-                    }
-                }
-            } catch (\Throwable) {
-                // Installer, missing DB, or migrations not run yet.
-            }
-
-            $view->with('displayTimezonesList', $displayTimezonesList);
-            $view->with('displayTimezonesMeta', $displayTimezonesMeta);
-            $view->with('defaultDisplayTimezoneIdentifier', $defaultDisplayTimezoneIdentifier);
-
-            $showFloatingHelp = true;
-            try {
-                if (Schema::hasTable('site_settings')) {
-                    $v = SiteSetting::get('show_floating_help', '1');
-                    $showFloatingHelp = $v === '1' || $v === 1 || $v === true;
-                }
-            } catch (\Throwable) {
-                // Installer, missing DB, or migrations not run yet.
-            }
-            $view->with('showFloatingHelp', $showFloatingHelp);
+            $view->with('showFloatingHelp', $this->cachedShowFloatingHelp());
             $view->with('aiClientConfig', null);
 
             if (str_starts_with((string) $view->name(), 'install.')) {
@@ -173,88 +138,148 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
+            $u = Auth::user();
+            $view->with('currentUser', $u);
+
+            if ($u === null) {
+                $view->with('showTrialEndedBanner', false);
+                $view->with('freePlanSlug', null);
+                $view->with('showSubscriptionRenewalBanner', false);
+                $view->with('subscriptionRenewalDaysLeft', null);
+                $view->with('unreadNotificationCount', 0);
+
+                return;
+            }
+
+            $view->with('freePlanSlug', $this->cachedFreePlanSlug());
+
             $showTrialEndedBanner = false;
-            $freePlanSlug         = null;
-            if (Auth::check()) {
-                try {
-                    $u = Auth::user();
-                    $showTrialEndedBanner = $u->isSubscriptionPastDueAfterTrial();
-                    if (Schema::hasTable('plans')) {
-                        $fp = Plan::query()->where('is_active', true)->where('is_free', true)->orderBy('sort_order')->first();
-                        $freePlanSlug = $fp?->slug;
-                    }
-                } catch (\Throwable) {
-                    // Missing tables during install.
-                }
+            try {
+                $showTrialEndedBanner = $u->isSubscriptionPastDueAfterTrial();
+            } catch (\Throwable) {
             }
             $view->with('showTrialEndedBanner', $showTrialEndedBanner);
-            $view->with('freePlanSlug', $freePlanSlug);
 
-            $subscriptionRenewalDaysLeft     = null;
-            $showSubscriptionRenewalBanner   = false;
-            if (Auth::check()) {
-                try {
-                    $u = Auth::user();
-                    $u->loadMissing('subscription.planModel');
-                    $sub = $u->subscription;
-                    if ($sub && $sub->status === 'active' && $sub->current_period_end && $sub->current_period_end->isFuture()) {
-                        $pl = $sub->planModel;
-                        if ($pl && ! $pl->is_free && ! $pl->is_lifetime) {
-                            $subscriptionRenewalDaysLeft = (int) now()->diffInDays($sub->current_period_end, true);
-                            $showSubscriptionRenewalBanner = $subscriptionRenewalDaysLeft <= 7;
-                        }
+            $subscriptionRenewalDaysLeft   = null;
+            $showSubscriptionRenewalBanner = false;
+            try {
+                $u->loadMissing('subscription.planModel');
+                $sub = $u->subscription;
+                if ($sub && $sub->status === 'active' && $sub->current_period_end && $sub->current_period_end->isFuture()) {
+                    $pl = $sub->planModel;
+                    if ($pl && ! $pl->is_free && ! $pl->is_lifetime) {
+                        $subscriptionRenewalDaysLeft = (int) now()->diffInDays($sub->current_period_end, true);
+                        $showSubscriptionRenewalBanner = $subscriptionRenewalDaysLeft <= 7;
                     }
-                } catch (\Throwable) {
-                    // Missing tables during install.
                 }
+            } catch (\Throwable) {
             }
             $view->with('subscriptionRenewalDaysLeft', $subscriptionRenewalDaysLeft);
             $view->with('showSubscriptionRenewalBanner', $showSubscriptionRenewalBanner);
 
-            $aiClientConfig = null;
-            if (Auth::check()) {
+            try {
                 try {
-                    $u = Auth::user();
-                    try {
-                        $tokenSummary = app(PlatformAiQuotaService::class)->summaryForLayout($u);
-                    } catch (\Throwable) {
-                        $tokenSummary = ['remaining' => 0, 'budget' => 0, 'applies' => false];
-                    }
-                    $aiClientConfig = [
-                        'source'    => $u->ai_source === 'byok' ? 'byok' : 'platform',
-                        'provider'  => in_array($u->ai_provider, ['openai', 'anthropic', 'custom'], true)
-                            ? $u->ai_provider
-                            : 'openai',
-                        'baseUrl'   => (string) ($u->ai_base_url ?? ''),
-                        'hasApiKey' => $u->hasAiApiKeyStored(),
-                        'platformTokensRemaining' => $tokenSummary['remaining'],
-                        'platformTokensBudget'    => $tokenSummary['budget'],
-                        'platformTokensApplies'   => $tokenSummary['applies'],
-                    ];
+                    $tokenSummary = app(PlatformAiQuotaService::class)->summaryForLayout($u);
                 } catch (\Throwable) {
-                    $aiClientConfig = [
-                        'source'    => 'platform',
-                        'provider'  => 'openai',
-                        'baseUrl'   => '',
-                        'hasApiKey' => false,
-                    ];
+                    $tokenSummary = ['remaining' => 0, 'budget' => 0, 'applies' => false];
                 }
+                $aiClientConfig = [
+                    'source'    => $u->ai_source === 'byok' ? 'byok' : 'platform',
+                    'provider'  => in_array($u->ai_provider, ['openai', 'anthropic', 'custom'], true)
+                        ? $u->ai_provider
+                        : 'openai',
+                    'baseUrl'   => (string) ($u->ai_base_url ?? ''),
+                    'hasApiKey' => $u->hasAiApiKeyStored(),
+                    'platformTokensRemaining' => $tokenSummary['remaining'],
+                    'platformTokensBudget'    => $tokenSummary['budget'],
+                    'platformTokensApplies'   => $tokenSummary['applies'],
+                ];
+            } catch (\Throwable) {
+                $aiClientConfig = [
+                    'source'    => 'platform',
+                    'provider'  => 'openai',
+                    'baseUrl'   => '',
+                    'hasApiKey' => false,
+                ];
             }
             $view->with('aiClientConfig', $aiClientConfig);
 
-            $unreadNotificationCount = 0;
-            if (Auth::check()) {
-                try {
-                    if (Schema::hasTable('notifications')) {
-                        $unreadNotificationCount = Auth::user()->unreadNotifications()->count();
+            $unreadNotificationCount = Cache::remember(
+                "unread_notif_count:{$u->id}",
+                60,
+                function () use ($u) {
+                    try {
+                        return Schema::hasTable('notifications')
+                            ? $u->unreadNotifications()->count()
+                            : 0;
+                    } catch (\Throwable) {
+                        return 0;
                     }
-                } catch (\Throwable) {
-                    $unreadNotificationCount = 0;
-                }
-            }
+                },
+            );
             $view->with('unreadNotificationCount', $unreadNotificationCount);
+        });
+    }
 
-            $view->with('currentUser', Auth::user());
+    private function cachedTimezoneData(): array
+    {
+        return Cache::remember('global:timezone_data', 3600, function () {
+            $list    = collect();
+            $meta    = [];
+            $default = 'UTC';
+
+            try {
+                if (Schema::hasTable('timezones')) {
+                    $rows = Timezone::query()->orderBy('identifier')->get();
+                    if ($rows->isNotEmpty()) {
+                        $list = $rows;
+                        $meta = $rows->mapWithKeys(static fn (Timezone $tz) => [
+                            $tz->identifier => [
+                                'code'   => $tz->label_short,
+                                'name'   => $tz->label_long,
+                                'symbol' => '',
+                            ],
+                        ])->all();
+                        $default = SiteSetting::get('default_display_timezone', 'UTC');
+                        if (! $rows->contains('identifier', $default)) {
+                            $default = $rows->first()->identifier;
+                        }
+                    }
+                }
+            } catch (\Throwable) {
+            }
+
+            return ['list' => $list, 'meta' => $meta, 'default' => $default];
+        });
+    }
+
+    private function cachedShowFloatingHelp(): bool
+    {
+        return Cache::remember('global:show_floating_help', 3600, function () {
+            try {
+                if (Schema::hasTable('site_settings')) {
+                    $v = SiteSetting::get('show_floating_help', '1');
+                    return $v === '1' || $v === 1 || $v === true;
+                }
+            } catch (\Throwable) {
+            }
+
+            return true;
+        });
+    }
+
+    private function cachedFreePlanSlug(): ?string
+    {
+        return Cache::remember('global:free_plan_slug', 3600, function () {
+            try {
+                if (Schema::hasTable('plans')) {
+                    $fp = Plan::query()->where('is_active', true)->where('is_free', true)->orderBy('sort_order')->first();
+                    return $fp?->slug;
+                }
+            } catch (\Throwable) {
+            }
+
+            return null;
         });
     }
 }

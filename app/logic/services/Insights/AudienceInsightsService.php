@@ -138,24 +138,25 @@ class AudienceInsightsService
      */
     private function loadPublishedRows(int $userId, Carbon $from, Carbon $to): Collection
     {
-        $tz = $from->getTimezone()->getName();
+        $fromUtc = $from->copy()->utc();
+        $toUtc   = $to->copy()->utc();
 
         return PostPlatform::query()
             ->where('status', 'published')
             ->whereHas('post', function ($q) use ($userId) {
                 $q->where('user_id', $userId);
             })
-            ->with(['post:id,user_id,content,status,published_at'])
-            ->get()
-            ->filter(function (PostPlatform $pp) use ($from, $to, $tz) {
-                $at = $this->effectivePublishedAt($pp, $tz);
-                if ($at === null) {
-                    return false;
-                }
-
-                return $at->between($from, $to);
+            ->where(function ($q) use ($fromUtc, $toUtc) {
+                $q->where(function ($inner) use ($fromUtc, $toUtc) {
+                    $inner->whereNotNull('post_platforms.published_at')
+                        ->whereBetween('post_platforms.published_at', [$fromUtc, $toUtc]);
+                })->orWhere(function ($inner) use ($fromUtc, $toUtc) {
+                    $inner->whereNull('post_platforms.published_at')
+                        ->whereHas('post', fn ($p) => $p->whereBetween('published_at', [$fromUtc, $toUtc]));
+                });
             })
-            ->values();
+            ->with(['post:id,user_id,content,status,published_at'])
+            ->get();
     }
 
     private function effectivePublishedAt(PostPlatform $pp, string $tz): ?Carbon

@@ -1,0 +1,21 @@
+#!/usr/bin/env php
+<?php
+
+define('LARAVEL_START', microtime(true));
+define('PROJECT_ROOT', __DIR__);
+define('LOGIC_PATH', __DIR__ . '/app/logic');
+
+require LOGIC_PATH . '/vendor/autoload.php';
+
+$app = require_once LOGIC_PATH . '/bootstrap.php';
+
+$kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+
+$status = $kernel->handle(
+    $input = new Symfony\Component\Console\Input\ArgvInput,
+    new Symfony\Component\Console\Output\ConsoleOutput
+);
+
+$kernel->terminate($input, $status);
+
+exit($status);

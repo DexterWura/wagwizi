@@ -11,6 +11,17 @@ use Illuminate\Validation\Rules\Password;
 
 class ProfileController extends Controller
 {
+    public function currentUser(Request $request): JsonResponse
+    {
+        $u = $request->user();
+
+        return response()->json([
+            'id'    => $u->id,
+            'name'  => $u->name,
+            'email' => $u->email,
+        ]);
+    }
+
     public function update(Request $request): JsonResponse
     {
         $validated = $request->validate([

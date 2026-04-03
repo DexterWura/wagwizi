@@ -921,12 +921,24 @@ class AdminController extends Controller
     public function clearApplicationCache(): RedirectResponse
     {
         try {
-            Artisan::call('optimize:clear');
+            Artisan::call('config:clear');
+            Artisan::call('route:clear');
+            Artisan::call('view:clear');
+            Artisan::call('cache:clear');
+            Artisan::call('event:clear');
         } catch (\Throwable $e) {
             return back()->with('error', 'Could not clear caches: ' . $e->getMessage());
         }
 
-        return back()->with('success', 'Application caches cleared (config, routes, views, compiled files, events, cache).');
+        try {
+            Artisan::call('config:cache');
+            Artisan::call('route:cache');
+            Artisan::call('view:cache');
+        } catch (\Throwable $e) {
+            return back()->with('success', 'Caches cleared but could not rebuild: ' . $e->getMessage());
+        }
+
+        return back()->with('success', 'All caches cleared and rebuilt (config, routes, views, events, application cache).');
     }
 
     public function clearSiteCache(): RedirectResponse

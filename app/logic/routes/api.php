@@ -3,6 +3,7 @@
 use App\Controllers\ComposerMentionController;
 use App\Controllers\CronController;
 use App\Controllers\PostController;
+use App\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -21,15 +22,7 @@ Route::post('/cron/run', [CronController::class, 'run'])->middleware('throttle:1
 
 Route::middleware(['web', 'auth'])->group(function () {
 
-    Route::get('/user', function (\Illuminate\Http\Request $request) {
-        $u = $request->user();
-
-        return response()->json([
-            'id'    => $u->id,
-            'name'  => $u->name,
-            'email' => $u->email,
-        ]);
-    });
+    Route::get('/user', [ProfileController::class, 'currentUser']);
 
     Route::post('/posts',              [PostController::class, 'store']);
     Route::get('/posts',               [PostController::class, 'index']);

@@ -201,6 +201,7 @@ final class DashboardMetricsService
             'twitter'   => $this->twitterAudience($account),
             'facebook'  => $this->facebookAudience($account),
             'instagram' => $this->instagramAudience($account),
+            'linkedin'  => $this->linkedinAudience($account),
             'threads'   => $this->threadsAudience($account),
             default     => $this->metadataAudience($account),
         };
@@ -303,6 +304,29 @@ final class DashboardMetricsService
 
         $followers = $resp->json('followers_count');
         return is_numeric($followers) ? (int) $followers : $this->metadataAudience($account);
+    }
+
+    private function linkedinAudience(SocialAccount $account): ?int
+    {
+        $resp = Http::withToken($account->access_token)
+            ->timeout(12)
+            ->acceptJson()
+            ->withHeaders([
+                'X-Restli-Protocol-Version' => '2.0.0',
+                'LinkedIn-Version'          => '202401',
+            ])
+            ->get('https://api.linkedin.com/rest/memberFollowersCount', [
+                'q' => 'me',
+            ]);
+
+        if ($resp->successful()) {
+            $count = $resp->json('elements.0.memberFollowersCount');
+            if (is_numeric($count)) {
+                return (int) $count;
+            }
+        }
+
+        return $this->metadataAudience($account);
     }
 
     public function validateRange(?string $value): string
