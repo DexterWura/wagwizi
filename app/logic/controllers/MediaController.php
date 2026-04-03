@@ -35,21 +35,24 @@ class MediaController extends Controller
             'file' => 'required|file|mimes:jpeg,jpg,png,gif,webp,mp4,mov,avi|max:51200',
         ]);
 
-        $file     = $request->file('file');
-        $mime     = $file->getMimeType();
-        $type     = str_starts_with($mime, 'video/') ? 'video' : 'image';
-        $subDir   = $type === 'video' ? 'videos' : 'images';
+        $file = $request->file('file');
+        // Read metadata before move(): move() deletes the temp file; getSize() would stat a missing path.
+        $mime          = $file->getMimeType();
+        $sizeBytes     = $file->getSize();
+        $originalName  = $file->getClientOriginalName();
+        $type          = str_starts_with((string) $mime, 'video/') ? 'video' : 'image';
+        $subDir        = $type === 'video' ? 'videos' : 'images';
 
         $path = FileUploadUtil::store($file, $subDir);
 
         $media = MediaFile::create([
             'user_id'       => Auth::id(),
             'file_name'     => basename($path),
-            'original_name' => $file->getClientOriginalName(),
+            'original_name' => $originalName,
             'disk'          => 'local',
             'path'          => $path,
             'mime_type'     => $mime,
-            'size_bytes'    => $file->getSize(),
+            'size_bytes'    => $sizeBytes,
             'type'          => $type,
         ]);
 
