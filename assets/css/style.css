@@ -4469,6 +4469,46 @@ button.link-create {
   margin-left: auto;
 }
 
+.composer-emoji-wrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.composer-emoji-wrap .composer-pill--icon {
+  margin-left: 0;
+}
+
+.composer-emoji-picker {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  z-index: 35;
+  width: min(20rem, 82vw);
+  padding: 0.55rem;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--bg-card);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+}
+
+.composer-emoji-picker__item {
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 0.38rem 0.2rem;
+}
+
+.composer-emoji-picker__item:hover {
+  background: var(--bg-hover);
+  border-color: var(--border);
+}
+
 .composer-upload-zone {
   display: flex;
   width: 4.5rem;

@@ -57,7 +57,7 @@
             </div>
             <div class="card__body">
               <p class="posts-index-loading prose-muted" data-posts-index-loading>Loading…</p>
-              <p class="posts-index-empty empty-lg" data-posts-index-empty hidden>No posts match your filters.</p>
+              <p class="posts-index-empty empty-lg" data-posts-index-empty hidden>No posts yet.</p>
               <ul class="posts-index-list" data-posts-index-list hidden></ul>
               <nav class="posts-index-pagination" data-posts-index-pagination hidden aria-label="Pagination"></nav>
             </div>

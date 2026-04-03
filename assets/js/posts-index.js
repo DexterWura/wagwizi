@@ -162,6 +162,11 @@
     var state = { page: 1, q: "", status: "all", sort: "newest" };
     var debounceTimer = null;
 
+    function currentEmptyLabel() {
+      var filtered = !!(state.q || (state.status && state.status !== "all") || state.sort === "scheduled");
+      return filtered ? "No posts match your filters." : "No posts yet.";
+    }
+
     function setLoading(on) {
       if (loadingEl) loadingEl.hidden = !on;
     }
@@ -197,6 +202,7 @@
 
         if (!rows.length) {
           if (emptyEl) {
+            emptyEl.textContent = currentEmptyLabel();
             emptyEl.hidden = false;
             emptyEl.removeAttribute("hidden");
           }
@@ -214,6 +220,9 @@
             fetchPage();
           });
         }
+      }).catch(function () {
+        setLoading(false);
+        if (global.App.showFlash) global.App.showFlash("Could not load posts.", "error");
       });
     }
 

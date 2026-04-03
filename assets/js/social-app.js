@@ -39,6 +39,35 @@
     return contentMap;
   }
 
+  function parseApiError(res, fallback) {
+    if (!res || typeof res !== "object") return fallback;
+    if (typeof res.error === "string" && res.error.trim() !== "") return res.error;
+    if (typeof res.message === "string" && res.message.trim() !== "") return res.message;
+    if (res.errors && typeof res.errors === "object") {
+      var keys = Object.keys(res.errors);
+      for (var i = 0; i < keys.length; i += 1) {
+        var row = res.errors[keys[i]];
+        if (Array.isArray(row) && row.length && typeof row[0] === "string" && row[0].trim() !== "") {
+          return row[0];
+        }
+      }
+    }
+    return fallback;
+  }
+
+  function composerActiveTabKey() {
+    var active = document.querySelector('[data-app-platform-tab][aria-selected="true"]');
+    return active ? (active.getAttribute("data-app-platform-tab") || "master") : "master";
+  }
+
+  function composerTextForPlatform(platform, masterValue) {
+    var overrides = global.__composerPlatformOverrides || {};
+    if (!platform || platform === "master") return masterValue;
+    var candidate = overrides[platform];
+    if (typeof candidate === "string" && candidate.trim() !== "") return candidate.trim();
+    return masterValue;
+  }
+
   function composerAssetUrl(path) {
     if (!path) return "";
     var p = String(path).replace(/^\//, "");
@@ -520,7 +549,6 @@
   function initComposerPreviewSync() {
     var master = document.getElementById("composer-master");
     if (!master) return;
-    var targets = document.querySelectorAll("[data-app-composer-preview-text]");
     var live = document.querySelector("[data-app-composer-feed-live]");
     var diffWrap = document.querySelector("[data-app-composer-feed-diff]");
     var delEl = diffWrap ? diffWrap.querySelector(".diff-inline-del") : null;
@@ -538,12 +566,17 @@
     function flush() {
       raf = null;
       clearFeedDiff();
-      var text = (master.value || "").trim();
-      if (!text) text = fallback;
-      targets.forEach(function (el) {
-        el.textContent = text;
+      var masterText = (master.value || "").trim();
+      if (!masterText) masterText = fallback;
+
+      document.querySelectorAll("[data-app-composer-preview-text]").forEach(function (el) {
+        var card = el.closest("[data-app-composer-preview]");
+        var platform = card ? card.getAttribute("data-platform") : "master";
+        el.textContent = composerTextForPlatform(platform, masterText);
       });
-      if (live) live.textContent = text;
+      if (live) {
+        live.textContent = composerTextForPlatform(composerActiveTabKey(), masterText);
+      }
       syncComposerPreviewMedia();
     }
     function onInput() {
@@ -625,15 +658,43 @@
     var master = document.getElementById("composer-master");
     var hashBtn = document.querySelector("[data-app-composer-hashtag]");
     var emojiBtn = document.querySelector("[data-app-composer-emoji]");
+    var emojiWrap = document.querySelector("[data-app-composer-emoji-wrap]");
+    var emojiPicker = document.querySelector("[data-app-composer-emoji-picker]");
 
     if (hashBtn && master) {
       hashBtn.addEventListener("click", function () {
         insertAtCursor(master, " #");
       });
     }
-    if (emojiBtn && master) {
-      emojiBtn.addEventListener("click", function () {
-        insertAtCursor(master, " ☕ ");
+    if (emojiBtn && master && emojiWrap && emojiPicker) {
+      function setEmojiPickerOpen(open) {
+        emojiPicker.hidden = !open;
+        emojiBtn.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+
+      emojiBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        setEmojiPickerOpen(emojiPicker.hidden);
+      });
+
+      emojiPicker.querySelectorAll("[data-composer-emoji]").forEach(function (opt) {
+        opt.addEventListener("click", function () {
+          var emoji = opt.getAttribute("data-composer-emoji") || "";
+          if (emoji) insertAtCursor(master, emoji + " ");
+          setEmojiPickerOpen(false);
+        });
+      });
+
+      document.addEventListener("click", function (e) {
+        if (emojiPicker.hidden) return;
+        if (emojiWrap.contains(e.target)) return;
+        setEmojiPickerOpen(false);
+      });
+
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape" && !emojiPicker.hidden) {
+          setEmojiPickerOpen(false);
+        }
       });
     }
     initComposerAiDock();
@@ -662,6 +723,12 @@
         ? "Select a platform tab to add an override…"
         : "Write override for " + active + "…";
       overrideEl.disabled = active === "master";
+      if (typeof global.requestAnimationFrame === "function") {
+        global.requestAnimationFrame(function () {
+          var master = document.getElementById("composer-master");
+          if (master) master.dispatchEvent(new Event("input", { bubbles: true }));
+        });
+      }
     }
 
     function persistCurrent() {
@@ -681,9 +748,70 @@
     overrideEl.addEventListener("input", function () {
       if (active === "master") return;
       overrides[active] = overrideEl.value || "";
+      var master = document.getElementById("composer-master");
+      if (master) master.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
     renderTabState();
+  }
+
+  function initComposerOptionalSections() {
+    var commentWrap = document.querySelector("[data-app-composer-comment-settings]");
+    var commentToggle = document.querySelector("[data-app-composer-toggle-comment]");
+    var firstComment = document.getElementById("composer-first-comment");
+    var commentDelayValue = document.getElementById("composer-comment-delay-value");
+    var scheduleWrap = document.querySelector("[data-app-composer-schedule-settings]");
+    var dateEl = document.getElementById("composer-date");
+    var timeEl = document.getElementById("composer-time");
+    var delayEl = document.getElementById("composer-delay-value");
+
+    function hasCommentSettingsValue() {
+      var c = firstComment ? (firstComment.value || "").trim() : "";
+      var d = commentDelayValue ? (commentDelayValue.value || "").trim() : "";
+      return c !== "" || d !== "";
+    }
+
+    function setCommentOpen(open) {
+      if (!commentWrap) return;
+      commentWrap.hidden = !open;
+      if (commentToggle) {
+        commentToggle.setAttribute("aria-expanded", open ? "true" : "false");
+        commentToggle.textContent = open ? "Hide first comment" : "Add first comment";
+      }
+    }
+
+    function hasScheduleSettingsValue() {
+      var dv = dateEl ? (dateEl.value || "").trim() : "";
+      var tv = timeEl ? (timeEl.value || "").trim() : "";
+      var dl = delayEl ? (delayEl.value || "").trim() : "";
+      return dv !== "" || tv !== "" || dl !== "";
+    }
+
+    function setScheduleOpen(open) {
+      if (!scheduleWrap) return;
+      scheduleWrap.hidden = !open;
+    }
+
+    if (commentToggle && commentWrap) {
+      commentToggle.addEventListener("click", function () {
+        setCommentOpen(commentWrap.hidden);
+      });
+      setCommentOpen(hasCommentSettingsValue());
+      if (firstComment) {
+        firstComment.addEventListener("input", function () {
+          if ((firstComment.value || "").trim() !== "") setCommentOpen(true);
+        });
+      }
+      if (commentDelayValue) {
+        commentDelayValue.addEventListener("input", function () {
+          if ((commentDelayValue.value || "").trim() !== "") setCommentOpen(true);
+        });
+      }
+    }
+
+    if (scheduleWrap) {
+      setScheduleOpen(hasScheduleSettingsValue());
+    }
   }
 
   function initComposerAi() {
@@ -1051,6 +1179,7 @@
         var accounts = getSelectedAccountIds();
         var platformContent = collectPlatformContentByAccount();
         var commentPayload = buildCommentDelayMinutesPayload();
+        var scheduleWrap = document.querySelector("[data-app-composer-schedule-settings]");
 
         if (!content) {
           global.App.showFlash("Write some content first.", "error");
@@ -1064,6 +1193,7 @@
         btn.disabled = true;
 
         if (action === "draft") {
+          if (scheduleWrap) scheduleWrap.hidden = true;
           var draftPayload = {
             content: content,
             platform_accounts: accounts,
@@ -1080,6 +1210,7 @@
             if (titleEl) titleEl.textContent = "Draft saved";
             if (res._ok && res.post && res.post.id) {
               global.__composerEditingPostId = res.post.id;
+              if (typeof global.__composerMarkSaved === "function") global.__composerMarkSaved();
               try {
                 var u = new URL(global.location.href);
                 u.searchParams.set("draft", String(res.post.id));
@@ -1088,7 +1219,7 @@
             }
             if (descEl) descEl.textContent = res._ok
               ? "Draft #" + (res.post ? res.post.id : "") + " saved to your account."
-              : (res.error || "Could not save draft.");
+              : parseApiError(res, "Could not save draft.");
             if (iconEl) iconEl.className = "fa-solid fa-floppy-disk";
             if (calLink) calLink.setAttribute("hidden", "");
             global.App.openModal("modal-composer-feedback");
@@ -1100,6 +1231,12 @@
         }
 
         if (action === "publish") {
+          if (scheduleWrap) scheduleWrap.hidden = true;
+          if (!accounts.length) {
+            btn.disabled = false;
+            global.App.showFlash("Select at least one connected account.", "error");
+            return;
+          }
           var publishPayload = {
             content: content,
             platform_accounts: accounts,
@@ -1110,10 +1247,11 @@
 
           function finishPublish(pubRes) {
             btn.disabled = false;
+            if (pubRes._ok && typeof global.__composerMarkSaved === "function") global.__composerMarkSaved();
             if (titleEl) titleEl.textContent = pubRes._ok ? "Publishing" : "Publish failed";
             if (descEl) descEl.textContent = pubRes._ok
               ? (pubRes.message || "Your post is being published to all selected networks.")
-              : (pubRes.error || "Publish failed.");
+              : parseApiError(pubRes, "Publish failed.");
             if (iconEl) iconEl.className = "fa-solid fa-paper-plane";
             if (calLink) calLink.setAttribute("hidden", "");
             global.App.openModal("modal-composer-feedback");
@@ -1123,7 +1261,7 @@
             global.App.apiPut("/api/v1/posts/" + editingPubId, publishPayload).then(function (putRes) {
               if (!putRes._ok || !putRes.post) {
                 btn.disabled = false;
-                global.App.showFlash(putRes.error || "Could not update post.", "error");
+                global.App.showFlash(parseApiError(putRes, "Could not update post."), "error");
                 return;
               }
               return global.App.apiPost("/api/v1/posts/" + editingPubId + "/publish").then(finishPublish);
@@ -1135,7 +1273,7 @@
             global.App.apiPost("/api/v1/posts", publishPayload).then(function (res) {
               if (!res._ok || !res.post) {
                 btn.disabled = false;
-                global.App.showFlash(res.error || "Could not create post.", "error");
+                global.App.showFlash(parseApiError(res, "Could not create post."), "error");
                 return;
               }
               var postId = res.post.id;
@@ -1149,6 +1287,17 @@
         }
 
         if (action === "schedule") {
+          if (scheduleWrap && scheduleWrap.hidden) {
+            btn.disabled = false;
+            scheduleWrap.hidden = false;
+            global.App.showFlash("Set date/time (or delay), then click Schedule again.", "error");
+            return;
+          }
+          if (!accounts.length) {
+            btn.disabled = false;
+            global.App.showFlash("Select at least one connected account.", "error");
+            return;
+          }
           var dateVal = document.getElementById("composer-date") ? document.getElementById("composer-date").value : "";
           var timeVal = document.getElementById("composer-time") ? document.getElementById("composer-time").value : "";
           var delayValueEl = document.getElementById("composer-delay-value");
@@ -1185,12 +1334,13 @@
 
           global.App.apiPost(scheduleUrl, schedulePayload).then(function (schedRes) {
             btn.disabled = false;
+            if (schedRes._ok && typeof global.__composerMarkSaved === "function") global.__composerMarkSaved();
             if (titleEl) titleEl.textContent = schedRes._ok ? "Scheduled" : "Schedule failed";
             if (descEl) descEl.textContent = schedRes._ok
               ? (useDelay
                 ? ("Your post is scheduled in " + delayValue + " " + delayUnit + ".")
                 : ("Your post is scheduled for " + dateVal + " at " + timeVal + "."))
-              : (schedRes.error || "Could not schedule.");
+              : parseApiError(schedRes, "Could not schedule.");
             if (iconEl) iconEl.className = "fa-solid fa-calendar-days";
             if (calLink) {
               if (schedRes._ok) calLink.removeAttribute("hidden");
@@ -1343,6 +1493,8 @@
     if (timeEl) {
       timeEl.value = pad2(d.getHours()) + ":" + pad2(d.getMinutes());
     }
+    var scheduleWrap = document.querySelector("[data-app-composer-schedule-settings]");
+    if (scheduleWrap) scheduleWrap.hidden = false;
   }
 
   function refreshComposerOverrideField() {
@@ -1359,6 +1511,102 @@
       overrideEl.disabled = false;
       overrideEl.value = o[key] || "";
     }
+  }
+
+  function initComposerUnsavedChangesGuard() {
+    var master = document.getElementById("composer-master");
+    if (!master) return;
+
+    function readPlatformOverrides() {
+      var source = global.__composerPlatformOverrides;
+      var out = {};
+      if (!source || typeof source !== "object") return out;
+      Object.keys(source).forEach(function (k) {
+        var v = source[k];
+        if (typeof v === "string") {
+          var t = v.trim();
+          if (t !== "") out[k] = t;
+        }
+      });
+      return out;
+    }
+
+    function readSelectedAccountIds() {
+      var ids = [];
+      document.querySelectorAll('[name="platform_accounts[]"]:checked').forEach(function (cb) {
+        var id = parseInt(cb.value, 10);
+        if (!isNaN(id)) ids.push(id);
+      });
+      ids.sort(function (a, b) { return a - b; });
+      return ids;
+    }
+
+    function readState() {
+      var fc = document.getElementById("composer-first-comment");
+      var cdv = document.getElementById("composer-comment-delay-value");
+      var cdu = document.getElementById("composer-comment-delay-unit");
+      var d = document.getElementById("composer-date");
+      var t = document.getElementById("composer-time");
+      var dv = document.getElementById("composer-delay-value");
+      var du = document.getElementById("composer-delay-unit");
+      var media = global.__composerSelectedMedia || null;
+
+      return {
+        master: (master.value || "").trim(),
+        overrides: readPlatformOverrides(),
+        accounts: readSelectedAccountIds(),
+        firstComment: fc ? (fc.value || "").trim() : "",
+        commentDelayValue: cdv ? (cdv.value || "").trim() : "",
+        commentDelayUnit: cdu ? (cdu.value || "") : "minutes",
+        scheduleDate: d ? (d.value || "").trim() : "",
+        scheduleTime: t ? (t.value || "").trim() : "",
+        delayValue: dv ? (dv.value || "").trim() : "",
+        delayUnit: du ? (du.value || "") : "minutes",
+        mediaId: media && media.id != null ? String(media.id) : "",
+        mediaPath: media && media.path ? String(media.path) : "",
+        mediaType: media && media.type ? String(media.type) : ""
+      };
+    }
+
+    function stable(state) {
+      return JSON.stringify(state);
+    }
+
+    var baseline = stable(readState());
+    var bypassPromptOnce = false;
+
+    function hasUnsavedChanges() {
+      return stable(readState()) !== baseline;
+    }
+
+    global.__composerMarkSaved = function () {
+      baseline = stable(readState());
+    };
+
+    document.addEventListener("click", function (e) {
+      var link = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+      if (!link) return;
+      if (link.hasAttribute("download")) return;
+      if (link.target && link.target !== "_self") return;
+      var href = link.getAttribute("href") || "";
+      if (href === "" || href.charAt(0) === "#") return;
+      if (link.closest('[data-app-composer-action]')) return;
+      if (!hasUnsavedChanges()) return;
+      var ok = global.confirm("You have unsaved composer changes. If you leave this page, your progress will be lost. Continue?");
+      if (!ok) {
+        e.preventDefault();
+        e.stopPropagation();
+      } else {
+        bypassPromptOnce = true;
+      }
+    }, true);
+
+    global.addEventListener("beforeunload", function (e) {
+      if (bypassPromptOnce) return;
+      if (!hasUnsavedChanges()) return;
+      e.preventDefault();
+      e.returnValue = "";
+    });
   }
 
   function initComposerDraftFromUrl() {
@@ -1445,6 +1693,16 @@
         }
       }
 
+      var commentWrap = document.querySelector("[data-app-composer-comment-settings]");
+      var commentToggle = document.querySelector("[data-app-composer-toggle-comment]");
+      if (commentWrap && ((firstCommentVal && String(firstCommentVal).trim() !== "") || (cd != null && cd > 0))) {
+        commentWrap.hidden = false;
+        if (commentToggle) {
+          commentToggle.setAttribute("aria-expanded", "true");
+          commentToggle.textContent = "Hide first comment";
+        }
+      }
+
       applyScheduledAtToComposer(post.scheduled_at);
 
       var media = post.media_files && post.media_files[0];
@@ -1483,10 +1741,12 @@
     initComposerAi();
     initComposerAiSourceHint();
     initComposerPlatformOverrides();
+    initComposerOptionalSections();
     initComposerAudienceSlots();
     initComposerActions();
     initComposerUpload();
     initComposerDraftFromUrl();
+    initComposerUnsavedChangesGuard();
     initMediaLibraryFilter();
     initCalendarDrag();
   });

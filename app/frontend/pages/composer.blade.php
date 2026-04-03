@@ -106,9 +106,29 @@
                         <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
                         AI Assist
                       </button>
-                      <button type="button" class="composer-pill composer-pill--icon" data-app-composer-emoji aria-label="Insert emoji">
-                        <i class="fa-regular fa-face-smile" aria-hidden="true"></i>
-                      </button>
+                      <div class="composer-emoji-wrap" data-app-composer-emoji-wrap>
+                        <button type="button" class="composer-pill composer-pill--icon" data-app-composer-emoji aria-label="Insert emoji" aria-expanded="false" aria-controls="composer-emoji-picker">
+                          <i class="fa-regular fa-face-smile" aria-hidden="true"></i>
+                        </button>
+                        <div class="composer-emoji-picker" id="composer-emoji-picker" data-app-composer-emoji-picker hidden aria-label="Emoji picker">
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="😀" aria-label="Grinning face">😀</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="😂" aria-label="Face with tears of joy">😂</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="😍" aria-label="Smiling face with heart eyes">😍</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="🔥" aria-label="Fire">🔥</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="🚀" aria-label="Rocket">🚀</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="🎉" aria-label="Party popper">🎉</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="💯" aria-label="Hundred points">💯</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="👍" aria-label="Thumbs up">👍</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="🙏" aria-label="Folded hands">🙏</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="🙌" aria-label="Raising hands">🙌</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="✅" aria-label="Check mark">✅</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="✨" aria-label="Sparkles">✨</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="📈" aria-label="Chart increasing">📈</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="📣" aria-label="Megaphone">📣</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="💡" aria-label="Light bulb">💡</button>
+                          <button type="button" class="composer-emoji-picker__item" data-composer-emoji="❤️" aria-label="Red heart">❤️</button>
+                        </div>
+                      </div>
                     </div>
                     <div class="composer-ai-dock" id="composer-ai-dock" data-app-composer-ai-dock data-composer-ai-locked="{{ $composerAiLocked ? '1' : '0' }}" hidden aria-hidden="true" role="dialog" aria-modal="false" aria-label="Writing assistant">
                       <div class="composer-ai-dock__panel card card--composer composer-assistant-card ai-chat-panel">
@@ -174,10 +194,25 @@
                 </div>
 
                 <div class="composer-form-card__section composer-form-card__section--tight">
-                  <div class="field field--flush">
-                    <label class="field__label" for="composer-first-comment">First comment <span class="prose-muted">(optional)</span></label>
-                    <textarea class="textarea" id="composer-first-comment" rows="3" placeholder="Add a follow-up comment to post after publish…"></textarea>
-                    <p class="field__hint">If platform comment publishing is supported, this comment will be posted automatically.</p>
+                  <button type="button" class="btn btn--ghost btn--sm" data-app-composer-toggle-comment aria-expanded="false" aria-controls="composer-comment-settings">
+                    Add first comment
+                  </button>
+                  <div id="composer-comment-settings" data-app-composer-comment-settings hidden>
+                    <div class="field field--flush">
+                      <label class="field__label" for="composer-first-comment">First comment <span class="prose-muted">(optional)</span></label>
+                      <textarea class="textarea" id="composer-first-comment" rows="3" placeholder="Add a follow-up comment to post after publish…"></textarea>
+                      <p class="field__hint">If platform comment publishing is supported, this comment will be posted automatically.</p>
+                    </div>
+                    <div class="composer-schedule-field">
+                      <label class="field__label" for="composer-comment-delay-value">Delay comment by</label>
+                      <div class="composer-delay-row">
+                        <input class="input" type="number" id="composer-comment-delay-value" min="1" placeholder="e.g. 15" />
+                        <select class="select" id="composer-comment-delay-unit">
+                          <option value="minutes">Minutes</option>
+                          <option value="hours">Hours</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -213,20 +248,8 @@
                   </select>
                 </div>
 
-                <fieldset class="composer-post-mode">
-                  <legend class="composer-post-mode__legend">How would you like to post?</legend>
-                  <label class="composer-post-mode__opt">
-                    <input type="radio" name="composer-post-mode" value="auto" checked />
-                    Post automatically
-                  </label>
-                  <label class="composer-post-mode__opt">
-                    <input type="radio" name="composer-post-mode" value="reminder" />
-                    Get a reminder
-                  </label>
-                </fieldset>
-
                 <div class="composer-form-footer">
-                  <div class="composer-form-footer__schedule">
+                  <div class="composer-form-footer__schedule" data-app-composer-schedule-settings hidden>
                     <div class="composer-schedule-field">
                       <label class="field__label" for="composer-date">Schedule date</label>
                       <input class="input" type="date" id="composer-date" name="schedule-date" />
@@ -240,16 +263,6 @@
                       <div class="composer-delay-row">
                         <input class="input" type="number" id="composer-delay-value" min="1" placeholder="e.g. 30" />
                         <select class="select" id="composer-delay-unit">
-                          <option value="minutes">Minutes</option>
-                          <option value="hours">Hours</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div class="composer-schedule-field">
-                      <label class="field__label" for="composer-comment-delay-value">Delay comment by</label>
-                      <div class="composer-delay-row">
-                        <input class="input" type="number" id="composer-comment-delay-value" min="1" placeholder="e.g. 15" />
-                        <select class="select" id="composer-comment-delay-unit">
                           <option value="minutes">Minutes</option>
                           <option value="hours">Hours</option>
                         </select>
@@ -272,7 +285,7 @@
                   </div>
                   <div class="composer-form-footer__actions">
                     <button type="button" class="btn btn--ghost" data-app-composer-action="draft">Draft</button>
-                    <button type="button" class="btn btn--outline" data-app-composer-action="publish">Publish</button>
+                    <button type="button" class="btn btn--outline" data-app-composer-action="publish">Post now</button>
                     <button type="button" class="btn btn--composer-schedule" data-app-composer-action="schedule">Schedule</button>
                   </div>
                 </div>

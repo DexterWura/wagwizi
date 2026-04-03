@@ -19,50 +19,52 @@ class PostController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $user = Auth::user();
-        $query = $user->posts()->with([
-            'postPlatforms:id,post_id,platform,status,social_account_id',
-        ]);
+        return $this->tryServiceCall(function () use ($request) {
+            $user = Auth::user();
+            $query = $user->posts()->with([
+                'postPlatforms:id,post_id,platform',
+            ]);
 
-        if ($request->filled('q')) {
-            $term = (string) $request->query('q');
-            $like = '%' . addcslashes($term, '%_\\') . '%';
-            $query->where('content', 'LIKE', $like);
-        }
+            if ($request->filled('q')) {
+                $term = (string) $request->query('q');
+                $like = '%' . addcslashes($term, '%_\\') . '%';
+                $query->where('content', 'LIKE', $like);
+            }
 
-        if ($request->filled('status') && $request->query('status') !== 'all') {
-            $query->where('status', (string) $request->query('status'));
-        }
+            if ($request->filled('status') && $request->query('status') !== 'all') {
+                $query->where('status', (string) $request->query('status'));
+            }
 
-        $calendarScope = $request->has('month') && $request->has('year');
-        if ($calendarScope) {
-            $month = (int) $request->query('month');
-            $year  = (int) $request->query('year');
-            $start = \Carbon\Carbon::create($year, $month, 1)->startOfMonth();
-            $end   = $start->copy()->endOfMonth();
-            $query->where(function ($q) use ($start, $end) {
-                $q->whereBetween('scheduled_at', [$start, $end])
-                  ->orWhere(function ($q2) {
-                      $q2->where('status', 'draft')->whereNull('scheduled_at');
-                  });
-            });
-        }
+            $calendarScope = $request->has('month') && $request->has('year');
+            if ($calendarScope) {
+                $month = (int) $request->query('month');
+                $year  = (int) $request->query('year');
+                $start = \Carbon\Carbon::create($year, $month, 1)->startOfMonth();
+                $end   = $start->copy()->endOfMonth();
+                $query->where(function ($q) use ($start, $end) {
+                    $q->whereBetween('scheduled_at', [$start, $end])
+                      ->orWhere(function ($q2) {
+                          $q2->where('status', 'draft')->whereNull('scheduled_at');
+                      });
+                });
+            }
 
-        if ($calendarScope) {
-            $query->orderByRaw('scheduled_at IS NULL ASC')
-                ->orderBy('scheduled_at', 'asc')
-                ->orderByDesc('created_at');
-        } elseif ($request->query('sort') === 'scheduled') {
-            $query->orderByRaw('scheduled_at IS NULL ASC')
-                ->orderBy('scheduled_at', 'asc')
-                ->orderByDesc('created_at');
-        } else {
-            $query->orderByDesc('created_at')->orderByDesc('id');
-        }
+            if ($calendarScope) {
+                $query->orderByRaw('scheduled_at IS NULL ASC')
+                    ->orderBy('scheduled_at', 'asc')
+                    ->orderByDesc('created_at');
+            } elseif ($request->query('sort') === 'scheduled') {
+                $query->orderByRaw('scheduled_at IS NULL ASC')
+                    ->orderBy('scheduled_at', 'asc')
+                    ->orderByDesc('created_at');
+            } else {
+                $query->orderByDesc('created_at')->orderByDesc('id');
+            }
 
-        $posts = $query->paginate($request->integer('per_page', $calendarScope ? 50 : 15));
+            $posts = $query->paginate($request->integer('per_page', $calendarScope ? 50 : 15));
 
-        return response()->json(['success' => true, 'posts' => $posts]);
+            return response()->json(['success' => true, 'posts' => $posts]);
+        });
     }
 
     public function show(Request $request, int $id): JsonResponse
@@ -243,6 +245,13 @@ class PostController extends Controller
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
             Log::warning('Post not found', ['user_id' => Auth::id()]);
             return response()->json(['error' => 'Post not found.'], 404);
+        } catch (\Throwable $e) {
+            Log::error('Post operation failed unexpectedly', [
+                'user_id' => Auth::id(),
+                'error'   => $e->getMessage(),
+            ]);
+            report($e);
+            return response()->json(['error' => 'Unexpected server error while processing this post action.'], 500);
         }
     }
 }
