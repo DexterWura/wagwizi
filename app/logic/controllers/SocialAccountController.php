@@ -71,6 +71,11 @@ class SocialAccountController extends Controller
         $scopes = is_array($scopes) ? $scopes : [];
 
         if ($this->isSocialiteSupported($platformEnum)) {
+            if (!$this->socialiteServicesConfigured($platformEnum)) {
+                return redirect()->route('accounts')
+                    ->with('error', $platformEnum->label() . ' connection is not configured. Add the OAuth client ID and secret (and callback URL) in your environment or admin settings.');
+            }
+
             return $this->socialiteForAccountLinking($platformEnum)
                 ->scopes($scopes)
                 ->redirect();
@@ -114,6 +119,11 @@ class SocialAccountController extends Controller
 
         try {
             if ($this->isSocialiteSupported($platformEnum)) {
+                if (!$this->socialiteServicesConfigured($platformEnum)) {
+                    return redirect()->route('accounts')
+                        ->with('error', $platformEnum->label() . ' connection is not configured. Add the OAuth client ID and secret in your environment.');
+                }
+
                 $socialUser = $this->socialiteForAccountLinking($platformEnum)->user();
 
                 $storedScopes = config("platforms.{$platform}.scopes", []);
@@ -515,6 +525,25 @@ class SocialAccountController extends Controller
             Platform::LinkedIn => 'linkedin-openid',
             default              => $platform->value,
         };
+    }
+
+    /**
+     * True when the Socialite services.* entry exists and has non-empty client credentials.
+     */
+    private function socialiteServicesConfigured(Platform $platform): bool
+    {
+        $key = 'services.' . $this->socialiteDriver($platform);
+        $c   = config($key);
+
+        if (!is_array($c)) {
+            return false;
+        }
+
+        $id     = $c['client_id'] ?? null;
+        $secret = $c['client_secret'] ?? null;
+
+        return is_string($id) && trim($id) !== ''
+            && is_string($secret) && trim($secret) !== '';
     }
 
     /**

@@ -16,6 +16,20 @@ return [
         'redirect'      => env('GOOGLE_AUTH_REDIRECT_URI', '/auth/google/callback'),
     ],
 
+    // Socialite uses services.* (not platforms.*). Without oauth => 2, Twitter falls back to OAuth1 and errors.
+    'twitter' => [
+        'client_id'     => env('TWITTER_CLIENT_ID'),
+        'client_secret' => env('TWITTER_CLIENT_SECRET'),
+        'redirect'      => env('TWITTER_REDIRECT_URI', '/accounts/twitter/callback'),
+        'oauth'         => 2,
+    ],
+
+    'facebook' => [
+        'client_id'     => env('FACEBOOK_CLIENT_ID'),
+        'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+        'redirect'      => env('FACEBOOK_REDIRECT_URI', '/accounts/facebook/callback'),
+    ],
+
     'linkedin-openid' => [
         'client_id'     => env('LINKEDIN_CLIENT_ID'),
         'client_secret' => env('LINKEDIN_CLIENT_SECRET'),
