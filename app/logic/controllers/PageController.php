@@ -124,13 +124,22 @@ class PageController extends Controller
 
         $quota = app(PlatformAiQuotaService::class);
 
+        $composerPlatformMediaCaps = collect(config('platforms'))
+            ->map(static fn (array $cfg): array => [
+                'supports_images'   => (bool) ($cfg['supports_images'] ?? false),
+                'supports_video'    => (bool) ($cfg['supports_video'] ?? false),
+                'supports_carousel' => (bool) ($cfg['supports_carousel'] ?? false),
+            ])
+            ->all();
+
         return view('composer', [
-            'socialAccounts'             => $user->socialAccounts()->active()->get(['id', 'platform', 'username', 'display_name']),
-            'audienceInsights'           => $audienceInsights,
-            'composerAiLocked'           => ! $user->canAccessComposerAi(),
-            'composerAiQuotaExhausted'   => $quota->isPlatformAiQuotaExhausted($user),
-            'composerAiPlanNoPlatformAi' => $quota->isPlatformAiDisabledOnPlan($user),
-            'composerMediaCounts'        => $composerMediaCounts,
+            'socialAccounts'              => $user->socialAccounts()->active()->get(['id', 'platform', 'username', 'display_name']),
+            'audienceInsights'            => $audienceInsights,
+            'composerAiLocked'            => ! $user->canAccessComposerAi(),
+            'composerAiQuotaExhausted'    => $quota->isPlatformAiQuotaExhausted($user),
+            'composerAiPlanNoPlatformAi'  => $quota->isPlatformAiDisabledOnPlan($user),
+            'composerMediaCounts'         => $composerMediaCounts,
+            'composerPlatformMediaCaps'   => $composerPlatformMediaCaps,
         ]);
     }
 

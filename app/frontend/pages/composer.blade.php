@@ -287,6 +287,7 @@
                       </div>
                     </div>
                     <div class="composer-feed-preview__body">
+                      <div class="composer-feed-preview__media" data-app-composer-feed-media hidden></div>
                       <div class="composer-feed-preview__live" data-app-composer-feed-live>Your post will appear here.</div>
                       <div class="composer-feed-preview__agent-diff" data-app-composer-feed-diff hidden aria-live="polite">
                         <span class="composer-inline-diff">
@@ -319,7 +320,10 @@
                   @php $plat = Platform::tryFrom($account->platform); @endphp
                   <div class="preview-card">
                     <div class="preview-card__bar"><i class="{{ $plat?->icon() ?? 'fa-solid fa-globe' }}" aria-hidden="true"></i> {{ $plat?->label() ?? ucfirst($account->platform) }}</div>
-                    <div class="preview-card__body" data-app-composer-preview>Your post will appear here.</div>
+                    <div class="preview-card__body" data-app-composer-preview data-platform="{{ $account->platform }}">
+                      <div class="composer-preview-card__media" data-app-composer-preview-media hidden></div>
+                      <div class="composer-preview-card__text" data-app-composer-preview-text>Your post will appear here.</div>
+                    </div>
                   </div>
                   @endforeach
                 </div>
@@ -381,6 +385,7 @@
 @push('scripts')
     <script>
       window.__composerMediaCounts = @json($composerMediaCounts ?? ['image' => 0, 'video' => 0]);
+      window.__composerPlatformMediaCaps = @json($composerPlatformMediaCaps ?? []);
     </script>
     <script src="{{ asset('assets/js/social-app.js') }}"></script>
 @endpush

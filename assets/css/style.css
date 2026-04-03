@@ -4620,6 +4620,17 @@ button.link-create {
   word-break: break-word;
 }
 
+.composer-feed-preview__media {
+  margin: 0 0 0.65rem;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-hover);
+}
+
+.composer-feed-preview__media[hidden] {
+  display: none !important;
+}
+
 .composer-feed-preview__live {
   margin: 0;
   white-space: pre-wrap;
@@ -4765,13 +4776,43 @@ button.link-create {
 }
 
 .preview-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   padding: 0.75rem;
   font-size: 0.85rem;
   line-height: 1.45;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.preview-card__body .composer-preview-card__text {
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.composer-preview-card__media {
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-hover);
+}
+
+.composer-preview-card__media[hidden] {
+  display: none !important;
+}
+
+.composer-preview-img,
+.composer-preview-video {
+  display: block;
+  width: 100%;
+  max-height: 120px;
+  object-fit: cover;
+}
+
+.composer-preview-video {
   max-height: 140px;
-  overflow: auto;
+  background: #000;
 }
 
 .ai-chat-panel {
