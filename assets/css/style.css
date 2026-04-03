@@ -120,7 +120,7 @@ img {
   width: 100%;
 }
 
-/* ─── In-app navigation preloader (viewport — full-screen overlay, centered) ─── */
+/* ─── In-app navigation preloader (main column on desktop — sidebar stays sharp, never blurred) ─── */
 
 .app-nav-preloader {
   position: fixed;
@@ -130,12 +130,17 @@ img {
   align-items: center;
   justify-content: center;
   background: color-mix(in srgb, var(--bg-app) 82%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   transition: opacity 0.12s ease, visibility 0.12s ease;
+}
+
+@media (min-width: 1024px) {
+  .app-nav-preloader {
+    left: var(--sidebar-w);
+    /* Overlay only the content column; sidebar is untouched (no dim, no blur). */
+  }
 }
 
 html.app-nav-loading .app-nav-preloader {
