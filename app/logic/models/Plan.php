@@ -97,7 +97,11 @@ class Plan extends Model
 
     public function freeTrialSummary(): ?string
     {
-        if (!$this->has_free_trial || $this->free_trial_days === null || $this->free_trial_days < 1) {
+        if ($this->is_free) {
+            return null;
+        }
+
+        if (! $this->has_free_trial || $this->free_trial_days === null || $this->free_trial_days < 1) {
             return null;
         }
 

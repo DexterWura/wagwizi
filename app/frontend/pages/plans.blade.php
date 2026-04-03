@@ -5,6 +5,7 @@
 
 @php
     $currentPlanSlug = $currentSubscription?->plan ?? null;
+    $user = auth()->user();
 @endphp
 
 @section('content')
@@ -71,10 +72,13 @@
             data-checkout-mode="{{ ($checkoutRequiresGatewayChoice ?? false) ? 'choose' : 'single' }}"
             data-default-gateway="{{ $defaultCheckoutGateway ?? 'none' }}"
             data-checkout-gateway="{{ $checkoutGateway ?? 'none' }}"
+            data-free-plan-slug="{{ $freePlanSlug ?? '' }}"
           >
             @foreach($plans as $plan)
             @php
                 $isCurrent = $currentPlanSlug === $plan->slug;
+                $sameActive = $subscriptionAccess->userHasActiveAccessToPlan($user, $plan);
+                $needsRenew = $subscriptionAccess->userMustRenewSamePlan($user, $plan);
                 $price = $currencyDisplay->formatBaseMinorForDisplay($plan->monthly_price_cents);
             @endphp
             <article class="plan-card{{ $isCurrent ? ' plan-card--current' : '' }}{{ $plan->slug === 'growth' ? ' plan-card--featured' : '' }}" data-plan-id="{{ $plan->slug }}" data-plan-sort="{{ $plan->sort_order }}">
@@ -93,7 +97,9 @@
                 @endforeach
               </ul>
               @endif
-              @if($isCurrent)
+              @if($needsRenew && $isCurrent)
+              <button type="button" class="btn btn--primary" data-plan-select>Renew subscription</button>
+              @elseif($sameActive && $isCurrent)
               <button type="button" class="btn btn--outline" data-plan-select disabled>Current plan</button>
               @elseif($plan->slug === 'enterprise')
               <button type="button" class="btn btn--outline" data-plan-select>Contact sales</button>

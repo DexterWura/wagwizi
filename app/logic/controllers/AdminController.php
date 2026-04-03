@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Jobs\PublishPostCommentJob;
 use App\Jobs\PublishPostToPlatformJob;
 use App\Services\Admin\MigrationService;
+use App\Services\Admin\PlanAdminValidationService;
 use App\Services\Admin\PaymentTransactionListService;
 use App\Services\Admin\SubscriptionInsightsService;
 use App\Services\Billing\CurrencyDisplayService;
@@ -137,7 +138,13 @@ class AdminController extends Controller
         $validated['is_free'] = $request->boolean('is_free');
         $validated['is_lifetime'] = $request->boolean('is_lifetime');
         $validated['has_free_trial'] = $request->boolean('has_free_trial');
-        if (!$validated['has_free_trial']) {
+        if (! $validated['has_free_trial']) {
+            $validated['free_trial_days'] = null;
+        }
+
+        app(PlanAdminValidationService::class)->assertBusinessRules($request);
+        if ($validated['is_free']) {
+            $validated['has_free_trial'] = false;
             $validated['free_trial_days'] = null;
         }
 
@@ -175,11 +182,17 @@ class AdminController extends Controller
         $validated['is_free'] = $request->boolean('is_free');
         $validated['is_lifetime'] = $request->boolean('is_lifetime');
         $validated['has_free_trial'] = $request->boolean('has_free_trial');
-        if (!$validated['has_free_trial']) {
+        if (! $validated['has_free_trial']) {
             $validated['free_trial_days'] = null;
         }
 
-        if (!$request->has('allowed_platforms')) {
+        app(PlanAdminValidationService::class)->assertBusinessRules($request, $plan->id);
+        if ($validated['is_free']) {
+            $validated['has_free_trial'] = false;
+            $validated['free_trial_days'] = null;
+        }
+
+        if (! $request->has('allowed_platforms')) {
             $validated['allowed_platforms'] = null;
         }
 

@@ -9,6 +9,7 @@ use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Billing\PaynowCheckoutService;
 use App\Services\Billing\PesepayCheckoutService;
 use App\Services\Billing\SubscriptionFulfillmentService;
+use App\Services\Subscription\SubscriptionAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -55,6 +56,14 @@ class PlanCheckoutController extends Controller
         $block = $this->validatePlanForPaidCheckout($plan);
         if ($block !== null) {
             return $block;
+        }
+
+        $access = app(SubscriptionAccessService::class);
+        if ($access->userHasActiveAccessToPlan($user, $plan)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are already subscribed to this plan. No payment needed.',
+            ], 422);
         }
 
         if ($gateway === 'paynow') {

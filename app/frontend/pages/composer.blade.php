@@ -133,7 +133,7 @@
                             <div class="composer-ai-paywall__card">
                               <span class="composer-ai-paywall__badge" aria-hidden="true"><i class="fa-solid fa-crown"></i> Pro</span>
                               <p class="composer-ai-paywall__title">AI Assist is for paid plans</p>
-                              <p class="composer-ai-paywall__text">Only paid subscribers can use the writing assistant. Upgrade your plan to unlock AI Assist.</p>
+                              <p class="composer-ai-paywall__text">Upgrade your plan to unlock AI Assist.</p>
                               <a class="btn btn--primary" href="{{ route('plans') }}">View plans</a>
                             </div>
                           </div>

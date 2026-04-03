@@ -135,4 +135,20 @@ class User extends Authenticatable
 
         return $sub->isActive() || $sub->isTrialing();
     }
+
+    /**
+     * Paid plan trial ended — user must subscribe or pick the free plan (if one exists).
+     */
+    public function isSubscriptionPastDueAfterTrial(): bool
+    {
+        $this->loadMissing('subscription.planModel');
+        $sub = $this->subscription;
+        if ($sub === null || $sub->status !== 'past_due') {
+            return false;
+        }
+
+        $plan = $sub->planModel;
+
+        return $plan !== null && ! $plan->is_free;
+    }
 }

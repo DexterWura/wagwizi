@@ -39,6 +39,7 @@ final class SubscriptionFulfillmentService
                     'status'                  => 'active',
                     'current_period_start'    => now(),
                     'current_period_end'      => $newPlan->is_lifetime ? null : now()->addMonth(),
+                    'trial_ends_at'           => null,
                 ]
             );
 

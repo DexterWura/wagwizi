@@ -1698,8 +1698,20 @@
       if (!planSlug || planSlug === "enterprise") return;
 
       var status = document.querySelector("[data-app-plan-status]");
+      var freeSlug = root.getAttribute("data-free-plan-slug") || "";
+      var currentSlug = root.getAttribute("data-current-plan-slug") || "";
 
-      if (checkoutOn && slugNeedsPaynow(planSlug)) {
+      if (freeSlug && planSlug === freeSlug && currentSlug && currentSlug !== freeSlug) {
+        if (
+          !global.confirm(
+            "Switch to the free plan? You may lose paid-only features. You can subscribe again later from Plans."
+          )
+        ) {
+          return;
+        }
+      }
+
+      function startHostedCheckout() {
         var mode = root.getAttribute("data-checkout-mode") || "single";
         var gw = null;
         if (mode === "choose") {
@@ -1736,20 +1748,31 @@
           if (status) status.textContent = "Network error starting checkout.";
           if (global.App && global.App.showFlash) global.App.showFlash("Network error.", "error");
         });
-        return;
       }
 
       apiPost("/plans/change", { plan_slug: planSlug }).then(function (res) {
+        if (res.success && res.trial) {
+          if (status) status.textContent = res.message || "Trial started.";
+          if (global.App && global.App.showFlash) {
+            global.App.showFlash(res.message || "Trial started.", "success");
+          }
+          global.location.reload();
+          return;
+        }
         if (res._ok) {
           if (status) status.textContent = res.message || "Plan updated.";
           root.setAttribute("data-current-plan-slug", planSlug);
           renderPlansFromServer(root);
           if (global.App && global.App.showFlash) global.App.showFlash(res.message || "Plan updated.");
-        } else {
-          if (status) status.textContent = res.message || "Plan could not be updated.";
-          if (res.checkout_required && global.App && global.App.showFlash) {
-            global.App.showFlash(res.message || "Complete payment to choose this plan.", "error");
-          }
+          return;
+        }
+        if (res.checkout_required && checkoutOn && slugNeedsPaynow(planSlug)) {
+          startHostedCheckout();
+          return;
+        }
+        if (status) status.textContent = res.message || "Plan could not be updated.";
+        if (!res._ok && global.App && global.App.showFlash) {
+          global.App.showFlash(res.message || "Plan could not be updated.", "error");
         }
       });
     });

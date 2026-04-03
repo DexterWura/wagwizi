@@ -13,8 +13,9 @@ final class DefaultSubscriptionService
     public function assignFreePlanToUser(User $user): void
     {
         $plan = Plan::query()
-            ->where('slug', 'free')
             ->where('is_active', true)
+            ->where('is_free', true)
+            ->orderBy('sort_order')
             ->first();
 
         if ($plan === null) {

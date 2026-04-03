@@ -24,6 +24,15 @@
           @if(session('error'))
             <div class="alert alert--danger">{{ session('error') }}</div>
           @endif
+          @if($errors->any())
+            <div class="alert alert--danger">
+              <ul class="admin-validation-errors">
+                @foreach($errors->all() as $err)
+                  <li>{{ $err }}</li>
+                @endforeach
+              </ul>
+            </div>
+          @endif
 
           <div class="admin-cards-grid">
             @foreach($plans as $plan)
@@ -107,7 +116,7 @@
                       <label class="check-line">
                         <input type="hidden" name="is_free" value="0" />
                         <input type="checkbox" name="is_free" value="1" {{ $plan->is_free ? 'checked' : '' }} />
-                        <span>Free tier (upgrade CTA hidden for paid plans)</span>
+                        <span>Free tier (only one free plan; no trial on free)</span>
                       </label>
                     </div>
                     <div class="field">
@@ -208,7 +217,7 @@
                 <label class="check-line">
                   <input type="hidden" name="is_free" value="0" />
                   <input type="checkbox" name="is_free" value="1" />
-                  <span>Free tier</span>
+                  <span>Free tier (only one; no trial on free)</span>
                 </label>
               </div>
               <div class="field">

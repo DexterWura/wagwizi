@@ -381,8 +381,8 @@ html.app-nav-loading .app-nav-preloader {
   color: var(--accent-orange);
 }
 
-.ai-input .fa-solid {
-  opacity: 0.35;
+.ai-input__composer-link .fa-solid {
+  font-size: 1rem;
 }
 
 .app-fab__avatar .fa-solid {
@@ -1614,6 +1614,70 @@ th .table-badge {
   }
 }
 
+.app-trial-ended-banner {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+}
+
+.app-trial-ended-banner__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.app-trial-ended-banner__text {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text);
+  flex: 1;
+  min-width: 200px;
+  line-height: 1.45;
+}
+
+.app-trial-ended-banner__text .fa-solid {
+  margin-right: 0.35rem;
+  color: var(--accent-orange, #f97316);
+}
+
+.app-trial-ended-banner__actions {
+  flex-shrink: 0;
+}
+
+.app-subscription-renewal-banner {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.app-subscription-renewal-banner__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.app-subscription-renewal-banner__text {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text);
+  flex: 1;
+  min-width: 200px;
+  line-height: 1.45;
+}
+
+.app-subscription-renewal-banner__text .fa-solid {
+  margin-right: 0.35rem;
+  color: var(--accent-blue, #60a5fa);
+}
+
 .filter-row {
   display: flex;
   flex-direction: column;
@@ -2584,6 +2648,38 @@ a.pill {
 
 .ai-input input::placeholder {
   color: var(--text-faint);
+}
+
+.ai-input__pro-link {
+  flex-shrink: 0;
+  text-decoration: none;
+}
+.ai-input__pro-link:hover .composer-ai-paywall__badge {
+  filter: brightness(1.08);
+}
+.ai-input__pro-link:focus-visible {
+  outline: 2px solid var(--accent-blue, #60a5fa);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+.ai-input__composer-link {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  opacity: 0.35;
+  text-decoration: none;
+}
+.ai-input__composer-link:hover {
+  opacity: 0.65;
+}
+.ai-input__composer-link:focus-visible {
+  outline: 2px solid var(--accent-blue, #60a5fa);
+  outline-offset: 2px;
+  border-radius: 4px;
+  opacity: 1;
 }
 
 .app-fab {

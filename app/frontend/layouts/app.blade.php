@@ -53,6 +53,11 @@
       <div class="app-main">
         @section('topbar')
         @include('app-topbar')
+        @if(($currentUser ?? null) && ($showTrialEndedBanner ?? false))
+        @include('trial-ended-banner')
+        @elseif(($currentUser ?? null) && ($showSubscriptionRenewalBanner ?? false))
+        @include('subscription-renewal-banner')
+        @endif
         @show
 
         @yield('content')

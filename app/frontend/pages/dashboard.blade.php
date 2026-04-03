@@ -191,7 +191,15 @@
               <div class="ai-disabled">Draft captions, adapt tone per platform, and review diffs in the composer.</div>
               <div class="ai-input">
                 <input type="text" placeholder="Ask in Composer…" disabled aria-disabled="true" />
-                <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                @if($composerAiLocked)
+                  <a href="{{ route('plans') }}" class="ai-input__pro-link" aria-label="Upgrade plan to unlock AI assistant">
+                    <span class="composer-ai-paywall__badge"><i class="fa-solid fa-crown" aria-hidden="true"></i> Pro</span>
+                  </a>
+                @else
+                  <a href="{{ route('composer') }}" class="ai-input__composer-link" aria-label="Open composer">
+                    <i class="fa-solid fa-paper-plane" aria-hidden="true"></i>
+                  </a>
+                @endif
               </div>
             </div>
           </div>

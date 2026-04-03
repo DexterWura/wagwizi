@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Plan;
 use App\Models\SiteSetting;
 use App\Models\Timezone;
 use App\Services\Cron\CronService;
@@ -142,10 +143,54 @@ class AppServiceProvider extends ServiceProvider
             }
             $view->with('showFloatingHelp', $showFloatingHelp);
 
-            if (str_starts_with($view->name(), 'install.')) {
+            if (str_starts_with((string) $view->name(), 'install.')) {
                 $view->with('currentUser', null);
+                $view->with('showTrialEndedBanner', false);
+                $view->with('freePlanSlug', null);
+                $view->with('showSubscriptionRenewalBanner', false);
+                $view->with('subscriptionRenewalDaysLeft', null);
+
                 return;
             }
+
+            $showTrialEndedBanner = false;
+            $freePlanSlug         = null;
+            if (Auth::check()) {
+                try {
+                    $u = Auth::user();
+                    $showTrialEndedBanner = $u->isSubscriptionPastDueAfterTrial();
+                    if (Schema::hasTable('plans')) {
+                        $fp = Plan::query()->where('is_active', true)->where('is_free', true)->orderBy('sort_order')->first();
+                        $freePlanSlug = $fp?->slug;
+                    }
+                } catch (\Throwable) {
+                    // Missing tables during install.
+                }
+            }
+            $view->with('showTrialEndedBanner', $showTrialEndedBanner);
+            $view->with('freePlanSlug', $freePlanSlug);
+
+            $subscriptionRenewalDaysLeft     = null;
+            $showSubscriptionRenewalBanner   = false;
+            if (Auth::check()) {
+                try {
+                    $u = Auth::user();
+                    $u->loadMissing('subscription.planModel');
+                    $sub = $u->subscription;
+                    if ($sub && $sub->status === 'active' && $sub->current_period_end && $sub->current_period_end->isFuture()) {
+                        $pl = $sub->planModel;
+                        if ($pl && ! $pl->is_free && ! $pl->is_lifetime) {
+                            $subscriptionRenewalDaysLeft = (int) now()->diffInDays($sub->current_period_end, true);
+                            $showSubscriptionRenewalBanner = $subscriptionRenewalDaysLeft <= 7;
+                        }
+                    }
+                } catch (\Throwable) {
+                    // Missing tables during install.
+                }
+            }
+            $view->with('subscriptionRenewalDaysLeft', $subscriptionRenewalDaysLeft);
+            $view->with('showSubscriptionRenewalBanner', $showSubscriptionRenewalBanner);
+
             $view->with('currentUser', Auth::user());
         });
     }

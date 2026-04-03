@@ -12,6 +12,8 @@ use App\Services\Billing\CurrencyDisplayService;
 use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Billing\SubscriptionFulfillmentService;
 use App\Services\Dashboard\DashboardMetricsService;
+use App\Services\Subscription\SubscriptionAccessService;
+use App\Services\Subscription\SubscriptionTrialService;
 use App\Services\Insights\AudienceInsightsService;
 use App\Services\Landing\LandingFeaturesDeepService;
 use App\Services\Media\MediaLibraryService;
@@ -100,7 +102,9 @@ class PageController extends Controller
             return route('dashboard', array_filter($merged, static fn ($v) => $v !== null && $v !== ''));
         };
 
-        return view('dashboard', array_merge($data, compact('dashUrl')));
+        return view('dashboard', array_merge($data, compact('dashUrl'), [
+            'composerAiLocked' => ! $user->canAccessComposerAi(),
+        ]));
     }
 
     public function composer(): View
@@ -220,6 +224,12 @@ class PageController extends Controller
 
         $currencyDisplay = app(CurrencyDisplayService::class);
 
+        $freePlanSlug = Plan::query()
+            ->where('is_active', true)
+            ->where('is_free', true)
+            ->orderBy('sort_order')
+            ->value('slug');
+
         return view('plans', [
             'currentSubscription'           => $subscription,
             'plans'                         => $plans,
@@ -229,6 +239,8 @@ class PageController extends Controller
             'defaultCheckoutGateway'        => $gatewayCfg->defaultCheckoutGatewayForUi(),
             'paidPlanSlugs'                 => $paidPlanSlugs,
             'currencyDisplay'               => $currencyDisplay,
+            'subscriptionAccess'            => app(SubscriptionAccessService::class),
+            'freePlanSlug'                  => $freePlanSlug,
         ]);
     }
 
@@ -276,6 +288,14 @@ class PageController extends Controller
         $oldSub  = $user->subscription;
         $oldPlanId = $oldSub?->plan_id;
 
+        $access = app(SubscriptionAccessService::class);
+        if ($access->userHasActiveAccessToPlan($user, $newPlan)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are already on this plan.',
+            ], 422);
+        }
+
         if ($newPlan->is_lifetime && $newPlan->hasReachedLifetimeCap()) {
             return response()->json([
                 'success' => false,
@@ -283,9 +303,28 @@ class PageController extends Controller
             ], 422);
         }
 
-        $fulfillment = app(SubscriptionFulfillmentService::class);
-        $gateways    = app(PaymentGatewayConfigService::class);
+        $fulfillment  = app(SubscriptionFulfillmentService::class);
+        $gateways     = app(PaymentGatewayConfigService::class);
+        $trialService = app(SubscriptionTrialService::class);
+
         if ($gateways->hostedCheckoutAvailable() && $fulfillment->requiresOnlinePayment($newPlan)) {
+            if ($trialService->canStartTrial($user, $newPlan)) {
+                try {
+                    $trialService->startTrial($user, $newPlan, $oldPlanId);
+                } catch (\RuntimeException $e) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $e->getMessage(),
+                    ], 422);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Your trial for ' . $newPlan->name . ' has started.',
+                    'trial'   => true,
+                ]);
+            }
+
             return response()->json([
                 'success'           => false,
                 'checkout_required' => true,
@@ -293,15 +332,23 @@ class PageController extends Controller
             ], 402);
         }
 
-        $subscription = Subscription::updateOrCreate(
+        $directPayload = [
+            'plan_id'              => $newPlan->id,
+            'plan'                 => $newPlan->slug,
+            'status'               => 'active',
+            'current_period_start' => now(),
+            'current_period_end'   => $newPlan->is_lifetime ? null : now()->addMonth(),
+            'trial_ends_at'        => null,
+        ];
+
+        if (! $fulfillment->requiresOnlinePayment($newPlan)) {
+            $directPayload['gateway']                 = null;
+            $directPayload['gateway_subscription_id'] = null;
+        }
+
+        Subscription::updateOrCreate(
             ['user_id' => $user->id],
-            [
-                'plan_id'              => $newPlan->id,
-                'plan'                 => $newPlan->slug,
-                'status'               => 'active',
-                'current_period_start' => now(),
-                'current_period_end'   => $newPlan->is_lifetime ? null : now()->addMonth(),
-            ]
+            $directPayload
         );
 
         if ($newPlan->is_lifetime && $oldPlanId !== $newPlan->id) {
