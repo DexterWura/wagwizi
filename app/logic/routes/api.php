@@ -1,5 +1,6 @@
 <?php
 
+use App\Controllers\ComposerMentionController;
 use App\Controllers\CronController;
 use App\Controllers\PostController;
 use Illuminate\Support\Facades\Route;
@@ -40,5 +41,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/posts/{id}/publish',  [PostController::class, 'publish']);
     Route::post('/posts/{id}/cancel',   [PostController::class, 'cancel']);
     Route::patch('/posts/{id}/reschedule', [PostController::class, 'reschedule']);
+
+    Route::get('/composer/mentions', [ComposerMentionController::class, 'index'])
+        ->middleware('throttle:120,1');
 
 });

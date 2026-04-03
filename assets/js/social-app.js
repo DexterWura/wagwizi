@@ -68,6 +68,28 @@
     return masterValue;
   }
 
+  function supportsMentionsForPlatform(platform) {
+    var p = String(platform || "").toLowerCase();
+    return p === "twitter" || p === "linkedin" || p === "facebook" || p === "instagram" || p === "threads";
+  }
+
+  function hasTagMention(text) {
+    var t = String(text || "");
+    return /(^|\s)@[A-Za-z0-9_.]/.test(t);
+  }
+
+  function findUnsupportedOverrideMention(overrides) {
+    if (!overrides || typeof overrides !== "object") return null;
+    var keys = Object.keys(overrides);
+    for (var i = 0; i < keys.length; i += 1) {
+      var platform = keys[i];
+      var text = overrides[platform];
+      if (!hasTagMention(text)) continue;
+      if (!supportsMentionsForPlatform(platform)) return platform;
+    }
+    return null;
+  }
+
   function composerAssetUrl(path) {
     if (!path) return "";
     var p = String(path).replace(/^\//, "");
@@ -684,18 +706,6 @@
           setEmojiPickerOpen(false);
         });
       });
-
-      document.addEventListener("click", function (e) {
-        if (emojiPicker.hidden) return;
-        if (emojiWrap.contains(e.target)) return;
-        setEmojiPickerOpen(false);
-      });
-
-      document.addEventListener("keydown", function (e) {
-        if (e.key === "Escape" && !emojiPicker.hidden) {
-          setEmojiPickerOpen(false);
-        }
-      });
     }
     initComposerAiDock();
   }
@@ -723,6 +733,7 @@
         ? "Select a platform tab to add an override…"
         : "Write override for " + active + "…";
       overrideEl.disabled = active === "master";
+      global.__composerActivePlatformTab = active;
       if (typeof global.requestAnimationFrame === "function") {
         global.requestAnimationFrame(function () {
           var master = document.getElementById("composer-master");
@@ -812,6 +823,166 @@
     if (scheduleWrap) {
       setScheduleOpen(hasScheduleSettingsValue());
     }
+  }
+
+  function initComposerMentionRules() {
+    var master = document.getElementById("composer-master");
+    var overrideEl = document.getElementById("composer-override");
+
+    if (master) {
+      master.addEventListener("keydown", function (e) {
+        if (e.key !== "@") return;
+        e.preventDefault();
+        if (global.App && global.App.showFlash) {
+          global.App.showFlash("Tagging with @ is only allowed in platform-specific draft tabs, not in Master.", "error");
+        }
+      });
+    }
+
+    if (overrideEl) {
+      overrideEl.addEventListener("keydown", function (e) {
+        if (e.key !== "@") return;
+        var active = String(global.__composerActivePlatformTab || "master").toLowerCase();
+        if (active === "master") {
+          e.preventDefault();
+          if (global.App && global.App.showFlash) {
+            global.App.showFlash("Switch to a platform tab to use @ tagging.", "error");
+          }
+          return;
+        }
+        if (!supportsMentionsForPlatform(active)) {
+          e.preventDefault();
+          if (global.App && global.App.showFlash) {
+            global.App.showFlash("@" + " tagging is not supported for " + active + " in composer.", "error");
+          }
+        }
+      });
+    }
+  }
+
+  function getFirstCheckedSocialAccountIdForPlatform(platform) {
+    var sel = document.querySelector(
+      '[name="platform_accounts[]"][data-platform="' + platform + '"]:checked'
+    );
+    if (!sel) return null;
+    var id = parseInt(sel.value, 10);
+    return isNaN(id) ? null : id;
+  }
+
+  function getMentionPartialAtCursor(text, cursorPos) {
+    var before = String(text || "").slice(0, cursorPos);
+    var m = before.match(/@([\w.\-]*)$/);
+    if (!m) return null;
+    return { query: m[1], atStart: before.length - m[0].length };
+  }
+
+  function initComposerMentionAutocomplete() {
+    var overrideEl = document.getElementById("composer-override");
+    var listEl = document.querySelector("[data-app-composer-mention-list]");
+    if (!overrideEl || !listEl || !global.App || typeof global.App.apiGet !== "function") return;
+
+    var debounceTimer = null;
+    var reqToken = 0;
+
+    function hideMentionList() {
+      listEl.innerHTML = "";
+      listEl.hidden = true;
+      listEl.setAttribute("hidden", "");
+    }
+
+    function applyMention(username) {
+      var raw = String(username || "").trim();
+      var safe = raw.replace(/[^\w.\-]/g, "");
+      if (!safe) return;
+      var val = overrideEl.value || "";
+      var pos = overrideEl.selectionStart != null ? overrideEl.selectionStart : val.length;
+      var partial = getMentionPartialAtCursor(val, pos);
+      if (!partial) return;
+      var newVal = val.slice(0, partial.atStart) + "@" + safe + " " + val.slice(pos);
+      overrideEl.value = newVal;
+      var np = partial.atStart + 1 + safe.length + 1;
+      overrideEl.selectionStart = np;
+      overrideEl.selectionEnd = np;
+      overrideEl.focus();
+      overrideEl.dispatchEvent(new Event("input", { bubbles: true }));
+      hideMentionList();
+    }
+
+    function fetchSuggestions(query) {
+      var active = String(global.__composerActivePlatformTab || "master").toLowerCase();
+      if (active === "master" || !supportsMentionsForPlatform(active)) {
+        hideMentionList();
+        return;
+      }
+      var my = ++reqToken;
+      var accId = getFirstCheckedSocialAccountIdForPlatform(active);
+      var qs =
+        "platform=" +
+        encodeURIComponent(active) +
+        "&q=" +
+        encodeURIComponent(query);
+      if (accId != null) qs += "&social_account_id=" + encodeURIComponent(String(accId));
+      global.App.apiGet("/api/v1/composer/mentions?" + qs).then(function (res) {
+        if (my !== reqToken) return;
+        if (!res._ok || !res.success) {
+          hideMentionList();
+          return;
+        }
+        var items = res.suggestions;
+        if (!Array.isArray(items) || !items.length) {
+          hideMentionList();
+          return;
+        }
+        listEl.innerHTML = "";
+        items.forEach(function (item) {
+          var u = item && item.username != null ? String(item.username) : "";
+          var n = item && item.name != null ? String(item.name) : u;
+          if (!u) return;
+          var li = document.createElement("li");
+          li.className = "composer-mention-suggestions__item";
+          li.setAttribute("role", "option");
+          li.textContent = n + " (@" + u + ")";
+          li.addEventListener("mousedown", function (e) {
+            e.preventDefault();
+            applyMention(u);
+          });
+          listEl.appendChild(li);
+        });
+        listEl.hidden = false;
+        listEl.removeAttribute("hidden");
+      });
+    }
+
+    function onOverrideInput() {
+      var active = String(global.__composerActivePlatformTab || "master").toLowerCase();
+      if (active === "master" || !supportsMentionsForPlatform(active)) {
+        hideMentionList();
+        return;
+      }
+      var val = overrideEl.value || "";
+      var pos = overrideEl.selectionStart != null ? overrideEl.selectionStart : val.length;
+      var partial = getMentionPartialAtCursor(val, pos);
+      if (!partial) {
+        hideMentionList();
+        return;
+      }
+      if (partial.query.length < 1) {
+        hideMentionList();
+        return;
+      }
+      if (debounceTimer) global.clearTimeout(debounceTimer);
+      debounceTimer = global.setTimeout(function () {
+        fetchSuggestions(partial.query);
+      }, 280);
+    }
+
+    overrideEl.addEventListener("input", onOverrideInput);
+    overrideEl.addEventListener("keyup", onOverrideInput);
+    overrideEl.addEventListener("click", onOverrideInput);
+
+    overrideEl.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") hideMentionList();
+    });
   }
 
   function initComposerAi() {
@@ -1183,6 +1354,17 @@
 
         if (!content) {
           global.App.showFlash("Write some content first.", "error");
+          return;
+        }
+
+        if (hasTagMention(content)) {
+          global.App.showFlash("@" + " tagging is only allowed in platform-specific drafts. Remove @ from Master and use platform override instead.", "error");
+          return;
+        }
+
+        var unsupportedMentionPlatform = findUnsupportedOverrideMention(global.__composerPlatformOverrides || {});
+        if (unsupportedMentionPlatform) {
+          global.App.showFlash("@" + " tagging is not supported for " + unsupportedMentionPlatform + ". Remove the @ mention from that platform override.", "error");
           return;
         }
 
@@ -1741,6 +1923,8 @@
     initComposerAi();
     initComposerAiSourceHint();
     initComposerPlatformOverrides();
+    initComposerMentionRules();
+    initComposerMentionAutocomplete();
     initComposerOptionalSections();
     initComposerAudienceSlots();
     initComposerActions();

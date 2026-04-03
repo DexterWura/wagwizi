@@ -4469,6 +4469,40 @@ button.link-create {
   margin-left: auto;
 }
 
+.composer-override-wrap {
+  position: relative;
+}
+
+.composer-mention-suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 40;
+  margin: 0;
+  padding: 0.35rem 0;
+  list-style: none;
+  max-height: 11rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.composer-mention-suggestions__item {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.composer-mention-suggestions__item:hover,
+.composer-mention-suggestions__item:focus {
+  background: var(--bg-hover);
+  outline: none;
+}
+
 .composer-emoji-wrap {
   position: relative;
   margin-left: auto;

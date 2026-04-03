@@ -188,8 +188,11 @@
                   </div>
                   <div class="field field--flush">
                     <label class="field__label" for="composer-override">Active selection</label>
-                    <textarea class="textarea" id="composer-override" rows="4" placeholder="Overrides for the selected tab…"></textarea>
-                    <p class="field__hint">Overrides are saved per platform and sent when publishing/scheduling.</p>
+                    <div class="composer-override-wrap">
+                      <textarea class="textarea" id="composer-override" rows="4" placeholder="Overrides for the selected tab…" autocomplete="off"></textarea>
+                      <ul class="composer-mention-suggestions" data-app-composer-mention-list hidden role="listbox" aria-label="Mention suggestions"></ul>
+                    </div>
+                    <p class="field__hint">Overrides are saved per platform and sent when publishing/scheduling. On a platform tab (not Master), type <strong>@</strong> to search that network and pick a username.</p>
                   </div>
                 </div>
 
