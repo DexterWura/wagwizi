@@ -1,8 +1,15 @@
 # ─── Environment & Secrets ──────────────────────────────────
 secrets/.env
+secrets/installed
 
 # ─── Laravel storage (logs, compiled views, cache) ─────────
 app/logic/storage/
+
+# ─── Laravel bootstrap cache ────────────────────────────────
+app/logic/bootstrap/cache/
+
+# ─── Laravel debug logs ─────────────────────────────────────
+app/logic/debug-*.log
 
 # ─── User uploads ──────────────────────────────────────────
 assets/uploads/*
