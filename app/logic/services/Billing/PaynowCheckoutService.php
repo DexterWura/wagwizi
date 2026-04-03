@@ -2,7 +2,9 @@
 
 namespace App\Services\Billing;
 
+use App\Models\Plan;
 use App\Models\PaymentTransaction;
+use App\Models\User;
 use Illuminate\Support\Str;
 use Paynow\Core\StatusResponse;
 use Paynow\Util\Hash;
