@@ -60,14 +60,25 @@ final class PaynowCheckoutService
 
         if (! $response->success()) {
             $err = $response->errors();
-            $transaction->update(['status' => 'failed', 'meta' => ['error' => $err ?: 'unknown']]);
+            $msg = $err ?: 'unknown';
+            $transaction->update([
+                'status'          => 'failed',
+                'failed_at'       => now(),
+                'failure_message' => $msg,
+                'meta'            => ['error' => $msg],
+            ]);
             throw new \RuntimeException($err ?: 'Paynow initiation failed.');
         }
 
         $redirect = $response->redirectUrl();
         if (! is_string($redirect) || $redirect === '') {
-            $transaction->update(['status' => 'failed']);
-            throw new \RuntimeException('Paynow did not return a redirect URL.');
+            $msg = 'Paynow did not return a redirect URL.';
+            $transaction->update([
+                'status'          => 'failed',
+                'failed_at'       => now(),
+                'failure_message' => $msg,
+            ]);
+            throw new \RuntimeException($msg);
         }
 
         $transaction->update([

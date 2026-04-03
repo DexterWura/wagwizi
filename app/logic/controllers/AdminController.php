@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Jobs\PublishPostCommentJob;
 use App\Jobs\PublishPostToPlatformJob;
 use App\Services\Admin\MigrationService;
+use App\Services\Admin\PaymentTransactionListService;
 use App\Services\Admin\SubscriptionInsightsService;
 use App\Services\Billing\CurrencyDisplayService;
 use App\Services\Billing\PaymentGatewayConfigService;
@@ -745,6 +746,13 @@ class AdminController extends Controller
             ->get();
 
         return view('admin.subscriptions', compact('stats', 'recentSubs', 'recentPayments'));
+    }
+
+    public function paymentTransactions(Request $request, PaymentTransactionListService $list): View
+    {
+        $transactions = $list->paginate($request);
+
+        return view('admin.payment-transactions', compact('transactions'));
     }
 
     // ── Operations & Reliability ───────────────────────

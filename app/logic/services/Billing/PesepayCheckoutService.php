@@ -63,19 +63,35 @@ final class PesepayCheckoutService
         $response = $pesepay->initiateTransaction($pesepayTx);
 
         if ($response instanceof ErrorResponse) {
-            $transaction->update(['status' => 'failed', 'meta' => ['error' => $response->message()]]);
-            throw new \RuntimeException($response->message());
+            $msg = $response->message();
+            $transaction->update([
+                'status'          => 'failed',
+                'failed_at'       => now(),
+                'failure_message' => $msg,
+                'meta'            => ['error' => $msg],
+            ]);
+            throw new \RuntimeException($msg);
         }
 
         if (! $response->success()) {
-            $transaction->update(['status' => 'failed']);
-            throw new \RuntimeException('Pesepay initiation failed.');
+            $msg = 'Pesepay initiation failed.';
+            $transaction->update([
+                'status'          => 'failed',
+                'failed_at'       => now(),
+                'failure_message' => $msg,
+            ]);
+            throw new \RuntimeException($msg);
         }
 
         $redirectUrl = $response->redirectUrl();
         if (! is_string($redirectUrl) || $redirectUrl === '') {
-            $transaction->update(['status' => 'failed']);
-            throw new \RuntimeException('Pesepay did not return a redirect URL.');
+            $msg = 'Pesepay did not return a redirect URL.';
+            $transaction->update([
+                'status'          => 'failed',
+                'failed_at'       => now(),
+                'failure_message' => $msg,
+            ]);
+            throw new \RuntimeException($msg);
         }
 
         $pesepayRef = $response->referenceNumber();

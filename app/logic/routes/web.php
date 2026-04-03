@@ -148,6 +148,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/payment-gateways', [AdminController::class, 'updatePaymentGateways'])->name('payment-gateways.update');
 
         Route::get('/subscriptions', [AdminController::class, 'subscriptionsDashboard'])->name('subscriptions');
+        Route::get('/payment-transactions', [AdminController::class, 'paymentTransactions'])->name('payment-transactions');
 
         Route::get('/operations',                [AdminController::class, 'operations'])->name('operations');
         Route::post('/operations/clear-cache',   [AdminController::class, 'clearApplicationCache'])->name('operations.clear-cache');

@@ -64,7 +64,10 @@ final class SubscriptionFulfillmentService
                 ]);
             }
 
-            $locked->update(['status' => 'completed']);
+            $locked->update([
+                'status'       => 'completed',
+                'completed_at' => now(),
+            ]);
 
             return $subscription;
         });

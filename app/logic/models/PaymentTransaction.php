@@ -15,6 +15,9 @@ class PaymentTransaction extends Model
         'amount_cents',
         'currency',
         'status',
+        'completed_at',
+        'failed_at',
+        'failure_message',
         'poll_url',
         'paynow_reference',
         'meta',
@@ -23,8 +26,23 @@ class PaymentTransaction extends Model
     protected function casts(): array
     {
         return [
-            'meta' => 'array',
+            'meta'         => 'array',
+            'completed_at' => 'datetime',
+            'failed_at'    => 'datetime',
         ];
+    }
+
+    public function resolvedFailureMessage(): ?string
+    {
+        if (is_string($this->failure_message) && trim($this->failure_message) !== '') {
+            return $this->failure_message;
+        }
+        $m = $this->meta;
+        if (is_array($m) && isset($m['error']) && is_string($m['error']) && $m['error'] !== '') {
+            return $m['error'];
+        }
+
+        return null;
     }
 
     public function user(): BelongsTo
