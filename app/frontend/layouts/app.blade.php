@@ -36,7 +36,7 @@
     <link rel="preload" href="{{ $faCss }}" as="style" crossorigin="anonymous" />
     <link href="{{ $faCss }}" rel="stylesheet" media="print" onload="this.media='all'" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <noscript><link href="{{ $faCss }}" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer" /></noscript>
-    <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}" />
+    <link rel="stylesheet" href="{{ asset(config('app.debug') ? 'assets/css/style.css' : 'assets/css/style.min.css') }}" />
     @stack('styles')
   </head>
   <body class="app" data-app-page="@yield('page-id')" @if(!empty($aiClientConfig)) data-app-ai-config="{{ e(json_encode($aiClientConfig)) }}" @endif>
@@ -92,7 +92,7 @@
       window.__appDisplayTimezones = @json($displayTimezonesMeta ?? []);
       window.__appDefaultDisplayTimezone = @json($defaultDisplayTimezoneIdentifier ?? 'UTC');
     </script>
-    <script src="{{ asset('assets/js/app.js') }}"></script>
+    <script src="{{ asset(config('app.debug') ? 'assets/js/app.js' : 'assets/js/app.min.js') }}"></script>
     @stack('scripts')
   </body>
 </html>

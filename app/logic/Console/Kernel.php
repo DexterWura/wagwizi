@@ -24,6 +24,14 @@ class Kernel extends ConsoleKernel
         $schedule->command('notifications:send-expiry-reminders')->dailyAt('08:00');
     }
 
+    protected $commands = [
+        Commands\PublishDuePosts::class,
+        Commands\PurgeOldLogs::class,
+        Commands\SeedCronTasks::class,
+        Commands\SendInAppExpiryRemindersCommand::class,
+        Commands\MinifyAssets::class,
+    ];
+
     protected function commands(): void
     {
         $this->load(__DIR__ . '/Commands');

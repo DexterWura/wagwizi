@@ -86,4 +86,20 @@ final class SocialAccountLimitService
 
         throw new InvalidArgumentException($this->rejectionMessageForNewConnection($user));
     }
+
+    /**
+     * @return array{canAdd: bool, max: int|null, active: int}
+     */
+    public function summary(User $user): array
+    {
+        $max    = $this->maxActiveAccountsAllowed($user);
+        $active = $this->activeAccountCount($user);
+        $canAdd = $max === null || $active < $max || $user->isSuperAdmin();
+
+        return [
+            'canAdd' => $canAdd,
+            'max'    => $max,
+            'active' => $active,
+        ];
+    }
 }

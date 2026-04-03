@@ -215,16 +215,17 @@ class PageController extends Controller
     {
         $user = Auth::user();
         $registry = app(PlatformRegistry::class);
+        $user->loadMissing('subscription.planModel');
         $plan = $user->subscription?->planModel;
         $enabledPlatforms = $registry->enabledForPlan($plan);
-        $accountLimits = app(SocialAccountLimitService::class);
+        $limits = app(SocialAccountLimitService::class)->summary($user);
 
         return view('accounts', [
             'connectedAccounts' => $user->socialAccounts()->get(['id', 'platform', 'username', 'display_name', 'status', 'metadata']),
             'enabledPlatforms'  => $enabledPlatforms,
-            'canAddSocialAccounts'     => $accountLimits->canAddAnotherAccount($user),
-            'socialAccountLimit'        => $accountLimits->maxActiveAccountsAllowed($user),
-            'socialAccountActiveTotal'  => $accountLimits->activeAccountCount($user),
+            'canAddSocialAccounts'     => $limits['canAdd'],
+            'socialAccountLimit'        => $limits['max'],
+            'socialAccountActiveTotal'  => $limits['active'],
         ]);
     }
 
@@ -232,8 +233,14 @@ class PageController extends Controller
     {
         $user = Auth::user();
 
-        $totalPublished = $user->posts()->published()->count();
-        $totalScheduled = $user->posts()->scheduled()->count();
+        $statusCounts = $user->posts()
+            ->whereIn('status', ['published', 'scheduled'])
+            ->selectRaw("status, count(*) as total")
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $totalPublished = (int) ($statusCounts['published'] ?? 0);
+        $totalScheduled = (int) ($statusCounts['scheduled'] ?? 0);
 
         $platformCounts = $user->socialAccounts()
             ->active()
@@ -271,11 +278,7 @@ class PageController extends Controller
 
         $currencyDisplay = app(CurrencyDisplayService::class);
 
-        $freePlanSlug = Plan::query()
-            ->where('is_active', true)
-            ->where('is_free', true)
-            ->orderBy('sort_order')
-            ->value('slug');
+        $freePlanSlug = $plans->where('is_free', true)->sortBy('sort_order')->first()?->slug;
 
         return view('plans', [
             'currentSubscription'           => $subscription,
