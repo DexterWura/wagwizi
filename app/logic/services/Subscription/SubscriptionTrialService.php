@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use App\Jobs\QueueTemplatedEmailForUserJob;
 use App\Services\Ai\PlatformAiQuotaService;
+use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Support\Facades\DB;
 
 final class SubscriptionTrialService
@@ -102,6 +103,13 @@ final class SubscriptionTrialService
                     'planName'     => $newPlan->name,
                     'trialStarted' => true,
                 ]);
+            });
+
+            DB::afterCommit(function () use ($user, $newPlan): void {
+                try {
+                    app(InAppNotificationService::class)->notifySuperAdminsTrialStarted($user, $newPlan);
+                } catch (\Throwable) {
+                }
             });
 
             return $subscription;

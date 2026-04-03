@@ -3,6 +3,7 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
+use App\Services\Notifications\InAppNotificationService;
 use App\Services\Subscription\DefaultSubscriptionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -61,6 +62,14 @@ class AuthService
 
             Log::info('New user registered', ['user_id' => $user->id, 'email' => $email]);
 
+            DB::afterCommit(function () use ($user): void {
+                try {
+                    app(InAppNotificationService::class)->notifySuperAdminsNewUser($user);
+                } catch (\Throwable) {
+                    // Avoid blocking registration if notifications are unavailable.
+                }
+            });
+
             return $user;
         });
     }
@@ -114,6 +123,13 @@ class AuthService
                 'provider' => $provider,
                 'email'    => $email,
             ]);
+
+            DB::afterCommit(function () use ($user): void {
+                try {
+                    app(InAppNotificationService::class)->notifySuperAdminsNewUser($user);
+                } catch (\Throwable) {
+                }
+            });
 
             return ['user' => $user, 'is_new' => true];
         });

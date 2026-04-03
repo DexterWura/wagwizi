@@ -20,7 +20,8 @@
         </li>
       </ul>
     </div>
-    <div class="app-modal__foot">
+    <div class="app-modal__foot app-modal__foot--notifications">
+      <button type="button" class="btn btn--ghost" data-app-notifications-mark-all>Mark all as read</button>
       <button type="button" class="btn btn--ghost" data-app-modal-close>Close</button>
     </div>
   </div>

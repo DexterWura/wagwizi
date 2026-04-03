@@ -957,12 +957,36 @@ html.app-nav-loading .app-nav-preloader {
   white-space: nowrap;
 }
 
+.app-topbar__notif-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
 .app-topbar__notif {
+  position: relative;
   width: 40px;
   height: 40px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg-input);
+}
+
+.app-topbar__notif-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 4px;
+  border-radius: 999px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1.05rem;
+  text-align: center;
+  background: var(--accent-orange);
+  color: #fff;
+  box-shadow: 0 0 0 2px var(--bg-elevated, var(--bg-input));
 }
 
 .app-topbar__account {
@@ -5205,6 +5229,32 @@ button.link-create {
 .modal-notif-item:hover {
   border-color: var(--border-strong);
   background: var(--bg-hover);
+}
+
+.modal-notif-item--interactive {
+  cursor: pointer;
+}
+
+.modal-notif-item--interactive:focus-visible {
+  outline: 2px solid var(--accent-orange);
+  outline-offset: 2px;
+}
+
+.modal-notif-item--empty,
+.modal-notif-item--placeholder {
+  cursor: default;
+}
+
+.modal-notif-item--empty .modal-notif-item__body,
+.modal-notif-item--placeholder .modal-notif-item__body {
+  color: var(--text-muted);
+}
+
+.modal-notif-item__action-hint {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-blue, #60a5fa);
 }
 
 .modal-notif-item__icon {

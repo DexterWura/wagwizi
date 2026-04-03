@@ -20,6 +20,8 @@ class Kernel extends ConsoleKernel
         $schedule->job(new RefreshExpiredTokensJob)->everyFifteenMinutes();
 
         $schedule->command('logs:purge --days=14')->dailyAt('03:00');
+
+        $schedule->command('notifications:send-expiry-reminders')->dailyAt('08:00');
     }
 
     protected function commands(): void

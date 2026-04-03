@@ -79,6 +79,13 @@ class CronService
                 'interval_minutes' => 1440,
                 'enabled'          => true,
             ],
+            [
+                'key'              => 'inapp_expiry_reminders',
+                'label'            => 'In-app subscription & trial reminders',
+                'description'      => 'Creates dashboard notifications when trials or paid subscriptions are about to renew.',
+                'interval_minutes' => 1440,
+                'enabled'          => true,
+            ],
         ];
 
         foreach ($defaults as $data) {

@@ -37,9 +37,13 @@ class EmailTemplateRenderService
     public function samplePreviewVars(): array
     {
         return [
-            'siteName'       => $this->siteName(),
-            'userName'       => 'Sample User',
-            'unsubscribeUrl' => url('/'),
+            'siteName'        => $this->siteName(),
+            'userName'        => 'Sample User',
+            'unsubscribeUrl'  => url('/'),
+            'ticketId'        => '42',
+            'ticketSubject'   => 'Sample support request',
+            'ticketUrl'       => url('/support-tickets/42'),
+            'responderName'   => 'Support',
         ];
     }
 

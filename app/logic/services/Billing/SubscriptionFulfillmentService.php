@@ -9,6 +9,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use App\Jobs\QueueTemplatedEmailForUserJob;
 use App\Services\Ai\PlatformAiQuotaService;
+use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Support\Facades\DB;
 
 final class SubscriptionFulfillmentService
@@ -86,6 +87,15 @@ final class SubscriptionFulfillmentService
                         'previousPlanName' => $oldPlan?->name ?? '',
                     ]);
                 });
+
+                if (! $newPlan->is_free) {
+                    DB::afterCommit(function () use ($user, $newPlan): void {
+                        try {
+                            app(InAppNotificationService::class)->notifySuperAdminsNewSubscription($user, $newPlan);
+                        } catch (\Throwable) {
+                        }
+                    });
+                }
             }
 
             return $subscription;

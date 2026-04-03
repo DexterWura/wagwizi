@@ -22,9 +22,7 @@
             @if($currentUser && $currentUser->shouldShowUpgradePlan())
             <a class="btn btn--topbar-upgrade" href="{{ route('plans') }}">Upgrade plan</a>
             @endif
-            <button type="button" class="icon-btn app-topbar__notif" data-app-modal-open="modal-notifications" aria-label="Notifications">
-              <i class="fa-solid fa-bell" aria-hidden="true"></i>
-            </button>
+            @include('notifications-bell')
 @include('timezone-topbar')
             <button type="button" class="app-theme-toggle" data-app-theme-toggle aria-label="Toggle theme">
               <i class="fa-solid fa-moon" data-app-theme-icon aria-hidden="true"></i>

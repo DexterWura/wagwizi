@@ -17,6 +17,7 @@ use App\Models\Testimonial;
 use App\Models\User;
 use App\Jobs\PublishPostCommentJob;
 use App\Jobs\PublishPostToPlatformJob;
+use App\Jobs\QueueTemplatedEmailForUserJob;
 use App\Services\Admin\MigrationService;
 use App\Services\Admin\PlanAdminValidationService;
 use App\Services\Admin\PaymentTransactionListService;
@@ -26,6 +27,7 @@ use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Auth\SocialLoginAvailability;
 use App\Services\Platform\Platform;
 use App\Services\Landing\LandingFeaturesDeepService;
+use App\Services\Notifications\InAppNotificationService;
 use App\Services\Seo\PublicSeoFilesService;
 use App\Utils\FileUploadUtil;
 use Illuminate\Support\Str;
@@ -395,6 +397,20 @@ class AdminController extends Controller
 
         if ($ticket->status === 'open') {
             $ticket->update(['status' => 'in_progress']);
+        }
+
+        $responder = Auth::user();
+        if ($responder !== null && $ticket->user_id !== $responder->id) {
+            try {
+                app(InAppNotificationService::class)->notifyUserSupportTicketReplied($ticket, $responder);
+                QueueTemplatedEmailForUserJob::dispatch($ticket->user_id, 'support.ticket_replied', [
+                    'ticketId'      => (string) $ticket->id,
+                    'ticketSubject' => $ticket->subject,
+                    'ticketUrl'     => url(route('support-tickets.show', $ticket->id, false)),
+                    'responderName' => $responder->name,
+                ]);
+            } catch (\Throwable) {
+            }
         }
 
         return back()->with('success', 'Reply sent.');

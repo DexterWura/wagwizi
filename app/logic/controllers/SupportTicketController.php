@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\SupportTicket;
 use App\Models\SupportTicketReply;
+use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -90,6 +91,11 @@ class SupportTicketController extends Controller
             'status'   => 'open',
             'priority' => 'normal',
         ]);
+
+        try {
+            app(InAppNotificationService::class)->notifyStaffNewSupportTicket($ticket);
+        } catch (\Throwable) {
+        }
 
         return response()->json([
             'success' => true,

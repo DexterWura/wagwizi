@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use App\Services\Ai\PlatformAiQuotaService;
+use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -78,6 +79,12 @@ class AppServiceProvider extends ServiceProvider
             $cron->register('purge_old_logs', function () {
                 Artisan::call('logs:purge', ['--days' => 14]);
                 return trim(Artisan::output());
+            });
+
+            $cron->register('inapp_expiry_reminders', function () use ($app) {
+                $app->make(InAppNotificationService::class)->sendScheduledExpiryReminders();
+
+                return 'In-app expiry reminders processed.';
             });
 
             return $cron;
@@ -157,6 +164,7 @@ class AppServiceProvider extends ServiceProvider
                 $view->with('freePlanSlug', null);
                 $view->with('showSubscriptionRenewalBanner', false);
                 $view->with('subscriptionRenewalDaysLeft', null);
+                $view->with('unreadNotificationCount', 0);
 
                 return;
             }
@@ -229,6 +237,18 @@ class AppServiceProvider extends ServiceProvider
                 }
             }
             $view->with('aiClientConfig', $aiClientConfig);
+
+            $unreadNotificationCount = 0;
+            if (Auth::check()) {
+                try {
+                    if (Schema::hasTable('notifications')) {
+                        $unreadNotificationCount = Auth::user()->unreadNotifications()->count();
+                    }
+                } catch (\Throwable) {
+                    $unreadNotificationCount = 0;
+                }
+            }
+            $view->with('unreadNotificationCount', $unreadNotificationCount);
 
             $view->with('currentUser', Auth::user());
         });

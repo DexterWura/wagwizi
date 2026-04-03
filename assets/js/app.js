@@ -1586,31 +1586,153 @@
     });
   }
 
+  function updateNotificationBadge(count) {
+    var c = typeof count === "number" && count > 0 ? count : 0;
+    document.querySelectorAll("[data-app-notif-bell]").forEach(function (btn) {
+      btn.setAttribute("data-app-unread-notifications", String(c));
+      btn.setAttribute("aria-label", c > 0 ? "Notifications, " + c + " unread" : "Notifications");
+      var badge = btn.querySelector(".app-topbar__notif-badge");
+      if (c > 0) {
+        var t = c > 9 ? "9+" : String(c);
+        if (badge) {
+          badge.textContent = t;
+        } else {
+          var sp = document.createElement("span");
+          sp.className = "app-topbar__notif-badge";
+          sp.setAttribute("aria-hidden", "true");
+          sp.textContent = t;
+          btn.appendChild(sp);
+        }
+      } else if (badge) {
+        badge.remove();
+      }
+    });
+  }
+
+  function refreshNotificationBadge() {
+    return apiGet("/notifications/unread-count").then(function (res) {
+      if (res._ok && typeof res.count === "number") {
+        updateNotificationBadge(res.count);
+      }
+    });
+  }
+
+  function renderNotificationRow(n) {
+    var li = document.createElement("li");
+    li.className =
+      "modal-notif-item modal-notif-item--interactive" + (n.read_at ? "" : " modal-notif-item--unread");
+    li.setAttribute("role", "button");
+    li.setAttribute("tabindex", "0");
+
+    var icon = document.createElement("span");
+    icon.className = "modal-notif-item__icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.innerHTML = '<i class="fa-solid fa-bell"></i>';
+
+    var body = document.createElement("div");
+    body.className = "modal-notif-item__body";
+    var strong = document.createElement("strong");
+    strong.textContent = n.title || "Notification";
+    var span = document.createElement("span");
+    span.textContent = n.body || "";
+    body.appendChild(strong);
+    body.appendChild(span);
+    if (n.action_url && typeof n.action_url === "string" && n.action_url.charAt(0) === "/") {
+      var hint = document.createElement("span");
+      hint.className = "modal-notif-item__action-hint";
+      hint.textContent = "View";
+      body.appendChild(hint);
+    }
+
+    li.appendChild(icon);
+    li.appendChild(body);
+
+    function activate() {
+      if (!n.id) return;
+      apiPost("/notifications/" + encodeURIComponent(n.id) + "/read", {}).then(function (res) {
+        if (res._ok) {
+          li.classList.remove("modal-notif-item--unread");
+          refreshNotificationBadge();
+          if (n.action_url && typeof n.action_url === "string" && n.action_url.charAt(0) === "/") {
+            window.location.href = n.action_url;
+          }
+        }
+      });
+    }
+
+    li.addEventListener("click", activate);
+    li.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        activate();
+      }
+    });
+
+    return li;
+  }
+
   function initNotificationsLoad() {
     var modal = document.getElementById("modal-notifications");
     if (!modal) return;
     var list = modal.querySelector(".modal-notif-list");
     if (!list) return;
-    var loaded = false;
+    var markAll = modal.querySelector("[data-app-notifications-mark-all]");
+    var wasOpen = false;
+
+    function showLoading() {
+      list.innerHTML =
+        '<li class="modal-notif-item modal-notif-item--placeholder">' +
+        '<span class="modal-notif-item__icon" aria-hidden="true"><i class="fa-solid fa-bell"></i></span>' +
+        '<div class="modal-notif-item__body"><span>Loading notifications…</span></div></li>';
+    }
+
+    function loadList() {
+      showLoading();
+      apiGet("/notifications").then(function (res) {
+        if (!res._ok) {
+          list.innerHTML =
+            '<li class="modal-notif-item modal-notif-item--empty"><div class="modal-notif-item__body"><span>Could not load notifications.</span></div></li>';
+          return;
+        }
+        list.innerHTML = "";
+        var items = res.notifications || [];
+        if (!items.length) {
+          var empty = document.createElement("li");
+          empty.className = "modal-notif-item modal-notif-item--empty";
+          var eb = document.createElement("div");
+          eb.className = "modal-notif-item__body";
+          var es = document.createElement("span");
+          es.textContent = "No notifications yet.";
+          eb.appendChild(es);
+          empty.appendChild(eb);
+          list.appendChild(empty);
+        } else {
+          items.forEach(function (n) {
+            list.appendChild(renderNotificationRow(n));
+          });
+        }
+        refreshNotificationBadge();
+      });
+    }
+
+    if (markAll) {
+      markAll.addEventListener("click", function () {
+        apiPost("/notifications/read", {}).then(function (res) {
+          if (!res._ok) return;
+          list.querySelectorAll(".modal-notif-item--unread").forEach(function (li) {
+            li.classList.remove("modal-notif-item--unread");
+          });
+          refreshNotificationBadge();
+        });
+      });
+    }
 
     var observer = new MutationObserver(function () {
-      if (modal.classList.contains("is-open") && !loaded) {
-        loaded = true;
-        apiGet("/notifications").then(function (res) {
-          if (!res._ok || !res.notifications || !res.notifications.length) return;
-          list.innerHTML = "";
-          res.notifications.forEach(function (n) {
-            var li = document.createElement("li");
-            li.className = "modal-notif-item" + (n.read_at ? "" : " modal-notif-item--unread");
-            li.innerHTML =
-              '<span class="modal-notif-item__icon" aria-hidden="true"><i class="fa-solid fa-bell"></i></span>' +
-              '<div class="modal-notif-item__body"><strong>' + (n.title || "Notification") + '</strong>' +
-              '<span>' + (n.body || "") + '</span></div>';
-            list.appendChild(li);
-          });
-          apiPost("/notifications/read");
-        });
+      var open = modal.classList.contains("is-open");
+      if (open && !wasOpen) {
+        loadList();
       }
+      wasOpen = open;
     });
     observer.observe(modal, { attributes: true, attributeFilter: ["class"] });
   }

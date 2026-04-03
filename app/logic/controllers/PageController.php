@@ -19,12 +19,14 @@ use App\Services\Insights\AudienceInsightsService;
 use App\Services\Landing\LandingFeaturesDeepService;
 use App\Services\Ai\PlatformAiQuotaService;
 use App\Services\Media\MediaLibraryService;
+use App\Services\Notifications\InAppNotificationService;
 use App\Services\Platform\Platform;
 use App\Services\Platform\PlatformRegistry;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -393,6 +395,15 @@ class PageController extends Controller
                 'planName'         => $newPlan->name,
                 'previousPlanName' => $oldPlan?->name ?? '',
             ]);
+
+            if (! $newPlan->is_free) {
+                DB::afterCommit(function () use ($user, $newPlan): void {
+                    try {
+                        app(InAppNotificationService::class)->notifySuperAdminsNewSubscription($user, $newPlan);
+                    } catch (\Throwable) {
+                    }
+                });
+            }
         }
 
         return response()->json([

@@ -95,8 +95,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/support-tickets/{id}/reply', [SupportTicketController::class, 'reply'])->name('support-tickets.reply')->whereNumber('id');
     Route::post('/support-tickets',       [SupportTicketController::class, 'store'])->name('support-tickets.store');
 
-    Route::get('/notifications',      [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unread-count');
     Route::post('/notifications/read', [NotificationController::class, 'markAllRead'])->name('notifications.read');
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read-one');
 
     Route::get('/media',  [MediaController::class, 'index'])->name('media.index');
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
