@@ -50,6 +50,22 @@
           </div>
           @endif
 
+          @if($socialAccountLimit !== null)
+          <p class="accounts-plan-cap prose-muted">
+            Connected accounts: <strong>{{ $socialAccountActiveTotal }} / {{ $socialAccountLimit }}</strong> for your current plan.
+            @if(!($canAddSocialAccounts ?? true))
+              <a href="{{ route('plans') }}">Upgrade</a> for a higher limit.
+            @endif
+          </p>
+          @endif
+
+          @if(!($canAddSocialAccounts ?? true))
+          <div class="alert alert--warning" role="alert">
+            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+            <span>You’ve reached the maximum number of accounts for your plan. Disconnect an account or <a href="{{ route('plans') }}">upgrade</a> to connect more.</span>
+          </div>
+          @endif
+
           <div class="social-connect-grid">
             @foreach($enabledPlatforms as $platform)
             @php
@@ -84,7 +100,9 @@
                 </form>
                 @else
                 <p>{{ $platform->description() }}</p>
-                  @if($slug === 'telegram')
+                  @if(!($canAddSocialAccounts ?? true))
+                  <button type="button" class="btn btn--primary social-connect-card__btn" disabled title="Account limit reached for your plan. Disconnect an account or upgrade.">Connect</button>
+                  @elseif($slug === 'telegram')
                   <button type="button" class="btn btn--primary social-connect-card__btn" data-app-modal-open="modal-telegram-connect">Connect</button>
                   @elseif($slug === 'wordpress')
                   <button type="button" class="btn btn--primary social-connect-card__btn" data-app-modal-open="modal-wordpress-connect">Connect</button>

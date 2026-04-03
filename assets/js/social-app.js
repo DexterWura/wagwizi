@@ -1,6 +1,8 @@
 (function (global) {
   "use strict";
 
+  var composerConstraintProbeToken = 0;
+
   function insertAtCursor(textarea, text) {
     if (!textarea) return;
     var start = textarea.selectionStart;
@@ -84,6 +86,361 @@
     return any;
   }
 
+  function getPlatformMediaRules() {
+    var r = global.__composerPlatformMediaRules;
+    return r && typeof r === "object" ? r : {};
+  }
+
+  function composerPlatformLabel(slug) {
+    var lab = global.__composerPlatformLabels && global.__composerPlatformLabels[slug];
+    return lab || slug;
+  }
+
+  /** @returns {'video'|'image'|null} */
+  function rulesKindForComposer(mode, item) {
+    if (!item || mode === "none") return null;
+    if (item.type === "video") return "video";
+    if (item.type === "image") return "image";
+    if (mode === "video") return "video";
+    return "image";
+  }
+
+  function mediaEdges(w, h) {
+    var W = Number(w) || 0;
+    var H = Number(h) || 0;
+    return {
+      w: W,
+      h: H,
+      long: Math.max(W, H),
+      short: Math.min(W, H),
+      ratio: H > 0 ? W / H : 0
+    };
+  }
+
+  function constraintMessagesForBlock(block, probe, rulesKind) {
+    var msgs = [];
+    if (!block || !probe || probe.error) return msgs;
+    var e = mediaEdges(probe.width, probe.height);
+    if (!e.w || !e.h) return msgs;
+
+    function num(key) {
+      var v = block[key];
+      return typeof v === "number" && !isNaN(v) ? v : null;
+    }
+
+    var x;
+    if ((x = num("min_width")) != null && e.w < x) {
+      msgs.push("width is " + e.w + "px (min " + x + "px)");
+    }
+    if ((x = num("max_width")) != null && e.w > x) {
+      msgs.push("width is " + e.w + "px (max " + x + "px)");
+    }
+    if ((x = num("min_height")) != null && e.h < x) {
+      msgs.push("height is " + e.h + "px (min " + x + "px)");
+    }
+    if ((x = num("max_height")) != null && e.h > x) {
+      msgs.push("height is " + e.h + "px (max " + x + "px)");
+    }
+    if ((x = num("max_long_edge")) != null && e.long > x) {
+      msgs.push("longest side is " + e.long + "px (max " + x + "px)");
+    }
+    if ((x = num("min_short_edge")) != null && e.short < x) {
+      msgs.push("shortest side is " + e.short + "px (min " + x + "px)");
+    }
+    if ((x = num("aspect_ratio_min")) != null && e.ratio > 0 && e.ratio < x) {
+      msgs.push("aspect ratio width÷height is too tall/narrow for this network");
+    }
+    if ((x = num("aspect_ratio_max")) != null && e.ratio > 0 && e.ratio > x) {
+      msgs.push("aspect ratio width÷height is too wide/short for this network");
+    }
+    if ((x = num("max_file_mb")) != null && probe.size_bytes != null) {
+      var maxB = x * 1024 * 1024;
+      if (probe.size_bytes > maxB) {
+        msgs.push("file is about " + (probe.size_bytes / (1024 * 1024)).toFixed(1) + "MB (max " + x + "MB)");
+      }
+    }
+    if (rulesKind === "video") {
+      var dur = probe.duration;
+      if (typeof dur === "number" && !isNaN(dur) && isFinite(dur)) {
+        if ((x = num("max_duration_sec")) != null && dur > x) {
+          msgs.push("duration is " + Math.round(dur) + "s (max " + x + "s)");
+        }
+        if ((x = num("min_duration_sec")) != null && dur < x) {
+          msgs.push("duration is " + Math.round(dur) + "s (min " + x + "s)");
+        }
+      }
+    }
+    return msgs;
+  }
+
+  function getConstraintIssuesForPlatform(slug, rulesKind, probe) {
+    var rules = getPlatformMediaRules()[slug];
+    if (!rules) return [];
+    var block = rules[rulesKind];
+    return constraintMessagesForBlock(block, probe, rulesKind);
+  }
+
+  function getCheckedPlatformSlugs() {
+    var out = [];
+    var seen = {};
+    document.querySelectorAll('[name="platform_accounts[]"]:checked').forEach(function (cb) {
+      var p = cb.getAttribute("data-platform");
+      if (!p || seen[p]) return;
+      seen[p] = true;
+      out.push(p);
+    });
+    return out;
+  }
+
+  function probeComposerMedia(url, rulesKind, sizeBytes) {
+    return new Promise(function (resolve) {
+      if (!url) {
+        resolve({ error: true });
+        return;
+      }
+      if (rulesKind === "video") {
+        var v = document.createElement("video");
+        v.preload = "metadata";
+        v.muted = true;
+        v.setAttribute("playsinline", "");
+        var settled = false;
+        function finish(payload) {
+          if (settled) return;
+          settled = true;
+          v.removeAttribute("src");
+          v.load();
+          resolve(payload);
+        }
+        var to = global.setTimeout(function () {
+          finish({ error: true });
+        }, 25000);
+        v.addEventListener("loadedmetadata", function () {
+          global.clearTimeout(to);
+          finish({
+            width: v.videoWidth,
+            height: v.videoHeight,
+            duration: v.duration,
+            size_bytes: sizeBytes != null ? sizeBytes : null,
+            error: false
+          });
+        });
+        v.addEventListener("error", function () {
+          global.clearTimeout(to);
+          finish({ error: true });
+        });
+        v.src = url;
+      } else {
+        var img = new Image();
+        var to2 = global.setTimeout(function () {
+          img.onload = null;
+          img.onerror = null;
+          resolve({ error: true });
+        }, 25000);
+        img.onload = function () {
+          global.clearTimeout(to2);
+          resolve({
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+            duration: null,
+            size_bytes: sizeBytes != null ? sizeBytes : null,
+            error: false
+          });
+        };
+        img.onerror = function () {
+          global.clearTimeout(to2);
+          resolve({ error: true });
+        };
+        img.src = url;
+      }
+    });
+  }
+
+  function clearComposerMediaConstraintUI() {
+    global.__composerMediaProbe = null;
+    document.querySelectorAll("[data-app-composer-platform-warnings]").forEach(function (ul) {
+      ul.innerHTML = "";
+      ul.hidden = true;
+      ul.setAttribute("hidden", "");
+    });
+    var alertEl = document.querySelector("[data-app-composer-media-alert]");
+    if (alertEl) {
+      alertEl.hidden = true;
+      alertEl.setAttribute("hidden", "");
+    }
+    var intro = document.querySelector("[data-app-composer-media-alert-intro]");
+    var list = document.querySelector("[data-app-composer-media-alert-list]");
+    if (intro) intro.textContent = "";
+    if (list) list.innerHTML = "";
+  }
+
+  function showComposerMediaConstraintReadError() {
+    global.__composerMediaProbe = null;
+    document.querySelectorAll("[data-app-composer-platform-warnings]").forEach(function (ul) {
+      ul.innerHTML = "";
+      ul.hidden = true;
+      ul.setAttribute("hidden", "");
+    });
+    var alertEl = document.querySelector("[data-app-composer-media-alert]");
+    var intro = document.querySelector("[data-app-composer-media-alert-intro]");
+    var list = document.querySelector("[data-app-composer-media-alert-list]");
+    if (alertEl && intro && list) {
+      intro.textContent =
+        "We could not read this file's dimensions. Try another file or confirm dimensions before publishing.";
+      list.innerHTML = "";
+      alertEl.hidden = false;
+      alertEl.removeAttribute("hidden");
+    }
+  }
+
+  function applyComposerMediaConstraintUI(probe, rulesKind) {
+    var item = global.__composerSelectedMedia || null;
+    var mode = getComposerMediaMode();
+    var previewKind = effectivePreviewKind(mode, item);
+    if (!previewKind) {
+      clearComposerMediaConstraintUI();
+      return;
+    }
+
+    global.__composerMediaProbe = probe;
+
+    var checkedSlugs = getCheckedPlatformSlugs();
+    var slugIssues = {};
+    var slugOk = {};
+    checkedSlugs.forEach(function (slug) {
+      if (!platformShowsMediaKind(slug, previewKind)) return;
+      var issues = getConstraintIssuesForPlatform(slug, rulesKind, probe);
+      if (issues.length) slugIssues[slug] = issues;
+      else slugOk[slug] = true;
+    });
+
+    document.querySelectorAll("[data-app-composer-platform-warnings]").forEach(function (ul) {
+      var slug = ul.getAttribute("data-app-composer-platform-warnings") || "";
+      ul.innerHTML = "";
+      if (checkedSlugs.indexOf(slug) === -1) {
+        ul.hidden = true;
+        ul.setAttribute("hidden", "");
+        return;
+      }
+      if (!platformShowsMediaKind(slug, previewKind)) {
+        ul.hidden = true;
+        ul.setAttribute("hidden", "");
+        return;
+      }
+      var issues = slugIssues[slug];
+      if (!issues || !issues.length) {
+        ul.hidden = true;
+        ul.setAttribute("hidden", "");
+        return;
+      }
+      issues.forEach(function (msg) {
+        var li = document.createElement("li");
+        li.textContent = msg;
+        ul.appendChild(li);
+      });
+      ul.hidden = false;
+      ul.removeAttribute("hidden");
+    });
+
+    var alertEl = document.querySelector("[data-app-composer-media-alert]");
+    var intro = document.querySelector("[data-app-composer-media-alert-intro]");
+    var list = document.querySelector("[data-app-composer-media-alert-list]");
+    if (!alertEl || !intro || !list) return;
+
+    var badSlugs = Object.keys(slugIssues);
+    var goodCount = 0;
+    checkedSlugs.forEach(function (slug) {
+      if (!platformShowsMediaKind(slug, previewKind)) return;
+      if (slugOk[slug]) goodCount += 1;
+    });
+
+    if (!badSlugs.length) {
+      alertEl.hidden = true;
+      alertEl.setAttribute("hidden", "");
+      intro.textContent = "";
+      list.innerHTML = "";
+      return;
+    }
+
+    list.innerHTML = "";
+    badSlugs.forEach(function (slug) {
+      var li = document.createElement("li");
+      var label = composerPlatformLabel(slug);
+      li.textContent = label + ": " + slugIssues[slug].join("; ");
+      list.appendChild(li);
+    });
+
+    if (goodCount > 0) {
+      intro.textContent =
+        "This media may not meet the guidelines for some selected networks. Others look fine—change the file or deselect channels to avoid rejections.";
+    } else {
+      intro.textContent =
+        "This media may not meet the guidelines for every selected network that accepts this type of post.";
+    }
+    alertEl.hidden = false;
+    alertEl.removeAttribute("hidden");
+  }
+
+  function refreshComposerMediaConstraints() {
+    var item = global.__composerSelectedMedia || null;
+    var mode = getComposerMediaMode();
+    var rulesKind = rulesKindForComposer(mode, item);
+    if (!item || !rulesKind || mode === "none") {
+      clearComposerMediaConstraintUI();
+      return;
+    }
+    var previewKind = effectivePreviewKind(mode, item);
+    if (!previewKind || !item.path) {
+      clearComposerMediaConstraintUI();
+      return;
+    }
+    composerConstraintProbeToken += 1;
+    var token = composerConstraintProbeToken;
+    clearComposerMediaConstraintUI();
+    var url = composerAssetUrl(item.path);
+    var sizeBytes = item.size_bytes != null ? item.size_bytes : null;
+    probeComposerMedia(url, rulesKind, sizeBytes).then(function (probe) {
+      if (token !== composerConstraintProbeToken) return;
+      if (probe.error || !probe.width || !probe.height) {
+        showComposerMediaConstraintReadError();
+        return;
+      }
+      applyComposerMediaConstraintUI(probe, rulesKind);
+    });
+  }
+
+  function shouldWarnComposerMediaConstraints() {
+    var item = global.__composerSelectedMedia || null;
+    var mode = getComposerMediaMode();
+    var rulesKind = rulesKindForComposer(mode, item);
+    var probe = global.__composerMediaProbe;
+    if (!item || !rulesKind || mode === "none" || !probe || probe.error) return null;
+    if (!probe.width || !probe.height) return null;
+    var previewKind = effectivePreviewKind(mode, item);
+    if (!previewKind) return null;
+    var rows = [];
+    getCheckedPlatformSlugs().forEach(function (slug) {
+      if (!platformShowsMediaKind(slug, previewKind)) return;
+      var issues = getConstraintIssuesForPlatform(slug, rulesKind, probe);
+      if (issues.length) {
+        rows.push({ label: composerPlatformLabel(slug), messages: issues });
+      }
+    });
+    return rows.length ? rows : null;
+  }
+
+  function confirmComposerMediaConstraintsIfNeeded() {
+    var rows = shouldWarnComposerMediaConstraints();
+    if (!rows) return true;
+    var body = rows
+      .map(function (r) {
+        return r.label + " — " + r.messages.join("; ");
+      })
+      .join("\n");
+    return global.confirm(
+      "Media may not meet requirements for one or more selected networks:\n\n" + body + "\n\nContinue anyway?"
+    );
+  }
+
   function renderMediaPreview(container, url, displayKind) {
     if (!container) return;
     container.innerHTML = "";
@@ -136,6 +493,8 @@
         renderMediaPreview(slot, "", null);
       }
     });
+
+    refreshComposerMediaConstraints();
   }
 
   function buildCommentDelayMinutesPayload() {
@@ -532,11 +891,14 @@
         btn.addEventListener("click", function () {
           if (modal && global.App.closeModal) global.App.closeModal(modal);
           resetModalSteps();
+          var sz = item.size_bytes;
+          if (sz != null && typeof sz === "string") sz = parseInt(sz, 10);
           global.__composerSelectedMedia = {
             id: item.id,
             path: item.path,
             type: item.type,
-            original_name: item.original_name
+            original_name: item.original_name,
+            size_bytes: sz != null && !isNaN(sz) ? sz : null
           };
           syncComposerPreviewMedia();
           global.App.showFlash("Selected from library: " + (item.original_name || "Media"));
@@ -650,11 +1012,14 @@
           if (res._ok) {
             composerBumpMediaCountsAfterUpload(res);
             if (res.media && res.media.path) {
+              var ub = res.media.size_bytes;
+              if (ub != null && typeof ub === "string") ub = parseInt(ub, 10);
               global.__composerSelectedMedia = {
                 id: res.media.id,
                 path: res.media.path,
                 type: res.media.type || "image",
-                original_name: res.media.original_name
+                original_name: res.media.original_name,
+                size_bytes: ub != null && !isNaN(ub) ? ub : null
               };
               syncComposerPreviewMedia();
             }
@@ -692,6 +1057,10 @@
           return;
         }
 
+        if (!confirmComposerMediaConstraintsIfNeeded()) {
+          return;
+        }
+
         btn.disabled = true;
 
         if (action === "draft") {
@@ -701,9 +1070,22 @@
             platform_content: platformContent
           };
           Object.assign(draftPayload, commentPayload);
-          global.App.apiPost("/api/v1/posts", draftPayload).then(function (res) {
+          var editingDraftId = global.__composerEditingPostId;
+          var draftReq =
+            editingDraftId && typeof global.App.apiPut === "function"
+              ? global.App.apiPut("/api/v1/posts/" + editingDraftId, draftPayload)
+              : global.App.apiPost("/api/v1/posts", draftPayload);
+          draftReq.then(function (res) {
             btn.disabled = false;
             if (titleEl) titleEl.textContent = "Draft saved";
+            if (res._ok && res.post && res.post.id) {
+              global.__composerEditingPostId = res.post.id;
+              try {
+                var u = new URL(global.location.href);
+                u.searchParams.set("draft", String(res.post.id));
+                global.history.replaceState({}, "", u.pathname + u.search);
+              } catch (e) {}
+            }
             if (descEl) descEl.textContent = res._ok
               ? "Draft #" + (res.post ? res.post.id : "") + " saved to your account."
               : (res.error || "Could not save draft.");
@@ -724,27 +1106,45 @@
             platform_content: platformContent
           };
           Object.assign(publishPayload, commentPayload);
-          global.App.apiPost("/api/v1/posts", publishPayload).then(function (res) {
-            if (!res._ok || !res.post) {
-              btn.disabled = false;
-              global.App.showFlash(res.error || "Could not create post.", "error");
-              return;
-            }
-            var postId = res.post.id;
-            return global.App.apiPost("/api/v1/posts/" + postId + "/publish").then(function (pubRes) {
-              btn.disabled = false;
-              if (titleEl) titleEl.textContent = pubRes._ok ? "Publishing" : "Publish failed";
-              if (descEl) descEl.textContent = pubRes._ok
-                ? (pubRes.message || "Your post is being published to all selected networks.")
-                : (pubRes.error || "Publish failed.");
-              if (iconEl) iconEl.className = "fa-solid fa-paper-plane";
-              if (calLink) calLink.setAttribute("hidden", "");
-              global.App.openModal("modal-composer-feedback");
-            });
-          }).catch(function () {
+          var editingPubId = global.__composerEditingPostId;
+
+          function finishPublish(pubRes) {
             btn.disabled = false;
-            global.App.showFlash("Network error.", "error");
-          });
+            if (titleEl) titleEl.textContent = pubRes._ok ? "Publishing" : "Publish failed";
+            if (descEl) descEl.textContent = pubRes._ok
+              ? (pubRes.message || "Your post is being published to all selected networks.")
+              : (pubRes.error || "Publish failed.");
+            if (iconEl) iconEl.className = "fa-solid fa-paper-plane";
+            if (calLink) calLink.setAttribute("hidden", "");
+            global.App.openModal("modal-composer-feedback");
+          }
+
+          if (editingPubId && typeof global.App.apiPut === "function") {
+            global.App.apiPut("/api/v1/posts/" + editingPubId, publishPayload).then(function (putRes) {
+              if (!putRes._ok || !putRes.post) {
+                btn.disabled = false;
+                global.App.showFlash(putRes.error || "Could not update post.", "error");
+                return;
+              }
+              return global.App.apiPost("/api/v1/posts/" + editingPubId + "/publish").then(finishPublish);
+            }).catch(function () {
+              btn.disabled = false;
+              global.App.showFlash("Network error.", "error");
+            });
+          } else {
+            global.App.apiPost("/api/v1/posts", publishPayload).then(function (res) {
+              if (!res._ok || !res.post) {
+                btn.disabled = false;
+                global.App.showFlash(res.error || "Could not create post.", "error");
+                return;
+              }
+              var postId = res.post.id;
+              return global.App.apiPost("/api/v1/posts/" + postId + "/publish").then(finishPublish);
+            }).catch(function () {
+              btn.disabled = false;
+              global.App.showFlash("Network error.", "error");
+            });
+          }
           return;
         }
 
@@ -778,7 +1178,12 @@
             schedulePayload.delay_unit = delayUnit;
           }
 
-          global.App.apiPost("/api/v1/posts/schedule", schedulePayload).then(function (schedRes) {
+          var editingSchedId = global.__composerEditingPostId;
+          var scheduleUrl = editingSchedId
+            ? "/api/v1/posts/" + editingSchedId + "/schedule"
+            : "/api/v1/posts/schedule";
+
+          global.App.apiPost(scheduleUrl, schedulePayload).then(function (schedRes) {
             btn.disabled = false;
             if (titleEl) titleEl.textContent = schedRes._ok ? "Scheduled" : "Schedule failed";
             if (descEl) descEl.textContent = schedRes._ok
@@ -922,6 +1327,156 @@
     });
   }
 
+  function pad2(n) {
+    return n < 10 ? "0" + n : String(n);
+  }
+
+  function applyScheduledAtToComposer(iso) {
+    if (!iso) return;
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return;
+    var dateEl = document.getElementById("composer-date");
+    var timeEl = document.getElementById("composer-time");
+    if (dateEl) {
+      dateEl.value = d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+    }
+    if (timeEl) {
+      timeEl.value = pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+    }
+  }
+
+  function refreshComposerOverrideField() {
+    var tabsWrap = document.querySelector("[data-app-tabs]");
+    var overrideEl = document.getElementById("composer-override");
+    if (!tabsWrap || !overrideEl) return;
+    var active = tabsWrap.querySelector("[data-app-platform-tab][aria-selected=\"true\"]");
+    var key = active ? active.getAttribute("data-app-platform-tab") : "master";
+    var o = global.__composerPlatformOverrides || {};
+    if (key === "master") {
+      overrideEl.value = "";
+      overrideEl.disabled = true;
+    } else {
+      overrideEl.disabled = false;
+      overrideEl.value = o[key] || "";
+    }
+  }
+
+  function initComposerDraftFromUrl() {
+    global.__composerEditingPostId = null;
+    var params = new URLSearchParams(global.location.search || "");
+    var rawId = params.get("draft");
+    if (!rawId || !global.App || typeof global.App.apiGet !== "function") return;
+    var postId = parseInt(rawId, 10);
+    if (!postId) return;
+
+    global.App.apiGet("/api/v1/posts/" + postId).then(function (res) {
+      if (!res._ok || !res.post) {
+        if (global.App.showFlash) global.App.showFlash(res.error || "Could not open this post.", "error");
+        return;
+      }
+      var post = res.post;
+      var st = String(post.status || "").toLowerCase();
+      if (st === "published" || st === "queued") {
+        if (global.App.showFlash) global.App.showFlash("This post can't be edited in the composer.", "error");
+        try {
+          global.history.replaceState({}, "", global.location.pathname);
+        } catch (e) {}
+        return;
+      }
+
+      global.__composerEditingPostId = postId;
+
+      var banner = document.querySelector("[data-app-composer-editing-banner]");
+      var bannerLabel = document.querySelector("[data-app-composer-editing-label]");
+      if (banner && bannerLabel) {
+        var kind =
+          st === "scheduled" ? "scheduled post" : st === "failed" ? "failed post" : "draft";
+        bannerLabel.textContent = "Editing " + kind + " #" + postId;
+        banner.hidden = false;
+        banner.removeAttribute("hidden");
+      }
+
+      var master = document.getElementById("composer-master");
+      if (master) {
+        master.value = post.content || "";
+        master.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+
+      var accountIds = {};
+      (post.post_platforms || []).forEach(function (pp) {
+        if (pp.social_account_id != null) accountIds[String(pp.social_account_id)] = true;
+      });
+      document.querySelectorAll('[name="platform_accounts[]"]').forEach(function (cb) {
+        cb.checked = !!accountIds[String(cb.value)];
+      });
+
+      if (!global.__composerPlatformOverrides) global.__composerPlatformOverrides = {};
+      var ovr = global.__composerPlatformOverrides;
+      (post.post_platforms || []).forEach(function (pp) {
+        var pc = pp.platform_content;
+        if (pc != null && String(pc).trim() !== "" && pp.platform) {
+          ovr[pp.platform] = String(pc);
+        }
+      });
+
+      var fcEl = document.getElementById("composer-first-comment");
+      var rows = post.post_platforms || [];
+      var firstCommentVal = null;
+      var cd = null;
+      rows.forEach(function (pp) {
+        if (firstCommentVal == null && pp.first_comment) firstCommentVal = pp.first_comment;
+        if (cd == null && pp.comment_delay_minutes != null && pp.comment_delay_minutes > 0) {
+          cd = pp.comment_delay_minutes;
+        }
+      });
+      if (fcEl && firstCommentVal) fcEl.value = firstCommentVal;
+
+      if (cd != null && cd > 0) {
+        var cval = document.getElementById("composer-comment-delay-value");
+        var cunit = document.getElementById("composer-comment-delay-unit");
+        if (cval && cunit) {
+          if (cd % 60 === 0 && cd >= 60) {
+            cval.value = String(cd / 60);
+            cunit.value = "hours";
+          } else {
+            cval.value = String(cd);
+            cunit.value = "minutes";
+          }
+        }
+      }
+
+      applyScheduledAtToComposer(post.scheduled_at);
+
+      var media = post.media_files && post.media_files[0];
+      if (media && media.path) {
+        var sz = media.size_bytes;
+        if (sz != null && typeof sz === "string") sz = parseInt(sz, 10);
+        global.__composerSelectedMedia = {
+          id: media.id,
+          path: media.path,
+          type: media.type === "video" ? "video" : "image",
+          original_name: media.original_name,
+          size_bytes: sz != null && !isNaN(sz) ? sz : null
+        };
+        var mt = document.getElementById("composer-media-type");
+        if (mt) {
+          mt.value = media.type === "video" ? "video" : "image";
+          mt.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      } else {
+        global.__composerSelectedMedia = null;
+        var mtClear = document.getElementById("composer-media-type");
+        if (mtClear) {
+          mtClear.value = "image";
+          mtClear.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+
+      refreshComposerOverrideField();
+      syncComposerPreviewMedia();
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     initComposerPreviewSync();
     initComposerToolbar();
@@ -931,6 +1486,7 @@
     initComposerAudienceSlots();
     initComposerActions();
     initComposerUpload();
+    initComposerDraftFromUrl();
     initMediaLibraryFilter();
     initCalendarDrag();
   });

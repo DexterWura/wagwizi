@@ -32,6 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/posts',              [PostController::class, 'store']);
     Route::get('/posts',               [PostController::class, 'index']);
+    Route::get('/posts/{id}',          [PostController::class, 'show'])->whereNumber('id');
     Route::post('/posts/schedule',     [PostController::class, 'scheduleNew']);
     Route::put('/posts/{id}',          [PostController::class, 'update']);
     Route::delete('/posts/{id}',       [PostController::class, 'destroy']);

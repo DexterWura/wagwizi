@@ -40,6 +40,7 @@
     <div class="nav-group">
       <div class="nav-group__label"><span class="nav-group__dot nav-group__dot--publishing"></span> Publishing</div>
       <a class="nav-link nav-link--sub {{ $activePage === 'composer' ? 'nav-link--active' : '' }}" href="{{ route('composer') }}"><i class="fa-solid fa-pen-to-square fa-fw" aria-hidden="true"></i>Create post</a>
+      <a class="nav-link nav-link--sub {{ $activePage === 'posts-index' ? 'nav-link--active' : '' }}" href="{{ route('posts.index') }}"><i class="fa-solid fa-list-ul fa-fw" aria-hidden="true"></i>All posts</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'calendar' ? 'nav-link--active' : '' }}" href="{{ route('calendar') }}"><i class="fa-solid fa-calendar-days fa-fw" aria-hidden="true"></i>Calendar</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'media-library' ? 'nav-link--active' : '' }}" href="{{ route('media-library') }}"><i class="fa-solid fa-photo-film fa-fw" aria-hidden="true"></i>Media library</a>
     </div>

@@ -10,6 +10,7 @@ use App\Services\Platform\Adapters\WordPressAdapter;
 use App\Services\Platform\Platform;
 use App\Services\Platform\PlatformRegistry;
 use App\Services\SocialAccount\AccountLinkingService;
+use App\Services\SocialAccount\SocialAccountLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,6 +34,12 @@ class SocialAccountController extends Controller
         if ($platformEnum === null || !$this->registry->isEnabled($platformEnum)) {
             return redirect()->route('accounts')
                 ->with('error', 'This platform is not available.');
+        }
+
+        $limitService = app(SocialAccountLimitService::class);
+        if (!$limitService->canAddAnotherAccount(Auth::user())) {
+            return redirect()->route('accounts')
+                ->with('error', $limitService->rejectionMessageForNewConnection(Auth::user()));
         }
 
         if ($platformEnum === Platform::Telegram) {
@@ -137,6 +144,9 @@ class SocialAccountController extends Controller
 
             return redirect()->route('accounts')
                 ->with('success', $platformEnum->label() . ' account connected successfully.');
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('accounts')
+                ->with('error', $e->getMessage());
         } catch (\Exception $e) {
             Log::error('Social account OAuth callback failed', [
                 'user_id'  => Auth::id(),
@@ -190,6 +200,9 @@ class SocialAccountController extends Controller
 
             return redirect()->route('accounts')
                 ->with('success', 'Telegram bot connected successfully.');
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('accounts')
+                ->with('error', $e->getMessage());
         } catch (\Exception $e) {
             Log::error('Telegram bot connection failed', [
                 'user_id' => Auth::id(),
@@ -255,6 +268,9 @@ class SocialAccountController extends Controller
 
             return redirect()->route('accounts')
                 ->with('success', 'WordPress site connected successfully.');
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('accounts')
+                ->with('error', $e->getMessage());
         } catch (\Exception $e) {
             Log::error('WordPress connection failed', [
                 'user_id' => Auth::id(),
@@ -316,6 +332,9 @@ class SocialAccountController extends Controller
 
             return redirect()->route('accounts')
                 ->with('success', 'Bluesky connected successfully.');
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('accounts')
+                ->with('error', $e->getMessage());
         } catch (\Exception $e) {
             Log::error('Bluesky connection failed', [
                 'user_id' => Auth::id(),
@@ -380,6 +399,9 @@ class SocialAccountController extends Controller
 
             return redirect()->route('accounts')
                 ->with('success', 'WhatsApp Channels connected successfully.');
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('accounts')
+                ->with('error', $e->getMessage());
         } catch (\Exception $e) {
             Log::error('WhatsApp Channels connection failed', [
                 'user_id' => Auth::id(),
@@ -439,6 +461,9 @@ class SocialAccountController extends Controller
 
             return redirect()->route('accounts')
                 ->with('success', 'Discord channel connected successfully.');
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('accounts')
+                ->with('error', $e->getMessage());
         } catch (\Exception $e) {
             Log::error('Discord connection failed', [
                 'user_id' => Auth::id(),

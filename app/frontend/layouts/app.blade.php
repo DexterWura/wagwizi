@@ -61,6 +61,12 @@
         @show
 
         @yield('content')
+
+        <footer class="app-shell-footer" role="contentinfo">
+          <a href="{{ route('terms') }}">Terms of Service</a>
+          <span class="app-shell-footer__sep" aria-hidden="true">·</span>
+          <a href="{{ route('privacy') }}">Privacy Policy</a>
+        </footer>
       </div>
     </div>
 

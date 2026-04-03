@@ -562,6 +562,12 @@
       <div class="lp-footer__bottom">
         <span class="lp-footer__copy">&copy; {{ date('Y') }} {{ config('app.name') }}</span>
         <span class="lp-footer__bottom-sep" aria-hidden="true">·</span>
+        <span class="lp-footer__legal">
+          <a href="{{ route('terms') }}">Terms of Service</a>
+          <span class="lp-footer__bottom-sep" aria-hidden="true">·</span>
+          <a href="{{ route('privacy') }}">Privacy Policy</a>
+        </span>
+        <span class="lp-footer__bottom-sep" aria-hidden="true">·</span>
         <span class="lp-footer__credit">Developed by <a href="https://dextersoft.com" target="_blank" rel="noopener noreferrer">Dextersoft</a></span>
       </div>
     </footer>

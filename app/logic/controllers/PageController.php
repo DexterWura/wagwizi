@@ -14,13 +14,14 @@ use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Billing\SubscriptionFulfillmentService;
 use App\Services\Dashboard\DashboardMetricsService;
 use App\Services\Subscription\SubscriptionAccessService;
+use App\Services\SocialAccount\SocialAccountLimitService;
 use App\Services\Subscription\SubscriptionTrialService;
 use App\Services\Insights\AudienceInsightsService;
 use App\Services\Landing\LandingFeaturesDeepService;
 use App\Services\Ai\PlatformAiQuotaService;
+use App\Services\Platform\Platform;
 use App\Services\Media\MediaLibraryService;
 use App\Services\Notifications\InAppNotificationService;
-use App\Services\Platform\Platform;
 use App\Services\Platform\PlatformRegistry;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -78,6 +79,16 @@ class PageController extends Controller
         ));
     }
 
+    public function terms(): View
+    {
+        return view('terms');
+    }
+
+    public function privacy(): View
+    {
+        return view('privacy');
+    }
+
     public function dashboard(Request $request): View
     {
         $user = Auth::user();
@@ -132,15 +143,26 @@ class PageController extends Controller
             ])
             ->all();
 
+        $composerPlatformLabels = collect(Platform::cases())
+            ->mapWithKeys(static fn (Platform $p): array => [$p->value => $p->label()])
+            ->all();
+
         return view('composer', [
-            'socialAccounts'              => $user->socialAccounts()->active()->get(['id', 'platform', 'username', 'display_name']),
-            'audienceInsights'            => $audienceInsights,
-            'composerAiLocked'            => ! $user->canAccessComposerAi(),
-            'composerAiQuotaExhausted'    => $quota->isPlatformAiQuotaExhausted($user),
-            'composerAiPlanNoPlatformAi'  => $quota->isPlatformAiDisabledOnPlan($user),
-            'composerMediaCounts'         => $composerMediaCounts,
-            'composerPlatformMediaCaps'   => $composerPlatformMediaCaps,
+            'socialAccounts'               => $user->socialAccounts()->active()->get(['id', 'platform', 'username', 'display_name']),
+            'audienceInsights'             => $audienceInsights,
+            'composerAiLocked'             => ! $user->canAccessComposerAi(),
+            'composerAiQuotaExhausted'     => $quota->isPlatformAiQuotaExhausted($user),
+            'composerAiPlanNoPlatformAi'   => $quota->isPlatformAiDisabledOnPlan($user),
+            'composerMediaCounts'          => $composerMediaCounts,
+            'composerPlatformMediaCaps'    => $composerPlatformMediaCaps,
+            'composerPlatformMediaRules'   => config('platform_media_constraints'),
+            'composerPlatformLabels'       => $composerPlatformLabels,
         ]);
+    }
+
+    public function posts(): View
+    {
+        return view('posts-index');
     }
 
     public function calendar(): View
@@ -195,10 +217,14 @@ class PageController extends Controller
         $registry = app(PlatformRegistry::class);
         $plan = $user->subscription?->planModel;
         $enabledPlatforms = $registry->enabledForPlan($plan);
+        $accountLimits = app(SocialAccountLimitService::class);
 
         return view('accounts', [
             'connectedAccounts' => $user->socialAccounts()->get(['id', 'platform', 'username', 'display_name', 'status', 'metadata']),
             'enabledPlatforms'  => $enabledPlatforms,
+            'canAddSocialAccounts'     => $accountLimits->canAddAnotherAccount($user),
+            'socialAccountLimit'        => $accountLimits->maxActiveAccountsAllowed($user),
+            'socialAccountActiveTotal'  => $accountLimits->activeAccountCount($user),
         ]);
     }
 

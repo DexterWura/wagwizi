@@ -64,6 +64,11 @@
                 </div>
               </div>
             </div>
+            <div class="composer-editing-banner" data-app-composer-editing-banner hidden role="status">
+              <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+              <span data-app-composer-editing-label></span>
+              <a class="btn btn--ghost btn--sm" href="{{ route('composer') }}">Start fresh</a>
+            </div>
           </div>
 
           <div class="composer-create">
@@ -323,9 +328,21 @@
                     <div class="preview-card__body" data-app-composer-preview data-platform="{{ $account->platform }}">
                       <div class="composer-preview-card__media" data-app-composer-preview-media hidden></div>
                       <div class="composer-preview-card__text" data-app-composer-preview-text>Your post will appear here.</div>
+                      <ul class="preview-card__constraints" data-app-composer-platform-warnings="{{ $account->platform }}" hidden></ul>
                     </div>
                   </div>
                   @endforeach
+                </div>
+              </div>
+
+              <div class="card card--composer composer-media-constraints-alert" data-app-composer-media-alert hidden role="region" aria-label="Media size checks">
+                <div class="card__head composer-media-constraints-alert__head">
+                  <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                  Media may not fit every destination
+                </div>
+                <div class="card__body composer-media-constraints-alert__body">
+                  <p class="composer-media-constraints-alert__intro" data-app-composer-media-alert-intro></p>
+                  <ul class="composer-media-constraints-alert__list" data-app-composer-media-alert-list></ul>
                 </div>
               </div>
             </aside>
@@ -386,6 +403,8 @@
     <script>
       window.__composerMediaCounts = @json($composerMediaCounts ?? ['image' => 0, 'video' => 0]);
       window.__composerPlatformMediaCaps = @json($composerPlatformMediaCaps ?? []);
+      window.__composerPlatformMediaRules = @json($composerPlatformMediaRules ?? []);
+      window.__composerPlatformLabels = @json($composerPlatformLabels ?? []);
     </script>
     <script src="{{ asset('assets/js/social-app.js') }}"></script>
 @endpush

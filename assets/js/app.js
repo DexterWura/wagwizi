@@ -1340,6 +1340,26 @@
     });
   }
 
+  function apiPut(url, data) {
+    return fetch(url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-CSRF-TOKEN": getCsrfToken(),
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      credentials: "same-origin",
+      body: JSON.stringify(data || {})
+    }).then(function (r) {
+      return r.json().then(function (json) {
+        json._status = r.status;
+        json._ok = r.ok;
+        return json;
+      });
+    });
+  }
+
   function apiUpload(url, formData) {
     return fetch(url, {
       method: "POST",
@@ -2043,6 +2063,7 @@
     apiPost: apiPost,
     apiGet: apiGet,
     apiPatch: apiPatch,
+    apiPut: apiPut,
     apiUpload: apiUpload,
     showFlash: showFlash,
     getCsrfToken: getCsrfToken,

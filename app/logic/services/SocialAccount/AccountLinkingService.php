@@ -13,6 +13,10 @@ class AccountLinkingService
 {
     private const MAX_ACCOUNTS_PER_PLATFORM = 10;
 
+    public function __construct(
+        private readonly SocialAccountLimitService $socialAccountLimit,
+    ) {}
+
     /**
      * Create or update a social account after a successful OAuth callback.
      */
@@ -43,6 +47,8 @@ class AccountLinkingService
             ->first();
 
         if ($existing === null) {
+            $this->socialAccountLimit->assertCanAddAccount($user);
+
             $activeCount = SocialAccount::where('user_id', $user->id)
                 ->where('platform', $platform->value)
                 ->where('status', 'active')

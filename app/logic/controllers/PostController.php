@@ -20,13 +20,22 @@ class PostController extends Controller
     public function index(Request $request): JsonResponse
     {
         $user = Auth::user();
-        $query = $user->posts()->with('postPlatforms:id,post_id,platform,status');
+        $query = $user->posts()->with([
+            'postPlatforms:id,post_id,platform,status,social_account_id',
+        ]);
 
-        if ($request->has('status')) {
-            $query->where('status', $request->query('status'));
+        if ($request->filled('q')) {
+            $term = (string) $request->query('q');
+            $like = '%' . addcslashes($term, '%_\\') . '%';
+            $query->where('content', 'LIKE', $like);
         }
 
-        if ($request->has('month') && $request->has('year')) {
+        if ($request->filled('status') && $request->query('status') !== 'all') {
+            $query->where('status', (string) $request->query('status'));
+        }
+
+        $calendarScope = $request->has('month') && $request->has('year');
+        if ($calendarScope) {
             $month = (int) $request->query('month');
             $year  = (int) $request->query('year');
             $start = \Carbon\Carbon::create($year, $month, 1)->startOfMonth();
@@ -39,11 +48,33 @@ class PostController extends Controller
             });
         }
 
-        $posts = $query->orderBy('scheduled_at', 'asc')
-                       ->orderByDesc('created_at')
-                       ->paginate($request->integer('per_page', 50));
+        if ($calendarScope) {
+            $query->orderByRaw('scheduled_at IS NULL ASC')
+                ->orderBy('scheduled_at', 'asc')
+                ->orderByDesc('created_at');
+        } elseif ($request->query('sort') === 'scheduled') {
+            $query->orderByRaw('scheduled_at IS NULL ASC')
+                ->orderBy('scheduled_at', 'asc')
+                ->orderByDesc('created_at');
+        } else {
+            $query->orderByDesc('created_at')->orderByDesc('id');
+        }
+
+        $posts = $query->paginate($request->integer('per_page', $calendarScope ? 50 : 15));
 
         return response()->json(['success' => true, 'posts' => $posts]);
+    }
+
+    public function show(Request $request, int $id): JsonResponse
+    {
+        $post = Auth::user()->posts()
+            ->with([
+                'postPlatforms:id,post_id,social_account_id,platform,platform_content,first_comment,comment_delay_minutes,status',
+                'mediaFiles:id,path,type,original_name,size_bytes,mime_type',
+            ])
+            ->findOrFail($id);
+
+        return response()->json(['success' => true, 'post' => $post]);
     }
 
     public function store(Request $request): JsonResponse

@@ -27,6 +27,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [PageController::class, 'landing'])->name('landing');
 
+Route::get('/terms', [PageController::class, 'terms'])->name('terms');
+Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
+
 Route::get('/status', [StatusController::class, 'show'])->name('status');
 
 /*
@@ -60,6 +63,7 @@ Route::match(['get', 'post'], '/pesepay/result', [PesepayWebhookController::clas
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard',     [PageController::class, 'dashboard'])->name('dashboard');
     Route::get('/composer',      [PageController::class, 'composer'])->name('composer');
+    Route::get('/posts',         [PageController::class, 'posts'])->name('posts.index');
     Route::get('/calendar',      [PageController::class, 'calendar'])->name('calendar');
     Route::get('/media-library', [PageController::class, 'mediaLibrary'])->name('media-library');
     Route::get('/accounts',      [PageController::class, 'accounts'])->name('accounts');
