@@ -295,10 +295,27 @@ class LinkedInAdapter extends AbstractPlatformAdapter
                 return true;
             }
 
+            $status = $response->status();
+            $body = mb_substr($response->body(), 0, 500);
+            $bodyLower = strtolower($response->body());
+
+            if (
+                $status === 403
+                && (
+                    str_contains($bodyLower, 'access_denied')
+                    || str_contains($bodyLower, 'not enough permissions')
+                    || str_contains($bodyLower, 'partnerapisocia')
+                )
+            ) {
+                throw new \RuntimeException(
+                    'LinkedIn denied first-comment publishing due to missing permissions. Reconnect this LinkedIn account to grant comment permissions, or remove first comment for LinkedIn.'
+                );
+            }
+
             Log::warning('LinkedIn first-comment attempt failed', [
                 'endpoint' => $attempt['endpoint'],
-                'status' => $response->status(),
-                'body' => mb_substr($response->body(), 0, 500),
+                'status' => $status,
+                'body' => $body,
             ]);
         }
 
