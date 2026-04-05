@@ -2,7 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Crypt;
 
 class NotificationChannelSetting extends Model
 {
@@ -19,8 +22,34 @@ class NotificationChannelSetting extends Model
     {
         return [
             'smtp_port'       => 'integer',
-            'smtp_password'   => 'encrypted',
         ];
+    }
+
+    protected function smtpPassword(): Attribute
+    {
+        return Attribute::make(
+            get: static function ($value): string {
+                $raw = (string) ($value ?? '');
+                if ($raw === '') {
+                    return '';
+                }
+
+                try {
+                    return (string) Crypt::decryptString($raw);
+                } catch (DecryptException) {
+                    // Backward compatibility: legacy plaintext values should not crash settings pages.
+                    return $raw;
+                }
+            },
+            set: static function ($value): string {
+                $raw = (string) ($value ?? '');
+                if ($raw === '') {
+                    return '';
+                }
+
+                return Crypt::encryptString($raw);
+            }
+        );
     }
 
     public static function current(): self
