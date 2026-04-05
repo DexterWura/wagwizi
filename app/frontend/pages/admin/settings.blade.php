@@ -24,7 +24,7 @@
             <div class="alert alert--danger">{{ session('error') }}</div>
           @endif
 
-          <form method="POST" action="{{ route('admin.settings.update') }}">
+          <form method="POST" action="{{ route('admin.settings.update') }}" enctype="multipart/form-data">
             @csrf
             <div class="grid-balance">
               <div>
@@ -56,6 +56,65 @@
                     <div class="field">
                       <label class="field__label" for="hero_subheading">Subheading</label>
                       <textarea class="input" id="hero_subheading" name="hero_subheading" rows="3">{{ $settings['hero_subheading'] }}</textarea>
+                    </div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="card__head">SEO &amp; Social sharing</div>
+                  <div class="card__body">
+                    <div class="field">
+                      <label class="field__label" for="seo_meta_title">Meta title</label>
+                      <input class="input" id="seo_meta_title" name="seo_meta_title" value="{{ $settings['seo_meta_title'] }}" maxlength="120" placeholder="{{ config('app.name') }}" data-seo-title-input />
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="seo_meta_description">Meta description</label>
+                      <textarea class="input" id="seo_meta_description" name="seo_meta_description" rows="3" maxlength="320" placeholder="Short, clear summary for search engines." data-seo-description-input>{{ $settings['seo_meta_description'] }}</textarea>
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="seo_social_description">Social description</label>
+                      <textarea class="input" id="seo_social_description" name="seo_social_description" rows="3" maxlength="320" placeholder="How your page should read when shared on socials." data-seo-social-description-input>{{ $settings['seo_social_description'] }}</textarea>
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="seo_keywords">Keywords (comma separated)</label>
+                      <input class="input" id="seo_keywords" name="seo_keywords" value="{{ $settings['seo_keywords'] }}" maxlength="500" placeholder="social media scheduler, content calendar, ..." data-seo-keywords-input />
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="seo_twitter_site">X/Twitter handle (optional)</label>
+                      <input class="input" id="seo_twitter_site" name="seo_twitter_site" value="{{ $settings['seo_twitter_site'] }}" maxlength="50" placeholder="@wagwizi" />
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="seo_image">SEO social image</label>
+                      <input class="input" type="file" id="seo_image" name="seo_image" accept="image/jpeg,image/png,image/webp" data-seo-image-input />
+                      <input type="hidden" name="seo_image_existing" value="{{ $settings['seo_image_path'] }}" />
+                      <label class="check-line check-line--spaced">
+                        <input type="hidden" name="seo_image_remove" value="0" />
+                        <input type="checkbox" name="seo_image_remove" value="1" />
+                        <span>Remove current SEO image</span>
+                      </label>
+                      <p class="field__hint">Recommended: 1200x630 image (JPG/PNG/WebP).</p>
+                    </div>
+                    <div class="admin-seo-preview" data-seo-preview>
+                      <p class="admin-seo-preview__label">Search preview</p>
+                      <div class="admin-seo-preview__serp">
+                        <strong data-seo-preview-title>{{ $settings['seo_meta_title'] ?: config('app.name') }}</strong>
+                        <span class="admin-seo-preview__url">{{ rtrim(config('app.url'), '/') }}</span>
+                        <p data-seo-preview-description>{{ $settings['seo_meta_description'] ?: ($settings['app_tagline'] ?: 'Describe your product for better search visibility.') }}</p>
+                      </div>
+                      <p class="admin-seo-preview__label">Social preview</p>
+                      <div class="admin-seo-preview__social">
+                        <div class="admin-seo-preview__thumb" data-seo-preview-image-wrap>
+                          @if(!empty($settings['seo_image_path']))
+                          <img src="{{ asset($settings['seo_image_path']) }}" alt="SEO preview image" data-seo-preview-image />
+                          @else
+                          <span data-seo-preview-image-placeholder>No image set</span>
+                          @endif
+                        </div>
+                        <div class="admin-seo-preview__social-meta">
+                          <strong data-seo-preview-social-title>{{ $settings['seo_meta_title'] ?: config('app.name') }}</strong>
+                          <p data-seo-preview-social-description>{{ $settings['seo_social_description'] ?: ($settings['seo_meta_description'] ?: 'Social description preview') }}</p>
+                          <span data-seo-preview-keywords>{{ $settings['seo_keywords'] }}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -234,3 +293,76 @@
           </div>
         </main>
 @endsection
+
+@push('scripts')
+<script>
+  (function () {
+    var titleInput = document.querySelector('[data-seo-title-input]');
+    var descInput = document.querySelector('[data-seo-description-input]');
+    var socialDescInput = document.querySelector('[data-seo-social-description-input]');
+    var keywordsInput = document.querySelector('[data-seo-keywords-input]');
+    var imageInput = document.querySelector('[data-seo-image-input]');
+    var preview = document.querySelector('[data-seo-preview]');
+    if (!preview) return;
+
+    var titleOut = preview.querySelector('[data-seo-preview-title]');
+    var socialTitleOut = preview.querySelector('[data-seo-preview-social-title]');
+    var descOut = preview.querySelector('[data-seo-preview-description]');
+    var socialDescOut = preview.querySelector('[data-seo-preview-social-description]');
+    var keywordsOut = preview.querySelector('[data-seo-preview-keywords]');
+    var imageWrap = preview.querySelector('[data-seo-preview-image-wrap]');
+
+    function ensurePreviewImageEl() {
+      var existing = imageWrap.querySelector('[data-seo-preview-image]');
+      if (existing) return existing;
+      var img = document.createElement('img');
+      img.setAttribute('alt', 'SEO preview image');
+      img.setAttribute('data-seo-preview-image', '');
+      imageWrap.innerHTML = '';
+      imageWrap.appendChild(img);
+      return img;
+    }
+
+    function setImagePlaceholder() {
+      imageWrap.innerHTML = '<span data-seo-preview-image-placeholder>No image set</span>';
+    }
+
+    function syncPreview() {
+      var title = (titleInput && titleInput.value.trim()) || '{{ addslashes(config('app.name')) }}';
+      var desc = (descInput && descInput.value.trim())
+        || '{{ addslashes($settings['app_tagline'] ?: 'Describe your product for better search visibility.') }}';
+      var socialDesc = (socialDescInput && socialDescInput.value.trim()) || desc;
+      var keywords = (keywordsInput && keywordsInput.value.trim());
+
+      if (titleOut) titleOut.textContent = title;
+      if (socialTitleOut) socialTitleOut.textContent = title;
+      if (descOut) descOut.textContent = desc;
+      if (socialDescOut) socialDescOut.textContent = socialDesc;
+      if (keywordsOut) keywordsOut.textContent = keywords;
+    }
+
+    [titleInput, descInput, socialDescInput, keywordsInput].forEach(function (input) {
+      if (!input) return;
+      input.addEventListener('input', syncPreview);
+    });
+
+    if (imageInput) {
+      imageInput.addEventListener('change', function () {
+        var file = imageInput.files && imageInput.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          var img = ensurePreviewImageEl();
+          img.src = e.target && e.target.result ? String(e.target.result) : '';
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    syncPreview();
+    if (!imageWrap.querySelector('[data-seo-preview-image]')) {
+      setImagePlaceholder();
+    }
+  })();
+</script>
+@endpush

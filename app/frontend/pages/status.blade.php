@@ -12,7 +12,13 @@
         document.documentElement.setAttribute("data-theme", t);
       })();
     </script>
-    <title>System Status — {{ config('app.name') }}</title>
+    @include('seo-meta', [
+      'seoTitleOverride' => 'System Status — ' . config('app.name'),
+      'seoDescriptionOverride' => 'Live service health and uptime for ' . config('app.name') . '.',
+      'seoCanonicalOverride' => route('status'),
+      'seoTypeOverride' => 'website',
+      'seoRobotsOverride' => 'index,follow',
+    ])
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
@@ -28,31 +34,11 @@
         </div>
 
         <h1 class="error-page__title">
-          {{ $healthy ? 'All systems operational' : 'We\'re experiencing issues' }}
+          {{ config('app.name') }} {{ $healthy ? 'is Live' : 'is Down' }}
         </h1>
 
         <p class="error-page__message">
-          @if ($healthy)
-            Everything is running smoothly. No outages or incidents to report.
-          @else
-            Some of our services are currently having trouble. Our team is aware and working on it. Please check back shortly.
-          @endif
-        </p>
-
-        <div class="status-checks">
-          @foreach ($checks as $name => $passing)
-            <div class="status-check">
-              <span class="status-check__indicator status-check__indicator--{{ $passing ? 'ok' : 'down' }}"></span>
-              <span class="status-check__name">{{ ucfirst($name) }}</span>
-              <span class="status-check__badge status-check__badge--{{ $passing ? 'ok' : 'down' }}">
-                {{ $passing ? 'Operational' : 'Down' }}
-              </span>
-            </div>
-          @endforeach
-        </div>
-
-        <p class="status-page__timestamp">
-          Last checked: {{ now()->format('M j, Y \a\t g:i A T') }}
+          {{ $healthy ? 'Service is available.' : 'Service is currently unavailable. Please try again shortly.' }}
         </p>
 
         <div class="error-page__actions">

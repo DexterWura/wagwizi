@@ -2033,6 +2033,7 @@
     if (!root) return;
 
     root.querySelectorAll(".calendar-post-pill").forEach(function (pill) {
+      if (pill.getAttribute("data-calendar-locked") === "1") return;
       pill.setAttribute("draggable", "true");
       pill.addEventListener("dragstart", function (e) {
         var id = pill.getAttribute("data-post-id");
@@ -2057,6 +2058,7 @@
         if (!id) return;
         var pill = root.querySelector('.calendar-post-pill[data-post-id="' + id.replace(/"/g, "") + '"]');
         if (!pill) return;
+        if (pill.getAttribute("data-calendar-locked") === "1") return;
         cell.appendChild(pill);
         var hint = pill.querySelector(".calendar-post-pill__when");
         var day = cell.getAttribute("data-calendar-day");

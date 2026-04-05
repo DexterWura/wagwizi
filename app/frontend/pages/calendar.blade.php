@@ -12,7 +12,10 @@
     $gridEnd    = $monthEnd->copy()->endOfWeek(Carbon::SATURDAY);
 
     $postsByDate = $scheduledPosts->groupBy(function ($post) {
-        return $post->scheduled_at ? $post->scheduled_at->format('Y-m-d') : 'queue';
+        $anchor = ($post->status === 'published' && $post->published_at)
+            ? $post->published_at
+            : $post->scheduled_at;
+        return $anchor ? $anchor->format('Y-m-d') : 'queue';
     });
 
     $platformClasses = collect(\App\Services\Platform\Platform::cases())->mapWithKeys(fn($p) => [
@@ -85,9 +88,17 @@
                   @php
                       $platform = is_array($post->platforms) ? ($post->platforms[0] ?? '') : '';
                       $pillClass = $platformClasses[$platform] ?? '';
+                      $isPublished = $post->status === 'published' && $post->published_at;
+                      $timeLabel = $isPublished
+                          ? $post->published_at->format('H:i') . ' posted'
+                          : ($post->scheduled_at ? $post->scheduled_at->format('H:i') : '—');
                   @endphp
-                  <div class="calendar-post-pill {{ $pillClass }}" data-post-id="{{ $post->id }}" draggable="true">
-                    <span class="calendar-post-pill__when">{{ $post->scheduled_at ? $post->scheduled_at->format('H:i') : '—' }}</span>
+                  <div
+                    class="calendar-post-pill {{ $pillClass }}"
+                    data-post-id="{{ $post->id }}"
+                    @if($isPublished) data-calendar-locked="1" @endif
+                  >
+                    <span class="calendar-post-pill__when">{{ $timeLabel }}</span>
                     {{ \Illuminate\Support\Str::limit($post->content, 30) }}
                   </div>
                   @endforeach

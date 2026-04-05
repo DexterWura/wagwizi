@@ -55,13 +55,12 @@
           <button type="submit" class="btn btn--primary login-page__submit">
             Sign in
           </button>
-          <a class="btn btn--outline login-page__register-btn" href="{{ route('signup') }}">
-            Create account
-          </a>
         </div>
       </form>
+
+      <div class="login-page__meta-links" role="navigation" aria-label="Authentication links">
+        <a href="{{ route('signup') }}">Create an account</a>
+        <a href="{{ route('landing') }}">Back to home</a>
+      </div>
     </div>
-    <p class="login-page__back">
-      <a href="{{ route('landing') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to home</a>
-    </p>
 @endsection

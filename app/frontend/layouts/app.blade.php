@@ -30,7 +30,7 @@
         } catch (e) {}
       })();
     </script>
-    <title>@yield('title', config('app.name'))</title>
+    @include('seo-meta', ['seoRobotsOverride' => 'noindex,nofollow'])
     <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

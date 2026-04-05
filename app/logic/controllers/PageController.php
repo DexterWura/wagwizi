@@ -182,24 +182,27 @@ class PageController extends Controller
         $start = $now->copy()->startOfMonth()->startOfWeek(Carbon::SUNDAY);
         $end   = $now->copy()->endOfMonth()->endOfWeek(Carbon::SATURDAY);
 
-        $scheduledPosts = Cache::remember(
+        $calendarPosts = Cache::remember(
             "calendar_posts:v1:{$cacheVersion}:{$user->id}:{$start->toDateString()}:{$end->toDateString()}",
             30,
             function () use ($user, $start, $end) {
                 return $user->posts()
                     ->where(function ($q) use ($start, $end) {
                         $q->whereBetween('scheduled_at', [$start, $end])
+                          ->orWhereBetween('published_at', [$start, $end])
                           ->orWhere(function ($q2) {
                               $q2->where('status', 'draft')->whereNull('scheduled_at');
                           });
                     })
-                    ->orderBy('scheduled_at')
-                    ->get(['id', 'content', 'status', 'scheduled_at', 'platforms']);
+                    ->orderByRaw('COALESCE(scheduled_at, published_at, created_at) asc')
+                    ->get(['id', 'content', 'status', 'scheduled_at', 'published_at', 'platforms']);
             }
         );
 
-        $drafts = $scheduledPosts->where('status', 'draft')->whereNull('scheduled_at');
-        $scheduled = $scheduledPosts->whereNotNull('scheduled_at');
+        $drafts = $calendarPosts->where('status', 'draft')->whereNull('scheduled_at');
+        $scheduled = $calendarPosts->filter(
+            fn ($post) => $post->scheduled_at !== null || $post->published_at !== null
+        );
 
         $audienceInsights = app(AudienceInsightsService::class)->buildForUser($user);
 

@@ -127,6 +127,7 @@ class AppServiceProvider extends ServiceProvider
             $view->with('defaultDisplayTimezoneIdentifier', $timezoneData['default']);
 
             $view->with('showFloatingHelp', $this->cachedShowFloatingHelp());
+            $view->with('seoDefaults', $this->cachedSeoDefaults());
             $view->with('aiClientConfig', null);
 
             if (str_starts_with((string) $view->name(), 'install.')) {
@@ -267,6 +268,70 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return true;
+        });
+    }
+
+    private function cachedSeoDefaults(): array
+    {
+        return Cache::remember('global:seo_defaults', 3600, function () {
+            $siteName = (string) config('app.name');
+            $tagline = '';
+            $metaTitle = '';
+            $metaDescription = '';
+            $socialDescription = '';
+            $keywords = '';
+            $twitterSite = '';
+            $imagePath = '';
+
+            try {
+                if (Schema::hasTable('site_settings')) {
+                    $siteName = trim((string) SiteSetting::get('app_name', $siteName)) ?: $siteName;
+                    $tagline = trim((string) SiteSetting::get('app_tagline', ''));
+                    $metaTitle = trim((string) SiteSetting::get('seo_meta_title', ''));
+                    $metaDescription = trim((string) SiteSetting::get('seo_meta_description', ''));
+                    $socialDescription = trim((string) SiteSetting::get('seo_social_description', ''));
+                    $keywords = trim((string) SiteSetting::get('seo_keywords', ''));
+                    $twitterSite = trim((string) SiteSetting::get('seo_twitter_site', ''));
+                    $imagePath = trim((string) SiteSetting::get('seo_image_path', ''));
+                }
+            } catch (\Throwable) {
+            }
+
+            if ($metaTitle === '') {
+                $metaTitle = $siteName;
+            }
+            if ($metaDescription === '') {
+                $metaDescription = $tagline !== ''
+                    ? $tagline
+                    : 'Plan, schedule, and publish social content across multiple platforms from one dashboard.';
+            }
+            if ($socialDescription === '') {
+                $socialDescription = $metaDescription;
+            }
+            if ($keywords === '') {
+                $keywords = 'social media scheduler, social media manager, content calendar, post scheduling, social analytics';
+            }
+
+            $imageUrl = '';
+            if ($imagePath !== '') {
+                if (filter_var($imagePath, FILTER_VALIDATE_URL)) {
+                    $imageUrl = $imagePath;
+                } else {
+                    $imageUrl = url('/' . ltrim($imagePath, '/'));
+                }
+            }
+
+            return [
+                'site_name'          => $siteName,
+                'meta_title'         => $metaTitle,
+                'meta_description'   => $metaDescription,
+                'social_description' => $socialDescription,
+                'keywords'           => $keywords,
+                'twitter_site'       => $twitterSite,
+                'image_url'          => $imageUrl,
+                'robots'             => 'index,follow',
+                'type'               => 'website',
+            ];
         });
     }
 

@@ -68,11 +68,9 @@
         </button>
       </form>
 
-      <p class="login-page__alt">
-        Already have an account? <a href="{{ route('login') }}">Sign in</a>
-      </p>
+      <div class="login-page__meta-links" role="navigation" aria-label="Authentication links">
+        <a href="{{ route('login') }}">Already have an account?</a>
+        <a href="{{ route('landing') }}">Back to home</a>
+      </div>
     </div>
-    <p class="login-page__back">
-      <a href="{{ route('landing') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to home</a>
-    </p>
 @endsection

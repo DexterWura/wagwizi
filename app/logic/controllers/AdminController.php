@@ -36,6 +36,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -445,6 +446,12 @@ class AdminController extends Controller
             'hero_eyebrow'               => SiteSetting::get('hero_eyebrow', ''),
             'hero_heading'               => SiteSetting::get('hero_heading', ''),
             'hero_subheading'            => SiteSetting::get('hero_subheading', ''),
+            'seo_meta_title'             => SiteSetting::get('seo_meta_title', ''),
+            'seo_meta_description'       => SiteSetting::get('seo_meta_description', ''),
+            'seo_social_description'     => SiteSetting::get('seo_social_description', ''),
+            'seo_keywords'               => SiteSetting::get('seo_keywords', ''),
+            'seo_twitter_site'           => SiteSetting::get('seo_twitter_site', ''),
+            'seo_image_path'             => SiteSetting::get('seo_image_path', ''),
             'registration_open'          => SiteSetting::get('registration_open', '1'),
             'show_floating_help'         => SiteSetting::get('show_floating_help', '1'),
             'social_login_google'        => SiteSetting::get('social_login_google', '1'),
@@ -572,11 +579,46 @@ class AdminController extends Controller
 
     public function updateSettings(Request $request): RedirectResponse
     {
+        $request->validate([
+            'seo_meta_title' => 'nullable|string|max:120',
+            'seo_meta_description' => 'nullable|string|max:320',
+            'seo_social_description' => 'nullable|string|max:320',
+            'seo_keywords' => 'nullable|string|max:500',
+            'seo_twitter_site' => 'nullable|string|max:50',
+            'seo_image' => 'nullable|file|image|max:5120',
+            'seo_image_existing' => 'nullable|string|max:500',
+            'seo_image_remove' => 'nullable|boolean',
+        ]);
+
         $fields = ['app_name', 'app_tagline', 'hero_eyebrow', 'hero_heading', 'hero_subheading', 'registration_open', 'show_floating_help'];
 
         foreach ($fields as $field) {
             if ($request->has($field)) {
                 SiteSetting::set($field, $request->input($field, ''));
+            }
+        }
+
+        SiteSetting::set('seo_meta_title', Str::limit(trim(strip_tags((string) $request->input('seo_meta_title', ''))), 120));
+        SiteSetting::set('seo_meta_description', Str::limit(trim(strip_tags((string) $request->input('seo_meta_description', ''))), 320));
+        SiteSetting::set('seo_social_description', Str::limit(trim(strip_tags((string) $request->input('seo_social_description', ''))), 320));
+        SiteSetting::set('seo_keywords', Str::limit(trim(strip_tags((string) $request->input('seo_keywords', ''))), 500));
+        SiteSetting::set('seo_twitter_site', Str::limit(trim(strip_tags((string) $request->input('seo_twitter_site', ''))), 50));
+
+        $existingSeoImage = trim((string) SiteSetting::get('seo_image_path', ''));
+        if ($request->boolean('seo_image_remove')) {
+            if ($existingSeoImage !== '' && str_starts_with($existingSeoImage, 'assets/uploads/seo/')) {
+                FileUploadUtil::delete($existingSeoImage);
+            }
+            SiteSetting::set('seo_image_path', '');
+        } elseif ($request->hasFile('seo_image')) {
+            if ($existingSeoImage !== '' && str_starts_with($existingSeoImage, 'assets/uploads/seo/')) {
+                FileUploadUtil::delete($existingSeoImage);
+            }
+            SiteSetting::set('seo_image_path', FileUploadUtil::store($request->file('seo_image'), 'seo'));
+        } else {
+            $incomingExisting = trim((string) $request->input('seo_image_existing', ''));
+            if ($incomingExisting !== '' && str_starts_with($incomingExisting, 'assets/uploads/seo/')) {
+                SiteSetting::set('seo_image_path', $incomingExisting);
             }
         }
 
@@ -594,6 +636,8 @@ class AdminController extends Controller
         if ($availability->linkedinCredentialsConfigured() && $request->has('social_login_linkedin')) {
             SiteSetting::set('social_login_linkedin', $request->input('social_login_linkedin', '0'));
         }
+
+        Cache::forget('global:seo_defaults');
 
         return back()->with('success', 'Settings saved.');
     }
