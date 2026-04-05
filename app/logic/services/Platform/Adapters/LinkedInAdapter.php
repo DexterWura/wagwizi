@@ -252,16 +252,57 @@ class LinkedInAdapter extends AbstractPlatformAdapter
             return false;
         }
 
-        $response = $this->httpClient($account)
-            ->withHeaders($this->linkedInHeaders())
-            ->post('/rest/socialActions/' . rawurlencode($target) . '/comments', [
-                'actor'   => "urn:li:person:{$actorId}",
-                'message' => [
-                    'text' => $message,
-                ],
-            ]);
+        $actorUrn = "urn:li:person:{$actorId}";
+        $encodedTarget = rawurlencode($target);
 
-        return $response->successful();
+        // LinkedIn comment APIs can vary by app/version; try known-compatible shapes.
+        $attempts = [
+            [
+                'endpoint' => '/v2/socialActions/' . $encodedTarget . '/comments',
+                'payload' => [
+                    'actor' => $actorUrn,
+                    'message' => ['text' => $message],
+                ],
+                'headers' => [],
+            ],
+            [
+                'endpoint' => '/rest/socialActions/' . $encodedTarget . '/comments',
+                'payload' => [
+                    'actor' => $actorUrn,
+                    'message' => ['text' => $message],
+                ],
+                'headers' => $this->linkedInHeaders(),
+            ],
+            [
+                'endpoint' => '/rest/socialActions/' . $encodedTarget . '/comments',
+                'payload' => [
+                    'actor' => $actorUrn,
+                    'commentary' => $message,
+                ],
+                'headers' => $this->linkedInHeaders(),
+            ],
+        ];
+
+        foreach ($attempts as $attempt) {
+            $req = $this->httpClient($account);
+            $headers = $attempt['headers'] ?? [];
+            if (is_array($headers) && $headers !== []) {
+                $req = $req->withHeaders($headers);
+            }
+
+            $response = $req->post($attempt['endpoint'], $attempt['payload']);
+            if ($response->successful()) {
+                return true;
+            }
+
+            Log::warning('LinkedIn first-comment attempt failed', [
+                'endpoint' => $attempt['endpoint'],
+                'status' => $response->status(),
+                'body' => mb_substr($response->body(), 0, 500),
+            ]);
+        }
+
+        return false;
     }
 
     private function normalizeLinkedInPostUrn(string $platformPostId): ?string
