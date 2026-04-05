@@ -124,41 +124,45 @@ class SocialAccountController extends Controller
                         ->with('error', $platformEnum->label() . ' connection is not configured. Add the OAuth client ID and secret in your environment.');
                 }
 
-                $socialUser = $this->socialiteForAccountLinking($platformEnum)->user();
-                $platformUserId = $this->extractSocialUserId($socialUser, $platformEnum);
-                $accessToken = trim((string) ($socialUser->token ?? ''));
+                if ($platformEnum === Platform::LinkedIn) {
+                    $this->handleLinkedInOAuthCallback($request);
+                } else {
+                    $socialUser = $this->socialiteForAccountLinking($platformEnum)->user();
+                    $platformUserId = $this->extractSocialUserId($socialUser, $platformEnum);
+                    $accessToken = trim((string) ($socialUser->token ?? ''));
 
-                if ($platformUserId === '') {
-                    throw new \InvalidArgumentException('Could not read your ' . $platformEnum->label() . ' account ID from OAuth response. Please reconnect and approve all requested permissions.');
+                    if ($platformUserId === '') {
+                        throw new \InvalidArgumentException('Could not read your ' . $platformEnum->label() . ' account ID from OAuth response. Please reconnect and approve all requested permissions.');
+                    }
+
+                    if ($accessToken === '') {
+                        throw new \InvalidArgumentException('Could not read access token from ' . $platformEnum->label() . '. Please reconnect.');
+                    }
+
+                    $rawUser = $this->socialUserRawData($socialUser);
+                    $username = $socialUser->getNickname()
+                        ?: ($rawUser['preferred_username'] ?? $rawUser['username'] ?? $rawUser['screen_name'] ?? null);
+                    $displayName = $socialUser->getName()
+                        ?: ($rawUser['name'] ?? $rawUser['localizedFirstName'] ?? $username);
+
+                    $storedScopes = config("platforms.{$platform}.scopes", []);
+                    $storedScopes = is_array($storedScopes) ? $storedScopes : null;
+
+                    $this->linkingService->linkAccount(
+                        user:           Auth::user(),
+                        platform:       $platformEnum,
+                        platformUserId: $platformUserId,
+                        accessToken:    $accessToken,
+                        refreshToken:   $socialUser->refreshToken ?? ($rawUser['refresh_token'] ?? null),
+                        username:       $username,
+                        displayName:    $displayName,
+                        avatarUrl:      $socialUser->getAvatar(),
+                        scopes:         $storedScopes,
+                        expiresAt:      $socialUser->expiresIn
+                            ? now()->addSeconds($socialUser->expiresIn)
+                            : null,
+                    );
                 }
-
-                if ($accessToken === '') {
-                    throw new \InvalidArgumentException('Could not read access token from ' . $platformEnum->label() . '. Please reconnect.');
-                }
-
-                $rawUser = $this->socialUserRawData($socialUser);
-                $username = $socialUser->getNickname()
-                    ?: ($rawUser['preferred_username'] ?? $rawUser['username'] ?? $rawUser['screen_name'] ?? null);
-                $displayName = $socialUser->getName()
-                    ?: ($rawUser['name'] ?? $rawUser['localizedFirstName'] ?? $username);
-
-                $storedScopes = config("platforms.{$platform}.scopes", []);
-                $storedScopes = is_array($storedScopes) ? $storedScopes : null;
-
-                $this->linkingService->linkAccount(
-                    user:           Auth::user(),
-                    platform:       $platformEnum,
-                    platformUserId: $platformUserId,
-                    accessToken:    $accessToken,
-                    refreshToken:   $socialUser->refreshToken ?? ($rawUser['refresh_token'] ?? null),
-                    username:       $username,
-                    displayName:    $displayName,
-                    avatarUrl:      $socialUser->getAvatar(),
-                    scopes:         $storedScopes,
-                    expiresAt:      $socialUser->expiresIn
-                        ? now()->addSeconds($socialUser->expiresIn)
-                        : null,
-                );
             } else {
                 $this->handleCustomOAuthCallback($request, $platformEnum);
             }
@@ -771,6 +775,112 @@ class SocialAccountController extends Controller
                 'location_name' => $location['location_name'],
             ],
         ];
+    }
+
+    /**
+     * LinkedIn callback is handled explicitly to avoid provider edge-cases where
+     * token exchange may be attempted without the callback code.
+     */
+    private function handleLinkedInOAuthCallback(Request $request): void
+    {
+        if ($request->has('error')) {
+            $desc = $request->input('error_description', $request->input('error'));
+            throw new \InvalidArgumentException('LinkedIn authorization denied: ' . $desc);
+        }
+
+        $code = trim((string) $request->input('code', ''));
+        if ($code === '') {
+            Log::warning('LinkedIn callback missing authorization code', [
+                'user_id' => Auth::id(),
+                'query'   => array_keys($request->query()),
+            ]);
+            throw new \InvalidArgumentException(
+                'LinkedIn did not return an authorization code. Reconnect and ensure your LinkedIn app callback URL matches this exact URL: '
+                . route('accounts.callback', ['platform' => 'linkedin'], true)
+            );
+        }
+
+        $config = config('platforms.linkedin');
+        $clientId = trim((string) ($config['client_id'] ?? ''));
+        $clientSecret = trim((string) ($config['client_secret'] ?? ''));
+        $redirectUri = trim((string) ($config['redirect_uri'] ?? route('accounts.callback', ['platform' => 'linkedin'], true)));
+
+        if ($clientId === '' || $clientSecret === '') {
+            throw new \InvalidArgumentException('LinkedIn OAuth is not configured. Missing client ID or client secret.');
+        }
+
+        if ($redirectUri !== '' && !str_starts_with($redirectUri, 'http://') && !str_starts_with($redirectUri, 'https://')) {
+            $redirectUri = url($redirectUri);
+        }
+
+        $tokenResponse = \Illuminate\Support\Facades\Http::asForm()
+            ->post('https://www.linkedin.com/oauth/v2/accessToken', [
+                'grant_type'    => 'authorization_code',
+                'code'          => $code,
+                'redirect_uri'  => $redirectUri,
+                'client_id'     => $clientId,
+                'client_secret' => $clientSecret,
+            ]);
+
+        if (!$tokenResponse->successful()) {
+            throw new \RuntimeException('LinkedIn token exchange failed: ' . $tokenResponse->body());
+        }
+
+        $tokenData = $tokenResponse->json();
+        $accessToken = trim((string) ($tokenData['access_token'] ?? ''));
+        if ($accessToken === '') {
+            throw new \RuntimeException('LinkedIn token exchange returned no access token.');
+        }
+
+        $storedScopes = config('platforms.linkedin.scopes', []);
+        $storedScopes = is_array($storedScopes) ? $storedScopes : null;
+
+        $userInfo = [];
+        $userInfoResponse = \Illuminate\Support\Facades\Http::withToken($accessToken)
+            ->acceptJson()
+            ->get('https://api.linkedin.com/v2/userinfo');
+
+        if ($userInfoResponse->successful() && is_array($userInfoResponse->json())) {
+            $userInfo = $userInfoResponse->json();
+        }
+
+        $platformUserId = trim((string) ($userInfo['sub'] ?? ''));
+        $username = $userInfo['preferred_username'] ?? null;
+        $displayName = $userInfo['name'] ?? null;
+        $avatarUrl = is_string($userInfo['picture'] ?? null) ? $userInfo['picture'] : null;
+
+        if ($platformUserId === '') {
+            $profileResponse = \Illuminate\Support\Facades\Http::withToken($accessToken)
+                ->withHeaders(['X-Restli-Protocol-Version' => '2.0.0'])
+                ->acceptJson()
+                ->get('https://api.linkedin.com/v2/me');
+
+            if ($profileResponse->successful() && is_array($profileResponse->json())) {
+                $profile = $profileResponse->json();
+                $platformUserId = trim((string) ($profile['id'] ?? ''));
+                $displayName = $displayName
+                    ?? trim((string) (($profile['localizedFirstName'] ?? '') . ' ' . ($profile['localizedLastName'] ?? '')));
+            }
+        }
+
+        if ($platformUserId === '') {
+            throw new \InvalidArgumentException('Could not read your LinkedIn account ID from OAuth response. Please reconnect.');
+        }
+
+        $this->linkingService->linkAccount(
+            user:           Auth::user(),
+            platform:       Platform::LinkedIn,
+            platformUserId: $platformUserId,
+            accessToken:    $accessToken,
+            refreshToken:   $tokenData['refresh_token'] ?? null,
+            username:       $username,
+            displayName:    $displayName !== null && trim($displayName) !== '' ? $displayName : ($username ?? 'LinkedIn Account'),
+            avatarUrl:      $avatarUrl,
+            scopes:         $storedScopes,
+            expiresAt:      isset($tokenData['expires_in'])
+                ? now()->addSeconds((int) $tokenData['expires_in'])
+                : null,
+        );
     }
 
     /**

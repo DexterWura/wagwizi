@@ -23,6 +23,7 @@ class PostSchedulingService
             $post = Post::create([
                 'user_id'  => $userId,
                 'content'  => trim($data['content']),
+                'platforms' => [],
                 'status'   => 'draft',
             ]);
 
@@ -101,6 +102,7 @@ class PostSchedulingService
             $post = Post::create([
                 'user_id'      => $userId,
                 'content'      => trim($data['content']),
+                'platforms'    => [],
                 'status'       => 'scheduled',
                 'scheduled_at' => $scheduledAt,
             ]);
@@ -139,6 +141,7 @@ class PostSchedulingService
             $post = Post::create([
                 'user_id' => $userId,
                 'content' => trim($data['content']),
+                'platforms' => [],
                 'status'  => 'publishing',
             ]);
 
@@ -349,6 +352,9 @@ class PostSchedulingService
         if ($accounts->isEmpty()) {
             throw new InvalidArgumentException('None of the selected accounts are active.');
         }
+
+        $platformSlugs = array_values($accounts->pluck('platform')->unique()->values()->toArray());
+        $post->update(['platforms' => $platformSlugs]);
 
         foreach ($accounts as $account) {
             app(PlatformRegistry::class)->resolveBySlug($account->platform);
