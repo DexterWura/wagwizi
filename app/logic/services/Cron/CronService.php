@@ -3,6 +3,7 @@
 namespace App\Services\Cron;
 
 use App\Models\CronTask;
+use App\Models\CronTaskRun;
 use Illuminate\Support\Facades\Log;
 
 class CronService
@@ -100,6 +101,20 @@ class CronService
     {
         if (!isset($this->handlers[$task->key])) {
             Log::warning('Cron task has no registered handler', ['key' => $task->key]);
+            $task->update([
+                'last_status' => 'failed',
+                'last_ran_at' => now(),
+                'last_duration_ms' => 0,
+                'last_output' => 'No handler registered for this task.',
+            ]);
+            CronTaskRun::query()->create([
+                'cron_task_id' => $task->id,
+                'task_key' => $task->key,
+                'status' => 'failed',
+                'duration_ms' => 0,
+                'output' => 'No handler registered for this task.',
+                'ran_at' => now(),
+            ]);
             return [
                 'key'    => $task->key,
                 'status' => 'error',
@@ -114,8 +129,17 @@ class CronService
             $output = call_user_func($this->handlers[$task->key]);
             $durationMs = (int) ((hrtime(true) - $start) / 1_000_000);
 
-            $outputStr = is_string($output) ? $output : json_encode($output);
+            $encoded = is_string($output) ? $output : json_encode($output);
+            $outputStr = is_string($encoded) ? $encoded : '';
             $task->markFinished('success', $durationMs, $outputStr);
+            CronTaskRun::query()->create([
+                'cron_task_id' => $task->id,
+                'task_key' => $task->key,
+                'status' => 'success',
+                'duration_ms' => $durationMs,
+                'output' => $outputStr !== '' ? mb_substr($outputStr, 0, 4000) : null,
+                'ran_at' => now(),
+            ]);
 
             Log::info('Cron task completed', [
                 'key'         => $task->key,
@@ -131,6 +155,14 @@ class CronService
         } catch (\Throwable $e) {
             $durationMs = (int) ((hrtime(true) - $start) / 1_000_000);
             $task->markFinished('failed', $durationMs, $e->getMessage());
+            CronTaskRun::query()->create([
+                'cron_task_id' => $task->id,
+                'task_key' => $task->key,
+                'status' => 'failed',
+                'duration_ms' => $durationMs,
+                'output' => mb_substr($e->getMessage(), 0, 4000),
+                'ran_at' => now(),
+            ]);
 
             Log::error('Cron task failed', [
                 'key'         => $task->key,

@@ -61,6 +61,15 @@
       <div class="app-main">
         @section('topbar')
         @include('app-topbar')
+        @if(session()->has('impersonator_id'))
+        <div class="alert alert--info" style="margin: 12px 20px 0 20px;">
+          You are viewing this account as an admin.
+          <form method="POST" action="{{ route('impersonation.leave') }}" class="inline-form" style="display:inline;">
+            @csrf
+            <button type="submit" class="btn btn--outline btn--compact">Return to admin</button>
+          </form>
+        </div>
+        @endif
         @if(($currentUser ?? null) && ($showTrialEndedBanner ?? false))
         @include('trial-ended-banner')
         @elseif(($currentUser ?? null) && ($showSubscriptionRenewalBanner ?? false))

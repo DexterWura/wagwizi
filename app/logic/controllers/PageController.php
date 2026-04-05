@@ -310,6 +310,7 @@ class PageController extends Controller
             'paynowCheckoutAvailable'       => $gatewayCfg->hostedCheckoutAvailable(),
             'checkoutGateway'               => $gatewayCfg->activeCheckoutGateway(),
             'checkoutRequiresGatewayChoice' => $gatewayCfg->checkoutRequiresGatewayChoice(),
+            'availableCheckoutGateways'     => $gatewayCfg->availableCheckoutGateways(),
             'defaultCheckoutGateway'        => $gatewayCfg->defaultCheckoutGatewayForUi(),
             'paidPlanSlugs'                 => $paidPlanSlugs,
             'currencyDisplay'               => $currencyDisplay,

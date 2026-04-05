@@ -48,6 +48,7 @@
       <form method="POST" action="{{ route('signup') }}">
         @csrf
         <input type="hidden" name="referral_code" value="{{ old('referral_code', $referralCode ?? '') }}" />
+        <input type="hidden" name="redirect" value="{{ old('redirect', $redirectTarget ?? '') }}" />
         <div class="field">
           <label class="field__label" for="signup-name">Display name</label>
           <input class="input" id="signup-name" type="text" name="name" value="{{ old('name') }}" autocomplete="name" placeholder="Your name" required />
@@ -70,7 +71,7 @@
       </form>
 
       <div class="login-page__meta-links" role="navigation" aria-label="Authentication links">
-        <a href="{{ route('login') }}">Already have an account?</a>
+        <a href="{{ route('login', ['redirect' => ($redirectTarget ?? '')]) }}">Already have an account?</a>
         <a href="{{ route('landing') }}">Back to home</a>
       </div>
     </div>

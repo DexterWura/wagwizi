@@ -37,7 +37,13 @@ class SystemMessageSendService
             'metadata'     => $metadata,
         ]);
 
-        SendTemplatedEmailJob::dispatch($delivery->id);
+        // Reliability-first: for HTTP flows, run right after the response even without a queue worker.
+        // For CLI/queue contexts, keep normal queued dispatch.
+        if (app()->runningInConsole()) {
+            SendTemplatedEmailJob::dispatchSync($delivery->id);
+        } else {
+            SendTemplatedEmailJob::dispatchAfterResponse($delivery->id);
+        }
 
         return $delivery;
     }

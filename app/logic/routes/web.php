@@ -18,6 +18,8 @@ use App\Controllers\PaynowWebhookController;
 use App\Controllers\PesepayWebhookController;
 use App\Controllers\PlanCheckoutController;
 use App\Controllers\PostController;
+use App\Controllers\StripeWebhookController;
+use App\Controllers\PaypalWebhookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -65,6 +67,8 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 
 Route::post('/paynow/result', [PaynowWebhookController::class, 'result'])->name('paynow.result');
 Route::match(['get', 'post'], '/pesepay/result', [PesepayWebhookController::class, 'result'])->name('pesepay.result');
+Route::post('/stripe/webhook', [StripeWebhookController::class, 'result'])->name('stripe.webhook');
+Route::post('/paypal/webhook', [PaypalWebhookController::class, 'result'])->name('paypal.webhook');
 
 /*
 |--------------------------------------------------------------------------
@@ -128,6 +132,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/plans/paynow/return', [PlanCheckoutController::class, 'paynowReturn'])->name('plans.paynow.return');
     Route::post('/plans/pesepay/start', [PlanCheckoutController::class, 'startPesepay'])->name('plans.pesepay.start');
     Route::get('/plans/pesepay/return', [PlanCheckoutController::class, 'pesepayReturn'])->name('plans.pesepay.return');
+    Route::post('/plans/stripe/start', [PlanCheckoutController::class, 'startStripe'])->name('plans.stripe.start');
+    Route::get('/plans/stripe/return', [PlanCheckoutController::class, 'stripeReturn'])->name('plans.stripe.return');
+    Route::post('/plans/paypal/start', [PlanCheckoutController::class, 'startPaypal'])->name('plans.paypal.start');
+    Route::get('/plans/paypal/return', [PlanCheckoutController::class, 'paypalReturn'])->name('plans.paypal.return');
+    Route::post('/impersonation/leave', [AdminController::class, 'stopLoginAsUser'])->name('impersonation.leave');
 
     /*
     |----------------------------------------------------------------------
@@ -139,6 +148,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/users',                [AdminController::class, 'users'])->name('users');
         Route::post('/users/{id}/role',     [AdminController::class, 'updateUserRole'])->name('users.role');
         Route::post('/users/{id}/status',   [AdminController::class, 'updateUserStatus'])->name('users.status');
+        Route::post('/users/{id}/login-as', [AdminController::class, 'loginAsUser'])->name('users.login-as');
+        Route::post('/users/{id}/plan',     [AdminController::class, 'updateUserPlan'])->name('users.plan');
 
         Route::get('/plans',                [AdminController::class, 'plans'])->name('plans');
         Route::post('/plans',               [AdminController::class, 'storePlan'])->name('plans.store');
@@ -186,6 +197,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/operations/retry-publish', [AdminController::class, 'retryPublish'])->name('operations.retry-publish');
         Route::post('/operations/retry-comment', [AdminController::class, 'retryComment'])->name('operations.retry-comment');
         Route::post('/operations/settings',      [AdminController::class, 'updateOperationsSettings'])->name('operations.settings');
+        Route::get('/cron-jobs',                 [AdminController::class, 'cronJobs'])->name('cron-jobs');
+        Route::post('/cron-jobs/run-due',        [AdminController::class, 'runDueCronTasksNow'])->name('cron-jobs.run-due');
+        Route::post('/cron-jobs/{id}/run',       [AdminController::class, 'runCronTaskNow'])->name('cron-jobs.run');
+        Route::post('/cron-jobs/{id}',           [AdminController::class, 'updateCronJob'])->name('cron-jobs.update');
 
         Route::get('/notifications/settings', [AdminNotificationController::class, 'notificationSettings'])->name('notifications.settings');
         Route::post('/notifications/settings', [AdminNotificationController::class, 'updateNotificationSettings'])->name('notifications.settings.update');

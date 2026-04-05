@@ -50,6 +50,7 @@
 
       <form method="POST" action="{{ route('login') }}">
         @csrf
+        <input type="hidden" name="redirect" value="{{ old('redirect', $redirectTarget ?? '') }}" />
         <div class="field">
           <label class="field__label" for="login-email">Email</label>
           <input class="input" id="login-email" type="email" name="email" value="{{ old('email') }}" autocomplete="username" placeholder="you@example.com" required />
@@ -66,7 +67,7 @@
       </form>
 
       <div class="login-page__meta-links" role="navigation" aria-label="Authentication links">
-        <a href="{{ route('signup') }}">Create an account</a>
+        <a href="{{ route('signup', ['redirect' => ($redirectTarget ?? '')]) }}">Create an account</a>
         <a href="{{ route('password.request') }}">Forgot password</a>
       </div>
     </div>

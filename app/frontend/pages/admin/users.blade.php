@@ -23,6 +23,15 @@
           @if(session('error'))
             <div class="alert alert--danger">{{ session('error') }}</div>
           @endif
+          @if(session()->has('impersonator_id'))
+            <div class="alert alert--info">
+              You are currently logged in as another user.
+              <form method="POST" action="{{ route('impersonation.leave') }}" class="inline-form" style="display:inline;">
+                @csrf
+                <button type="submit" class="btn btn--outline btn--compact">Return to admin account</button>
+              </form>
+            </div>
+          @endif
 
           <div class="card">
             <div class="card__head">
@@ -56,6 +65,7 @@
                       <th>Role</th>
                       <th>Status</th>
                       <th>Joined</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -85,9 +95,31 @@
                         </form>
                       </td>
                       <td>{{ $u->created_at->format('M j, Y') }}</td>
+                      <td>
+                        <div style="display:grid; gap:8px; min-width: 210px;">
+                          <form method="POST" action="{{ route('admin.users.login-as', $u->id) }}" class="inline-form">
+                            @csrf
+                            <button class="btn btn--outline btn--compact" type="submit" {{ auth()->id() === $u->id ? 'disabled' : '' }}>
+                              Login as user
+                            </button>
+                          </form>
+
+                          <form method="POST" action="{{ route('admin.users.plan', $u->id) }}" class="inline-form" style="display:flex; gap:6px; align-items:center;">
+                            @csrf
+                            <select class="select select--xs" name="plan_id" required>
+                              <option value="">Select plan</option>
+                              @foreach(($plans ?? collect()) as $planOption)
+                                <option value="{{ $planOption->id }}">{{ $planOption->name }}</option>
+                              @endforeach
+                            </select>
+                            <button class="btn btn--outline btn--compact" type="submit" name="action" value="change">Change</button>
+                            <button class="btn btn--primary btn--compact" type="submit" name="action" value="gift">Gift</button>
+                          </form>
+                        </div>
+                      </td>
                     </tr>
                     @empty
-                    <tr><td colspan="6" class="text-center prose-muted">No users found.</td></tr>
+                    <tr><td colspan="7" class="text-center prose-muted">No users found.</td></tr>
                     @endforelse
                   </tbody>
                 </table>

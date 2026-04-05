@@ -50,17 +50,15 @@
           <div class="card card--app-section">
             <div class="card__head">Choose a plan</div>
             <div class="card__body">
-          @if(($checkoutRequiresGatewayChoice ?? false) && $paynowCheckoutAvailable)
+          @if(($checkoutRequiresGatewayChoice ?? false) && !empty($availableCheckoutGateways))
             <div class="plans-gateway-picker" role="radiogroup" aria-labelledby="plans-gateway-picker-label">
               <span id="plans-gateway-picker-label" class="plans-gateway-picker__label">Pay with</span>
-              <label class="plans-gateway-picker__opt">
-                <input type="radio" name="plans_checkout_gateway" value="paynow" {{ ($defaultCheckoutGateway ?? 'paynow') === 'paynow' ? 'checked' : '' }} />
-                Paynow
-              </label>
-              <label class="plans-gateway-picker__opt">
-                <input type="radio" name="plans_checkout_gateway" value="pesepay" {{ ($defaultCheckoutGateway ?? '') === 'pesepay' ? 'checked' : '' }} />
-                Pesepay
-              </label>
+              @foreach(($availableCheckoutGateways ?? []) as $gateway)
+                <label class="plans-gateway-picker__opt">
+                  <input type="radio" name="plans_checkout_gateway" value="{{ $gateway }}" {{ ($defaultCheckoutGateway ?? 'paynow') === $gateway ? 'checked' : '' }} />
+                  {{ ucfirst($gateway) }}
+                </label>
+              @endforeach
             </div>
           @endif
           <div

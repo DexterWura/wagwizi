@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CronTask extends Model
 {
@@ -55,5 +56,10 @@ class CronTask extends Model
             'last_duration_ms' => $durationMs,
             'last_output'      => $output !== null ? mb_substr($output, 0, 2000) : null,
         ]);
+    }
+
+    public function runs(): HasMany
+    {
+        return $this->hasMany(CronTaskRun::class);
     }
 }

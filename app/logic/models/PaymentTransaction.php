@@ -20,6 +20,8 @@ class PaymentTransaction extends Model
         'failure_message',
         'poll_url',
         'paynow_reference',
+        'paypal_payment_id',
+        'paypal_payer_id',
         'meta',
     ];
 

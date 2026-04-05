@@ -25,7 +25,11 @@ class AuthController extends Controller
 
     public function showLogin(): View
     {
-        return view('login', $this->socialAuthViewData());
+        $this->captureIntendedFromQuery(request());
+        $viewData = $this->socialAuthViewData();
+        $viewData['redirectTarget'] = $this->safeRedirectPath((string) request()->query('redirect', '')) ?? '';
+
+        return view('login', $viewData);
     }
 
     public function login(Request $request): RedirectResponse
@@ -33,7 +37,12 @@ class AuthController extends Controller
         $validated = $request->validate([
             'email'    => 'required|email',
             'password' => 'required|string|min:8',
+            'redirect' => 'nullable|string|max:500',
         ]);
+
+        if (! empty($validated['redirect'])) {
+            $this->captureIntendedFromQuery($request);
+        }
 
         $result = $this->authService->attemptLogin(
             $validated['email'],
@@ -44,7 +53,7 @@ class AuthController extends Controller
         if (!$result['success']) {
             return back()
                 ->withErrors(['email' => $result['message']])
-                ->withInput($request->only('email'));
+                ->withInput($request->only('email', 'redirect'));
         }
 
         $request->session()->regenerate();
@@ -54,8 +63,10 @@ class AuthController extends Controller
 
     public function showSignup(): View
     {
+        $this->captureIntendedFromQuery(request());
         $viewData = $this->socialAuthViewData();
         $viewData['referralCode'] = trim((string) request()->query('ref', ''));
+        $viewData['redirectTarget'] = $this->safeRedirectPath((string) request()->query('redirect', '')) ?? '';
 
         return view('signup', $viewData);
     }
@@ -166,7 +177,12 @@ class AuthController extends Controller
             'email'    => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
             'referral_code' => 'nullable|string|max:24|exists:users,referral_code',
+            'redirect' => 'nullable|string|max:500',
         ]);
+
+        if (! empty($validated['redirect'])) {
+            $this->captureIntendedFromQuery($request);
+        }
 
         $referredByUserId = null;
         if (! empty($validated['referral_code'])) {
@@ -184,7 +200,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard');
+        return redirect()->intended('/dashboard');
     }
 
     public function logout(Request $request): RedirectResponse
@@ -195,5 +211,28 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/');
+    }
+
+    private function captureIntendedFromQuery(Request $request): void
+    {
+        $redirect = $this->safeRedirectPath((string) $request->query('redirect', $request->input('redirect', '')));
+        if ($redirect !== null) {
+            $request->session()->put('url.intended', $redirect);
+        }
+    }
+
+    private function safeRedirectPath(string $target): ?string
+    {
+        $target = trim($target);
+        if ($target === '') {
+            return null;
+        }
+
+        // Only allow in-app absolute paths to prevent open redirects.
+        if (! str_starts_with($target, '/') || str_starts_with($target, '//')) {
+            return null;
+        }
+
+        return $target;
     }
 }

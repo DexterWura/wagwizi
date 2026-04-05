@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Notifications;
 
+use App\Jobs\QueueTemplatedEmailForUserJob;
 use App\Models\Notification;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -13,6 +14,28 @@ use Carbon\CarbonInterface;
 
 final class InAppNotificationService
 {
+    public function notifyUserPlanChangedByAdmin(User $user, Plan $newPlan): void
+    {
+        $this->create(
+            $user->id,
+            'user_plan_changed_admin',
+            'Your plan was updated by admin',
+            "An administrator changed your plan to {$newPlan->name}.",
+            ['action_url' => route('plans')]
+        );
+    }
+
+    public function notifyUserPlanGiftedByAdmin(User $user, Plan $newPlan): void
+    {
+        $this->create(
+            $user->id,
+            'user_plan_gifted_admin',
+            'You have been gifted a plan',
+            "An administrator gifted you the {$newPlan->name} plan.",
+            ['action_url' => route('plans')]
+        );
+    }
+
     public function notifySuperAdminsNewUser(User $newUser): void
     {
         $url = route('admin.users', ['search' => $newUser->email]);
@@ -133,6 +156,12 @@ final class InAppNotificationService
                 "Renew or choose a plan to keep access to {$planName} features.",
                 ['action_url' => route('plans'), 'days_left' => $daysLeft]
             );
+
+            QueueTemplatedEmailForUserJob::dispatch($user->id, 'subscription.trial_ending', [
+                'planName' => $planName,
+                'daysLeft' => $daysLeft,
+                'trialEndsAt' => (string) $sub->trial_ends_at?->toDateString(),
+            ]);
         }
     }
 
@@ -174,6 +203,12 @@ final class InAppNotificationService
                 "Your {$plan->name} plan will renew soon. Review billing on the plans page.",
                 ['action_url' => route('plans'), 'days_left' => $daysLeft]
             );
+
+            QueueTemplatedEmailForUserJob::dispatch($user->id, 'subscription.reminder', [
+                'planName' => $plan->name,
+                'daysLeft' => $daysLeft,
+                'renewsAt' => (string) $sub->current_period_end?->toDateString(),
+            ]);
         }
     }
 

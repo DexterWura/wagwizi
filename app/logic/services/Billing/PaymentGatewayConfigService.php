@@ -106,15 +106,56 @@ final class PaymentGatewayConfigService
         return $key !== '' && ($len === 16 || $len === 24 || $len === 32);
     }
 
+    public function stripeIsReady(): bool
+    {
+        $s = $this->all()['stripe'] ?? [];
+
+        return ! empty($s['enabled'])
+            && is_string($s['publishable_key'] ?? null)
+            && trim($s['publishable_key']) !== ''
+            && is_string($s['secret_key'] ?? null)
+            && trim($s['secret_key']) !== ''
+            && is_string($s['webhook_secret'] ?? null)
+            && trim($s['webhook_secret']) !== '';
+    }
+
+    public function paypalIsReady(): bool
+    {
+        $p = $this->all()['paypal'] ?? [];
+        $mode = strtolower(trim((string) ($p['mode'] ?? 'sandbox')));
+
+        return ! empty($p['enabled'])
+            && in_array($mode, ['sandbox', 'live'], true)
+            && is_string($p['client_id'] ?? null)
+            && trim($p['client_id']) !== ''
+            && is_string($p['client_secret'] ?? null)
+            && trim($p['client_secret']) !== '';
+    }
+
     /** @return list<string> */
     public function availableCheckoutGateways(): array
     {
+        return $this->availableCheckoutGatewaysFromConfig($this->all());
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @return list<string>
+     */
+    public function availableCheckoutGatewaysFromConfig(array $config): array
+    {
         $out = [];
-        if ($this->paynowIsReady()) {
+        if ($this->paynowReadyFromConfig($config)) {
             $out[] = 'paynow';
         }
-        if ($this->pesepayIsReady()) {
+        if ($this->pesepayReadyFromConfig($config)) {
             $out[] = 'pesepay';
+        }
+        if ($this->stripeReadyFromConfig($config)) {
+            $out[] = 'stripe';
+        }
+        if ($this->paypalReadyFromConfig($config)) {
+            $out[] = 'paypal';
         }
 
         return $out;
@@ -151,6 +192,12 @@ final class PaymentGatewayConfigService
         $pref = strtolower(trim((string) ($this->all()['checkout_gateway'] ?? 'paynow')));
         if ($pref === 'pesepay' && in_array('pesepay', $available, true)) {
             return 'pesepay';
+        }
+        if ($pref === 'stripe' && in_array('stripe', $available, true)) {
+            return 'stripe';
+        }
+        if ($pref === 'paypal' && in_array('paypal', $available, true)) {
+            return 'paypal';
         }
         if ($pref === 'paynow' && in_array('paynow', $available, true)) {
             return 'paynow';
@@ -197,6 +244,49 @@ final class PaymentGatewayConfigService
     }
 
     /**
+     * @return array{publishable_key: string, secret_key: string, webhook_secret: string}|null
+     */
+    public function stripeCredentials(): ?array
+    {
+        if (! $this->stripeIsReady()) {
+            return null;
+        }
+        $s = $this->all()['stripe'];
+
+        return [
+            'publishable_key' => trim((string) $s['publishable_key']),
+            'secret_key' => trim((string) $s['secret_key']),
+            'webhook_secret' => trim((string) ($s['webhook_secret'] ?? '')),
+        ];
+    }
+
+    /**
+     * @return array{client_id: string, client_secret: string, mode: string}|null
+     */
+    public function paypalCredentials(): ?array
+    {
+        if (! $this->paypalIsReady()) {
+            return null;
+        }
+
+        $p = $this->all()['paypal'];
+
+        return [
+            'client_id' => trim((string) $p['client_id']),
+            'client_secret' => trim((string) $p['client_secret']),
+            'mode' => strtolower(trim((string) ($p['mode'] ?? 'sandbox'))) === 'live' ? 'live' : 'sandbox',
+        ];
+    }
+
+    public function paypalWebhookId(): ?string
+    {
+        $p = $this->all()['paypal'] ?? [];
+        $id = isset($p['webhook_id']) ? trim((string) $p['webhook_id']) : '';
+
+        return $id !== '' ? $id : null;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function defaults(): array
@@ -219,6 +309,75 @@ final class PaymentGatewayConfigService
                 'secret_key'      => '',
                 'webhook_secret'  => '',
             ],
+            'paypal'           => [
+                'enabled'         => false,
+                'client_id'       => '',
+                'client_secret'   => '',
+                'webhook_id'      => '',
+                'mode'            => 'sandbox',
+            ],
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function paynowReadyFromConfig(array $config): bool
+    {
+        $p = is_array($config['paynow'] ?? null) ? $config['paynow'] : [];
+
+        return ! empty($p['enabled'])
+            && is_string($p['integration_id'] ?? null)
+            && trim($p['integration_id']) !== ''
+            && is_string($p['integration_key'] ?? null)
+            && trim($p['integration_key']) !== '';
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function pesepayReadyFromConfig(array $config): bool
+    {
+        $p = is_array($config['pesepay'] ?? null) ? $config['pesepay'] : [];
+        if (empty($p['enabled'])) {
+            return false;
+        }
+        $key = isset($p['integration_key']) ? trim((string) $p['integration_key']) : '';
+        $enc = isset($p['encryption_key']) ? trim((string) $p['encryption_key']) : '';
+        $len = strlen($enc);
+
+        return $key !== '' && ($len === 16 || $len === 24 || $len === 32);
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function stripeReadyFromConfig(array $config): bool
+    {
+        $s = is_array($config['stripe'] ?? null) ? $config['stripe'] : [];
+
+        return ! empty($s['enabled'])
+            && is_string($s['publishable_key'] ?? null)
+            && trim($s['publishable_key']) !== ''
+            && is_string($s['secret_key'] ?? null)
+            && trim($s['secret_key']) !== ''
+            && is_string($s['webhook_secret'] ?? null)
+            && trim($s['webhook_secret']) !== '';
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     */
+    private function paypalReadyFromConfig(array $config): bool
+    {
+        $p = is_array($config['paypal'] ?? null) ? $config['paypal'] : [];
+        $mode = strtolower(trim((string) ($p['mode'] ?? 'sandbox')));
+
+        return ! empty($p['enabled'])
+            && in_array($mode, ['sandbox', 'live'], true)
+            && is_string($p['client_id'] ?? null)
+            && trim($p['client_id']) !== ''
+            && is_string($p['client_secret'] ?? null)
+            && trim($p['client_secret']) !== '';
     }
 }

@@ -10,5 +10,7 @@ class VerifyCsrfToken extends Middleware
     protected $except = [
         'paynow/result',
         'pesepay/result',
+        'stripe/webhook',
+        'paypal/webhook',
     ];
 }

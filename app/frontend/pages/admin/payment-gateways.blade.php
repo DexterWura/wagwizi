@@ -90,12 +90,35 @@
               </div>
               <div class="card__body admin-form-grid">
                 <div class="field field--full">
+                  @php
+                    $gatewayLabels = [
+                      'paynow' => 'Paynow',
+                      'pesepay' => 'Pesepay',
+                      'stripe' => 'Stripe',
+                      'paypal' => 'PayPal',
+                    ];
+                    $activeGatewayOptions = is_array($activeCheckoutGateways ?? null) ? $activeCheckoutGateways : [];
+                    $selectedPreferredGateway = old('checkout_gateway', $gateways['checkout_gateway'] ?? '');
+                  @endphp
                   <label class="field__label" for="checkout_gateway">Preferred gateway</label>
-                  <select class="input" id="checkout_gateway" name="checkout_gateway" required>
-                    <option value="paynow" {{ ($gateways['checkout_gateway'] ?? 'paynow') === 'paynow' ? 'selected' : '' }}>Paynow</option>
-                    <option value="pesepay" {{ ($gateways['checkout_gateway'] ?? '') === 'pesepay' ? 'selected' : '' }}>Pesepay</option>
-                  </select>
-                  <p class="field__hint">See <a href="https://developers.pesepay.com/api-reference/initiate-transaction" target="_blank" rel="noopener noreferrer">Pesepay initiate transaction</a> for redirect flow details.</p>
+                  @if($activeGatewayOptions !== [])
+                    <select class="input" id="checkout_gateway" name="checkout_gateway" required>
+                      @foreach($activeGatewayOptions as $gw)
+                        <option value="{{ $gw }}" {{ $selectedPreferredGateway === $gw ? 'selected' : '' }}>
+                          {{ $gatewayLabels[$gw] ?? ucfirst($gw) }}
+                        </option>
+                      @endforeach
+                    </select>
+                    <p class="field__hint">Only active and fully configured gateways appear here.</p>
+                  @else
+                    <select class="input" id="checkout_gateway" disabled>
+                      <option selected>No active gateway yet</option>
+                    </select>
+                    <p class="field__hint">Enable and configure at least one gateway below, then save to choose a preferred method.</p>
+                  @endif
+                  @error('checkout_gateway')
+                    <p class="field__hint" style="color:#b42318;">{{ $message }}</p>
+                  @enderror
                 </div>
               </div>
             </section>
@@ -175,11 +198,54 @@
               </div>
             </section>
 
-            <section class="card admin-gateway-card admin-gateway-card--muted" aria-labelledby="gw-stripe-heading">
+            <section class="card admin-gateway-card" aria-labelledby="gw-paypal-heading">
               <div class="card__head admin-gateway-card__head">
                 <div>
-                  <h2 id="gw-stripe-heading" class="admin-gateway-card__title">Stripe <span class="admin-badge-soon">Coming soon</span></h2>
-                  <p class="admin-gateway-card__sub">Fields are saved for when Stripe checkout is wired up — no charges run yet.</p>
+                  <h2 id="gw-paypal-heading" class="admin-gateway-card__title">PayPal</h2>
+                  <p class="admin-gateway-card__sub">Global checkout via PayPal account/cards (SDK in <code class="admin-code-tag">app/logic/gateways/Paypal</code>).</p>
+                </div>
+                <label class="admin-toggle">
+                  <input type="checkbox" name="paypal_enabled" value="1" {{ !empty($gateways['paypal']['enabled']) ? 'checked' : '' }} />
+                  <span class="admin-toggle__slider" aria-hidden="true"></span>
+                  <span>Enabled</span>
+                </label>
+              </div>
+              <div class="card__body admin-form-grid">
+                <div class="field field--full">
+                  <label class="field__label" for="paypal_mode">Mode</label>
+                  <select class="input" id="paypal_mode" name="paypal_mode">
+                    <option value="sandbox" {{ strtolower((string) ($gateways['paypal']['mode'] ?? 'sandbox')) === 'sandbox' ? 'selected' : '' }}>Sandbox</option>
+                    <option value="live" {{ strtolower((string) ($gateways['paypal']['mode'] ?? 'sandbox')) === 'live' ? 'selected' : '' }}>Live</option>
+                  </select>
+                </div>
+                <div class="field field--full">
+                  <label class="field__label" for="paypal_client_id">Client ID</label>
+                  <input class="input" id="paypal_client_id" name="paypal_client_id" value="{{ $gateways['paypal']['client_id'] ?? '' }}" autocomplete="off" />
+                </div>
+                <div class="field field--full">
+                  <label class="field__label" for="paypal_client_secret">Client secret</label>
+                  <input class="input" id="paypal_client_secret" name="paypal_client_secret" type="password" placeholder="{{ ($gateways['paypal']['client_secret'] ?? '') !== '' ? 'Leave blank to keep current secret' : 'PayPal app client secret' }}" autocomplete="new-password" />
+                  @if(!empty($gateways['paypal']['client_secret_masked']))
+                    <p class="field__hint">Current secret: {{ $gateways['paypal']['client_secret_masked'] }}</p>
+                  @endif
+                  <p class="field__hint">Return URL used by checkout: <span class="admin-mono">{{ route('plans.paypal.return') }}</span></p>
+                </div>
+                <div class="field field--full">
+                  <label class="field__label" for="paypal_webhook_id">Webhook ID</label>
+                  <input class="input" id="paypal_webhook_id" name="paypal_webhook_id" value="{{ $gateways['paypal']['webhook_id'] ?? '' }}" placeholder="WH-… (from PayPal Developer → Webhooks)" autocomplete="off" />
+                  <p class="field__hint">
+                    Listener URL: <span class="admin-mono">{{ url('/paypal/webhook') }}</span>.
+                    Subscribe to <strong>PAYMENT.SALE.COMPLETED</strong> for signed, server-side confirmation of captured sales (retries, races with the return URL, or if the customer closes the tab after PayPal finishes but before your site responds).
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section class="card admin-gateway-card" aria-labelledby="gw-stripe-heading">
+              <div class="card__head admin-gateway-card__head">
+                <div>
+                  <h2 id="gw-stripe-heading" class="admin-gateway-card__title">Stripe</h2>
+                  <p class="admin-gateway-card__sub">Global checkout for cards and wallets (SDK in <code class="admin-code-tag">app/logic/gateways/stripe</code>).</p>
                 </div>
                 <label class="admin-toggle">
                   <input type="checkbox" name="stripe_enabled" value="1" {{ !empty($gateways['stripe']['enabled']) ? 'checked' : '' }} />
@@ -194,11 +260,18 @@
                 </div>
                 <div class="field field--full">
                   <label class="field__label" for="stripe_secret_key">Secret key</label>
-                  <input class="input" id="stripe_secret_key" name="stripe_secret_key" type="password" placeholder="pk_live_… / sk_live_…" autocomplete="new-password" />
+                  <input class="input" id="stripe_secret_key" name="stripe_secret_key" type="password" placeholder="{{ ($gateways['stripe']['secret_key'] ?? '') !== '' ? 'Leave blank to keep current key' : 'sk_live_…' }}" autocomplete="new-password" />
+                  @if(!empty($gateways['stripe']['secret_key_masked']))
+                    <p class="field__hint">Current key: {{ $gateways['stripe']['secret_key_masked'] }}</p>
+                  @endif
                 </div>
                 <div class="field field--full">
                   <label class="field__label" for="stripe_webhook_secret">Webhook signing secret</label>
-                  <input class="input" id="stripe_webhook_secret" name="stripe_webhook_secret" type="password" autocomplete="new-password" />
+                  <input class="input" id="stripe_webhook_secret" name="stripe_webhook_secret" type="password" placeholder="{{ ($gateways['stripe']['webhook_secret'] ?? '') !== '' ? 'Leave blank to keep current secret' : 'whsec_… (recommended)' }}" autocomplete="new-password" />
+                  @if(!empty($gateways['stripe']['webhook_secret_masked']))
+                    <p class="field__hint">Current secret: {{ $gateways['stripe']['webhook_secret_masked'] }}</p>
+                  @endif
+                  <p class="field__hint">Webhook endpoint for Stripe dashboard: <span class="admin-mono">{{ url('/stripe/webhook') }}</span> (required for automatic payment confirmation).</p>
                 </div>
               </div>
             </section>

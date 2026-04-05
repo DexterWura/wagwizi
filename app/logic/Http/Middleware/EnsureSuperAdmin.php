@@ -13,7 +13,7 @@ class EnsureSuperAdmin
     {
         $user = Auth::user();
 
-        if (!$user || !$user->isSuperAdmin()) {
+        if (! $user || ! $user->isSuperAdmin() || $user->status !== 'active') {
             abort(403, 'Access denied. Super admin privileges required.');
         }
 

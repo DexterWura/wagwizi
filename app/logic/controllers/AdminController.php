@@ -3,8 +3,11 @@
 namespace App\Controllers;
 
 use App\Models\BillingCurrencySetting;
+use App\Models\CronTask;
+use App\Models\CronTaskRun;
 use App\Models\PaymentTransaction;
 use App\Models\Plan;
+use App\Models\PlanChange;
 use App\Models\PostPlatform;
 use App\Models\Subscription;
 use App\Models\SiteSetting;
@@ -23,7 +26,9 @@ use App\Services\Admin\MigrationService;
 use App\Services\Admin\PlanAdminValidationService;
 use App\Services\Admin\PaymentTransactionListService;
 use App\Services\Admin\SubscriptionInsightsService;
+use App\Services\Ai\PlatformAiQuotaService;
 use App\Services\Billing\CurrencyDisplayService;
+use App\Services\Cron\CronService;
 use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Auth\SocialLoginAvailability;
 use App\Services\Platform\Platform;
@@ -38,6 +43,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -69,7 +75,13 @@ class AdminController extends Controller
             ->paginate(25)
             ->appends($request->only(['search', 'role', 'status']));
 
-        return view('admin.users', compact('users'));
+        $plans = Plan::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug', 'is_free', 'is_lifetime']);
+
+        return view('admin.users', compact('users', 'plans'));
     }
 
     public function updateUserRole(Request $request, int $id): RedirectResponse
@@ -104,6 +116,148 @@ class AdminController extends Controller
         $user->update(['status' => $validated['status']]);
 
         return back()->with('success', "Status updated to {$validated['status']} for {$user->name}.");
+    }
+
+    public function loginAsUser(Request $request, int $id): RedirectResponse
+    {
+        $target = User::findOrFail($id);
+        $admin = Auth::user();
+
+        if ($target->id === $admin->id) {
+            return back()->with('error', 'You are already logged in as this account.');
+        }
+        if ($target->status !== 'active') {
+            return back()->with('error', 'Only active users can be impersonated.');
+        }
+
+        Auth::login($target);
+        $request->session()->regenerate();
+        $request->session()->put('impersonator_id', $admin->id);
+
+        return redirect()->route('dashboard')->with('success', "You are now logged in as {$target->name}.");
+    }
+
+    public function stopLoginAsUser(Request $request): RedirectResponse
+    {
+        $impersonatorId = (int) $request->session()->get('impersonator_id', 0);
+        if ($impersonatorId <= 0) {
+            return redirect()->route('dashboard');
+        }
+
+        $admin = User::query()
+            ->where('id', $impersonatorId)
+            ->where('role', 'super_admin')
+            ->where('status', 'active')
+            ->first();
+
+        if ($admin === null) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->with('error', 'Impersonation session expired. Please sign in again.');
+        }
+
+        Auth::login($admin);
+        $request->session()->regenerate();
+        $request->session()->forget('impersonator_id');
+
+        return redirect()->route('admin.users')->with('success', 'Returned to your admin account.');
+    }
+
+    public function updateUserPlan(Request $request, int $id): RedirectResponse
+    {
+        $validated = $request->validate([
+            'plan_id' => 'required|integer|exists:plans,id',
+            'action' => 'required|string|in:change,gift',
+        ]);
+
+        $targetUser = User::query()->with('subscription.planModel')->findOrFail($id);
+        $newPlan = Plan::query()->where('is_active', true)->findOrFail((int) $validated['plan_id']);
+        $action = (string) $validated['action'];
+
+        $oldSub = $targetUser->subscription;
+        $oldPlanId = $oldSub?->plan_id;
+        $oldPlan = $oldPlanId ? Plan::find($oldPlanId) : null;
+
+        if ($oldPlanId === $newPlan->id) {
+            return back()->with('error', "{$targetUser->name} is already on {$newPlan->name}.");
+        }
+
+        if ($newPlan->is_lifetime && $newPlan->hasReachedLifetimeCap()) {
+            return back()->with('error', "Cannot apply {$newPlan->name}: lifetime cap reached.");
+        }
+
+        DB::transaction(function () use ($targetUser, $newPlan, $oldPlanId, $oldPlan, $action): void {
+            $gateway = $action === 'gift' ? 'admin_gift' : 'admin_manual';
+            $eventId = 'admin:' . Auth::id() . ':' . now()->format('YmdHis');
+
+            $subscription = Subscription::updateOrCreate(
+                ['user_id' => $targetUser->id],
+                [
+                    'plan_id' => $newPlan->id,
+                    'plan' => $newPlan->slug,
+                    'gateway' => $gateway,
+                    'gateway_subscription_id' => $eventId,
+                    'status' => 'active',
+                    'current_period_start' => now(),
+                    'current_period_end' => $newPlan->is_lifetime ? null : now()->addMonth(),
+                    'trial_ends_at' => null,
+                ]
+            );
+
+            app(PlatformAiQuotaService::class)->applyPlanBudgetToSubscription($subscription, $newPlan);
+
+            if ($newPlan->is_lifetime) {
+                $newPlan->increment('lifetime_current_count');
+            }
+            if ($oldPlan?->is_lifetime) {
+                $oldPlan->decrement('lifetime_current_count');
+            }
+
+            PlanChange::create([
+                'user_id' => $targetUser->id,
+                'from_plan_id' => $oldPlanId,
+                'to_plan_id' => $newPlan->id,
+                'change_type' => $this->planChangeTypeFor($oldPlan, $newPlan),
+                'gateway' => $gateway,
+                'gateway_event_id' => $eventId,
+            ]);
+
+            DB::afterCommit(function () use ($targetUser, $newPlan, $oldPlan, $action): void {
+                if ($action === 'gift') {
+                    QueueTemplatedEmailForUserJob::dispatch($targetUser->id, 'subscription.gifted', [
+                        'planName' => $newPlan->name,
+                        'previousPlanName' => $oldPlan?->name ?? '',
+                    ]);
+                    app(InAppNotificationService::class)->notifyUserPlanGiftedByAdmin($targetUser, $newPlan);
+                    return;
+                }
+
+                QueueTemplatedEmailForUserJob::dispatch($targetUser->id, 'subscription.admin_changed', [
+                    'planName' => $newPlan->name,
+                    'previousPlanName' => $oldPlan?->name ?? '',
+                ]);
+                app(InAppNotificationService::class)->notifyUserPlanChangedByAdmin($targetUser, $newPlan);
+            });
+        });
+
+        $actionLabel = $action === 'gift' ? 'gifted' : 'changed';
+
+        return back()->with('success', "Plan {$actionLabel} to {$newPlan->name} for {$targetUser->name}.");
+    }
+
+    private function planChangeTypeFor(?Plan $oldPlan, Plan $newPlan): string
+    {
+        if ($oldPlan === null) {
+            return 'upgrade';
+        }
+
+        if (! $oldPlan->is_free && $newPlan->is_free) {
+            return 'downgrade';
+        }
+
+        return 'upgrade';
     }
 
     // ── Plans ───────────────────────────────────────────
@@ -825,14 +979,27 @@ class AdminController extends Controller
         $gateways['pesepay']['encryption_key_masked'] = $pesepayEnc !== ''
             ? '••••••••' . substr($pesepayEnc, -4)
             : '';
+        $stripeSecret = (string) ($gateways['stripe']['secret_key'] ?? '');
+        $gateways['stripe']['secret_key_masked'] = $stripeSecret !== ''
+            ? '••••••••' . substr($stripeSecret, -4)
+            : '';
+        $stripeWebhook = (string) ($gateways['stripe']['webhook_secret'] ?? '');
+        $gateways['stripe']['webhook_secret_masked'] = $stripeWebhook !== ''
+            ? '••••••••' . substr($stripeWebhook, -4)
+            : '';
+        $paypalSecret = (string) ($gateways['paypal']['client_secret'] ?? '');
+        $gateways['paypal']['client_secret_masked'] = $paypalSecret !== ''
+            ? '••••••••' . substr($paypalSecret, -4)
+            : '';
+        $activeCheckoutGateways = $cfg->availableCheckoutGateways();
 
-        return view('admin.payment-gateways', compact('gateways'));
+        return view('admin.payment-gateways', compact('gateways', 'activeCheckoutGateways'));
     }
 
     public function updatePaymentGateways(Request $request, PaymentGatewayConfigService $cfg): RedirectResponse
     {
         $request->validate([
-            'checkout_gateway'             => 'required|string|in:paynow,pesepay',
+            'checkout_gateway'             => 'nullable|string|in:paynow,pesepay,stripe,paypal',
             'paynow_enabled'               => 'nullable|boolean',
             'paynow_integration_id'        => 'nullable|string|max:120',
             'paynow_integration_key'       => 'nullable|string|max:500',
@@ -847,9 +1014,14 @@ class AdminController extends Controller
             'exchange_rate_values'         => 'nullable|array',
             'exchange_rate_values.*'       => 'nullable|numeric',
             'stripe_enabled'               => 'nullable|boolean',
-            'stripe_publishable_key'       => 'nullable|string|max:200',
-            'stripe_secret_key'            => 'nullable|string|max:200',
-            'stripe_webhook_secret'        => 'nullable|string|max:200',
+            'stripe_publishable_key'       => 'nullable|string|max:300',
+            'stripe_secret_key'            => 'nullable|string|max:300',
+            'stripe_webhook_secret'        => 'nullable|string|max:300',
+            'paypal_enabled'               => 'nullable|boolean',
+            'paypal_client_id'             => 'nullable|string|max:300',
+            'paypal_client_secret'         => 'nullable|string|max:300',
+            'paypal_webhook_id'            => 'nullable|string|max:200',
+            'paypal_mode'                  => 'nullable|string|in:sandbox,live',
         ]);
 
         $current = $cfg->all();
@@ -889,8 +1061,7 @@ class AdminController extends Controller
             $billingRow->update($billingAttrs);
         }
 
-        $cg = strtolower(trim((string) $request->input('checkout_gateway', 'paynow')));
-        $current['checkout_gateway'] = $cg === 'pesepay' ? 'pesepay' : 'paynow';
+        $cg = strtolower(trim((string) $request->input('checkout_gateway', '')));
 
         $current['paynow']['enabled'] = $request->boolean('paynow_enabled');
         $id = trim((string) $request->input('paynow_integration_id', ''));
@@ -918,6 +1089,31 @@ class AdminController extends Controller
             if (is_string($v) && trim($v) !== '') {
                 $current['stripe'][$f] = trim($v);
             }
+        }
+
+        $current['paypal']['enabled'] = $request->boolean('paypal_enabled');
+        $paypalMode = strtolower(trim((string) $request->input('paypal_mode', 'sandbox')));
+        $current['paypal']['mode'] = $paypalMode === 'live' ? 'live' : 'sandbox';
+        $current['paypal']['webhook_id'] = trim((string) $request->input('paypal_webhook_id', ''));
+        foreach (['client_id', 'client_secret'] as $f) {
+            $v = $request->input('paypal_' . $f);
+            if (is_string($v) && trim($v) !== '') {
+                $current['paypal'][$f] = trim($v);
+            }
+        }
+
+        $activeGateways = $cfg->availableCheckoutGatewaysFromConfig($current);
+        if ($activeGateways !== []) {
+            if (! in_array($cg, $activeGateways, true)) {
+                return back()
+                    ->withErrors([
+                        'checkout_gateway' => 'Select a preferred gateway from active and configured gateways.',
+                    ])
+                    ->withInput();
+            }
+            $current['checkout_gateway'] = $cg;
+        } else {
+            $current['checkout_gateway'] = 'paynow';
         }
 
         $cfg->save($current);
@@ -1096,6 +1292,73 @@ class AdminController extends Controller
     public function clearSiteCache(Request $request): RedirectResponse
     {
         return $this->clearApplicationCache($request);
+    }
+
+    public function cronJobs(): View
+    {
+        $tasks = CronTask::query()
+            ->orderBy('label')
+            ->get();
+
+        $runs = CronTaskRun::query()
+            ->with('cronTask:id,key,label')
+            ->orderByDesc('ran_at')
+            ->limit(200)
+            ->get();
+
+        $cronSecret = trim((string) config('app.cron_secret', ''));
+        $cronUrl = url('/api/cron/run');
+        $cpanelCommand = $cronSecret !== ''
+            ? "curl -sS -X POST \"{$cronUrl}\" -H \"X-Cron-Secret: {$cronSecret}\""
+            : '';
+
+        return view('admin.cron-jobs', compact('tasks', 'runs', 'cronSecret', 'cronUrl', 'cpanelCommand'));
+    }
+
+    public function updateCronJob(Request $request, int $id): RedirectResponse
+    {
+        $validated = $request->validate([
+            'enabled' => 'nullable|boolean',
+            'interval_minutes' => 'required|integer|min:1|max:10080',
+        ]);
+
+        $task = CronTask::query()->findOrFail($id);
+        $task->update([
+            'enabled' => $request->boolean('enabled'),
+            'interval_minutes' => (int) $validated['interval_minutes'],
+        ]);
+
+        return back()->with('success', "Cron task \"{$task->label}\" updated.");
+    }
+
+    public function runCronTaskNow(CronService $cronService, int $id): RedirectResponse
+    {
+        $task = CronTask::query()->findOrFail($id);
+        $result = $cronService->runTask($task->key);
+
+        if (($result['status'] ?? 'error') === 'success') {
+            return back()->with('success', "Task \"{$task->label}\" ran successfully.");
+        }
+
+        $output = is_string($result['output'] ?? null) ? $result['output'] : 'Task failed.';
+
+        return back()->with('error', "Task \"{$task->label}\" failed: {$output}");
+    }
+
+    public function runDueCronTasksNow(CronService $cronService): RedirectResponse
+    {
+        $results = $cronService->runDueTasks();
+        $ran = collect($results)->where('status', '!=', 'skipped')->count();
+        $failed = collect($results)->where('status', 'failed')->count();
+
+        if ($ran === 0) {
+            return back()->with('success', 'No due cron tasks to run right now.');
+        }
+        if ($failed > 0) {
+            return back()->with('error', "Ran {$ran} task(s), {$failed} failed. Check run history below.");
+        }
+
+        return back()->with('success', "Ran {$ran} due cron task(s) successfully.");
     }
 
     public function generateSitemap(Request $request, PublicSeoFilesService $seo): RedirectResponse

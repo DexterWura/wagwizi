@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Billing\PaynowCheckoutService;
 use App\Services\Billing\PesepayCheckoutService;
+use App\Services\Billing\PaypalCheckoutService;
+use App\Services\Billing\StripeCheckoutService;
 use App\Services\Billing\SubscriptionFulfillmentService;
 use App\Services\Subscription\SubscriptionAccessService;
 use Illuminate\Http\JsonResponse;
@@ -23,11 +25,13 @@ class PlanCheckoutController extends Controller
         Request $request,
         PaymentGatewayConfigService $cfg,
         PaynowCheckoutService $paynow,
-        PesepayCheckoutService $pesepay
+        PesepayCheckoutService $pesepay,
+        StripeCheckoutService $stripe,
+        PaypalCheckoutService $paypal
     ): JsonResponse {
         $validated = $request->validate([
             'plan_slug' => ['required', 'string', Rule::exists('plans', 'slug')->where('is_active', true)],
-            'gateway'   => 'nullable|string|in:paynow,pesepay',
+            'gateway'   => 'nullable|string|in:paynow,pesepay,stripe,paypal',
         ]);
 
         $available = $cfg->availableCheckoutGateways();
@@ -45,7 +49,7 @@ class PlanCheckoutController extends Controller
             if (! is_string($gateway) || ! in_array($gateway, $available, true)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Choose a payment method (Paynow or Pesepay).',
+                    'message' => 'Choose a valid payment method before checkout.',
                 ], 422);
             }
         }
@@ -69,22 +73,42 @@ class PlanCheckoutController extends Controller
         if ($gateway === 'paynow') {
             return $this->startPaynowBody($user, $plan, $paynow);
         }
+        if ($gateway === 'stripe') {
+            return $this->startStripeBody($user, $plan, $stripe);
+        }
+        if ($gateway === 'paypal') {
+            return $this->startPaypalBody($user, $plan, $paypal);
+        }
 
         return $this->startPesepayBody($user, $plan, $pesepay);
     }
 
-    public function startPaynow(Request $request, PaymentGatewayConfigService $cfg, PaynowCheckoutService $paynow, PesepayCheckoutService $pesepay): JsonResponse
+    public function startPaynow(Request $request, PaymentGatewayConfigService $cfg, PaynowCheckoutService $paynow, PesepayCheckoutService $pesepay, StripeCheckoutService $stripe, PaypalCheckoutService $paypal): JsonResponse
     {
         $request->merge(['gateway' => 'paynow']);
 
-        return $this->startCheckout($request, $cfg, $paynow, $pesepay);
+        return $this->startCheckout($request, $cfg, $paynow, $pesepay, $stripe, $paypal);
     }
 
-    public function startPesepay(Request $request, PaymentGatewayConfigService $cfg, PaynowCheckoutService $paynow, PesepayCheckoutService $pesepay): JsonResponse
+    public function startPesepay(Request $request, PaymentGatewayConfigService $cfg, PaynowCheckoutService $paynow, PesepayCheckoutService $pesepay, StripeCheckoutService $stripe, PaypalCheckoutService $paypal): JsonResponse
     {
         $request->merge(['gateway' => 'pesepay']);
 
-        return $this->startCheckout($request, $cfg, $paynow, $pesepay);
+        return $this->startCheckout($request, $cfg, $paynow, $pesepay, $stripe, $paypal);
+    }
+
+    public function startStripe(Request $request, PaymentGatewayConfigService $cfg, PaynowCheckoutService $paynow, PesepayCheckoutService $pesepay, StripeCheckoutService $stripe, PaypalCheckoutService $paypal): JsonResponse
+    {
+        $request->merge(['gateway' => 'stripe']);
+
+        return $this->startCheckout($request, $cfg, $paynow, $pesepay, $stripe, $paypal);
+    }
+
+    public function startPaypal(Request $request, PaymentGatewayConfigService $cfg, PaynowCheckoutService $paynow, PesepayCheckoutService $pesepay, StripeCheckoutService $stripe, PaypalCheckoutService $paypal): JsonResponse
+    {
+        $request->merge(['gateway' => 'paypal']);
+
+        return $this->startCheckout($request, $cfg, $paynow, $pesepay, $stripe, $paypal);
     }
 
     private function validatePlanForPaidCheckout(Plan $plan): ?JsonResponse
@@ -156,6 +180,58 @@ class PlanCheckoutController extends Controller
             'success'      => true,
             'redirect_url' => $payload['redirect_url'],
             'reference'    => $payload['reference'],
+        ]);
+    }
+
+    private function startStripeBody(User $user, Plan $plan, StripeCheckoutService $checkout): JsonResponse
+    {
+        try {
+            $successUrl = route('plans.stripe.return');
+            $cancelUrl = route('plans');
+            $payload = $checkout->startHostedCheckout($user, $plan, $successUrl, $cancelUrl);
+        } catch (\Throwable $e) {
+            Log::warning('Stripe checkout start failed', [
+                'user_id' => $user->id,
+                'plan_slug' => $plan->slug,
+                'exception' => $e,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not start Stripe checkout. Please try again or contact support.',
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'redirect_url' => $payload['redirect_url'],
+            'reference' => $payload['reference'],
+        ]);
+    }
+
+    private function startPaypalBody(User $user, Plan $plan, PaypalCheckoutService $checkout): JsonResponse
+    {
+        try {
+            $returnUrl = route('plans.paypal.return');
+            $cancelUrl = route('plans');
+            $payload = $checkout->startHostedCheckout($user, $plan, $returnUrl, $cancelUrl);
+        } catch (\Throwable $e) {
+            Log::warning('PayPal checkout start failed', [
+                'user_id' => $user->id,
+                'plan_slug' => $plan->slug,
+                'exception' => $e,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Could not start PayPal checkout. Please try again or contact support.',
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'redirect_url' => $payload['redirect_url'],
+            'reference' => $payload['reference'],
         ]);
     }
 
@@ -255,5 +331,110 @@ class PlanCheckoutController extends Controller
         }
 
         return redirect()->route('plans')->with('info', 'Payment is still processing. This page will update when Pesepay confirms.');
+    }
+
+    public function stripeReturn(Request $request, StripeCheckoutService $checkout): RedirectResponse
+    {
+        $user = Auth::user();
+        $ref = $request->query('reference');
+        $sessionId = $request->query('session_id');
+
+        if (! is_string($ref) || $ref === '') {
+            $latest = PaymentTransaction::query()
+                ->where('user_id', $user->id)
+                ->where('gateway', 'stripe')
+                ->where('status', 'pending')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($latest) {
+                $checkout->tryCompleteFromReturn($latest, is_string($sessionId) ? $sessionId : null);
+                $latest->refresh();
+                if ($latest->isCompleted()) {
+                    return redirect()->route('plans')->with('success', 'Payment received. Your plan is active.');
+                }
+            }
+
+            return redirect()->route('plans')->with('info', 'If you completed payment, your plan will update shortly. Refresh this page in a moment.');
+        }
+
+        $transaction = PaymentTransaction::query()
+            ->where('user_id', $user->id)
+            ->where('reference', $ref)
+            ->first();
+
+        if ($transaction === null) {
+            return redirect()->route('plans')->with('error', 'We could not find that payment.');
+        }
+
+        if ($transaction->isCompleted()) {
+            return redirect()->route('plans')->with('success', 'Your subscription is active.');
+        }
+
+        $checkout->tryCompleteFromReturn($transaction, is_string($sessionId) ? $sessionId : null);
+        $transaction->refresh();
+
+        if ($transaction->isCompleted()) {
+            return redirect()->route('plans')->with('success', 'Payment received. Your plan is active.');
+        }
+
+        return redirect()->route('plans')->with('info', 'Payment is still processing. This page will update when Stripe confirms.');
+    }
+
+    public function paypalReturn(Request $request, PaypalCheckoutService $checkout): RedirectResponse
+    {
+        $user = Auth::user();
+        $ref = $request->query('reference');
+        $paymentId = $request->query('paymentId');
+        $payerId = $request->query('PayerID');
+
+        if (! is_string($ref) || $ref === '') {
+            $latest = PaymentTransaction::query()
+                ->where('user_id', $user->id)
+                ->where('gateway', 'paypal')
+                ->where('status', 'pending')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($latest) {
+                $checkout->tryCompleteFromReturn(
+                    $latest,
+                    is_string($paymentId) ? $paymentId : null,
+                    is_string($payerId) ? $payerId : null
+                );
+                $latest->refresh();
+                if ($latest->isCompleted()) {
+                    return redirect()->route('plans')->with('success', 'Payment received. Your plan is active.');
+                }
+            }
+
+            return redirect()->route('plans')->with('info', 'If you completed payment, your plan will update shortly. Refresh this page in a moment.');
+        }
+
+        $transaction = PaymentTransaction::query()
+            ->where('user_id', $user->id)
+            ->where('reference', $ref)
+            ->first();
+
+        if ($transaction === null) {
+            return redirect()->route('plans')->with('error', 'We could not find that payment.');
+        }
+
+        if ($transaction->isCompleted()) {
+            return redirect()->route('plans')->with('success', 'Your subscription is active.');
+        }
+
+        $checkout->tryCompleteFromReturn(
+            $transaction,
+            is_string($paymentId) ? $paymentId : null,
+            is_string($payerId) ? $payerId : null
+        );
+        $transaction->refresh();
+
+        if ($transaction->isCompleted()) {
+            return redirect()->route('plans')->with('success', 'Payment received. Your plan is active.');
+        }
+
+        return redirect()->route('plans')->with('info', 'Payment is still processing. This page will update when PayPal confirms.');
     }
 }

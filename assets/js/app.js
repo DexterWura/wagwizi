@@ -2002,9 +2002,9 @@
           }
           gw = sel ? sel.value : null;
           if (!gw) {
-            if (status) status.textContent = "Select Paynow or Pesepay before choosing a plan.";
+            if (status) status.textContent = "Select a payment method before choosing a plan.";
             if (global.App && global.App.showFlash) {
-              global.App.showFlash("Select Paynow or Pesepay first.", "error");
+              global.App.showFlash("Select a payment method first.", "error");
             }
             return;
           }

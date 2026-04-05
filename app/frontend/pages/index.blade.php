@@ -449,14 +449,22 @@
                 <li>{{ $feature }}</li>
                 @endforeach
               </ul>
-              <a class="lp-btn {{ $isFeatured ? 'lp-btn--primary' : 'lp-btn--outline' }} lp-pricing-card__cta" href="{{ route('signup') }}">Choose {{ $plan->name }}</a>
+              @auth
+              <a class="lp-btn {{ $isFeatured ? 'lp-btn--primary' : 'lp-btn--outline' }} lp-pricing-card__cta" href="{{ route('plans') }}">Choose {{ $plan->name }}</a>
+              @else
+              <a class="lp-btn {{ $isFeatured ? 'lp-btn--primary' : 'lp-btn--outline' }} lp-pricing-card__cta" href="{{ route('signup', ['redirect' => '/plans']) }}">Choose {{ $plan->name }}</a>
+              @endauth
             </article>
             @empty
             <article class="lp-pricing-card lp-pricing-card--enterprise" data-lp-reveal>
               <h3 class="lp-pricing-card__name">No plans configured</h3>
               <p class="lp-pricing-card__price lp-pricing-card__price--static"><span class="lp-pricing-card__amount">Contact admin</span></p>
               <ul class="lp-pricing-card__list"><li>Ask an admin to create active plans from the dashboard.</li></ul>
-              <a class="lp-btn lp-btn--outline lp-pricing-card__cta" href="{{ route('signup') }}">Create account</a>
+              @auth
+              <a class="lp-btn lp-btn--outline lp-pricing-card__cta" href="{{ route('plans') }}">Create account</a>
+              @else
+              <a class="lp-btn lp-btn--outline lp-pricing-card__cta" href="{{ route('signup', ['redirect' => '/plans']) }}">Create account</a>
+              @endauth
             </article>
             @endforelse
           </div>
@@ -544,17 +552,17 @@
         <div>
           <h4>Product</h4>
           <ul>
-            <li><a href="{{ route('login') }}">Dashboard</a></li>
-            <li><a href="{{ route('login') }}">Create post</a></li>
-            <li><a href="{{ route('login') }}">Calendar</a></li>
-            <li><a href="{{ route('login') }}">Media library</a></li>
+            <li><a href="{{ route('login', ['redirect' => '/dashboard']) }}">Dashboard</a></li>
+            <li><a href="{{ route('login', ['redirect' => '/composer']) }}">Create post</a></li>
+            <li><a href="{{ route('login', ['redirect' => '/calendar']) }}">Calendar</a></li>
+            <li><a href="{{ route('login', ['redirect' => '/media-library']) }}">Media library</a></li>
           </ul>
         </div>
         <div>
           <h4>Resources</h4>
           <ul>
-            <li><a href="{{ route('login') }}">Connect accounts</a></li>
-            <li><a href="{{ route('login') }}">Insights</a></li>
+            <li><a href="{{ route('login', ['redirect' => '/accounts']) }}">Connect accounts</a></li>
+            <li><a href="{{ route('login', ['redirect' => '/insights']) }}">Insights</a></li>
             <li><a href="#pricing">Plans</a></li>
           </ul>
         </div>
@@ -562,7 +570,7 @@
           <h4>Company</h4>
           <ul>
             <li><a href="#pricing">Pricing</a></li>
-            <li><a href="{{ route('login') }}">Log in</a></li>
+            <li><a href="{{ route('login', ['redirect' => '/dashboard']) }}">Log in</a></li>
             <li><a href="#faq">FAQ</a></li>
           </ul>
         </div>
