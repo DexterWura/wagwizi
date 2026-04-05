@@ -8,7 +8,9 @@ use App\Services\Platform\Platform;
 use App\Services\Platform\PublishResult;
 use App\Services\Platform\TokenResult;
 use Carbon\Carbon;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class TwitterAdapter extends AbstractPlatformAdapter
 {
@@ -47,15 +49,35 @@ class TwitterAdapter extends AbstractPlatformAdapter
 
         $payload = ['text' => $text];
 
-        if (!empty($mediaUrls)) {
-            $mediaIds = $this->uploadMedia($account, $mediaUrls);
-            if (!empty($mediaIds)) {
-                $payload['media'] = ['media_ids' => $mediaIds];
+        try {
+            if (!empty($mediaUrls)) {
+                $mediaIds = $this->uploadMedia($account, $mediaUrls);
+                if (!empty($mediaIds)) {
+                    $payload['media'] = ['media_ids' => $mediaIds];
+                }
             }
-        }
 
-        $response = $this->httpClient($account)
-            ->post('/tweets', $payload);
+            $response = $this->httpClient($account)
+                ->post('/tweets', $payload);
+        } catch (RequestException $e) {
+            $response = $e->response;
+
+            if ($response !== null) {
+                return $this->failFromResponse($response);
+            }
+
+            Log::warning('Twitter publish request exception', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return PublishResult::fail('Twitter publish request failed: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::warning('Twitter publish unexpected exception', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return PublishResult::fail('Twitter publish failed: ' . $e->getMessage());
+        }
 
         if (!$response->successful()) {
             return $this->failFromResponse($response);
@@ -85,16 +107,37 @@ class TwitterAdapter extends AbstractPlatformAdapter
                 continue;
             }
 
-            $response = Http::baseUrl('https://upload.twitter.com/1.1')
-                ->withToken($account->access_token)
-                ->timeout(60)
-                ->asMultipart()
-                ->post('/media/upload.json', [
-                    ['name' => 'media_data', 'contents' => base64_encode($mediaContent)],
-                ]);
+            try {
+                $response = Http::baseUrl('https://upload.twitter.com/1.1')
+                    ->withToken($account->access_token)
+                    ->timeout(60)
+                    ->asMultipart()
+                    ->post('/media/upload.json', [
+                        ['name' => 'media_data', 'contents' => base64_encode($mediaContent)],
+                    ]);
 
-            if ($response->successful() && $response->json('media_id_string')) {
-                $mediaIds[] = $response->json('media_id_string');
+                if ($response->successful() && $response->json('media_id_string')) {
+                    $mediaIds[] = $response->json('media_id_string');
+                    continue;
+                }
+
+                if ($response->status() === 402) {
+                    Log::warning('Twitter media upload blocked by account credits', [
+                        'status' => $response->status(),
+                        'body'   => mb_substr($response->body(), 0, 500),
+                    ]);
+                }
+            } catch (RequestException $e) {
+                $resp = $e->response;
+                Log::warning('Twitter media upload request exception', [
+                    'status' => $resp?->status(),
+                    'error'  => $e->getMessage(),
+                    'body'   => $resp ? mb_substr($resp->body(), 0, 500) : null,
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('Twitter media upload unexpected exception', [
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 

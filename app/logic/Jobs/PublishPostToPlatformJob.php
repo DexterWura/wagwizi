@@ -203,6 +203,8 @@ class PublishPostToPlatformJob implements ShouldQueue
 
             if ($result->success) {
                 $this->markPublished($postPlatform, $post->id, $platform, $result);
+            } elseif ($this->isPermanentProviderFailure($result->errorCode, $result->errorMessage)) {
+                $this->markFailed($postPlatform, $result->errorMessage ?? 'Provider rejected this request permanently.');
             } elseif ($this->attempts() >= $this->tries()) {
                 $this->markFailed($postPlatform, $result->errorMessage ?? 'Unknown error');
             } else {
@@ -374,6 +376,36 @@ class PublishPostToPlatformJob implements ShouldQueue
         ];
 
         foreach ($authSignals as $signal) {
+            if (str_contains($msg, $signal)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isPermanentProviderFailure(?int $errorCode, ?string $errorMessage): bool
+    {
+        if ($errorCode === 402) {
+            return true;
+        }
+
+        $msg = strtolower((string) $errorMessage);
+        if ($msg === '') {
+            return false;
+        }
+
+        $signals = [
+            'creditsdepleted',
+            'credit',
+            'quota exceeded',
+            'insufficient balance',
+            'billing',
+            'payment required',
+            'upgrade your plan',
+        ];
+
+        foreach ($signals as $signal) {
             if (str_contains($msg, $signal)) {
                 return true;
             }
