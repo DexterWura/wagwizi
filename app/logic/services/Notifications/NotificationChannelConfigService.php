@@ -5,7 +5,6 @@ namespace App\Services\Notifications;
 use App\Models\NotificationChannelSetting;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\HtmlString;
 
 class NotificationChannelConfigService
 {
@@ -117,21 +116,8 @@ class NotificationChannelConfigService
         $settings = $this->getSettings();
 
         $mailer = Mail::mailer(self::DYNAMIC_MAILER);
-
-        if ($textPlain !== null && $textPlain !== '') {
-            $mailer->send([
-                'html' => new HtmlString($html),
-                'text' => $textPlain,
-            ], [], function ($message) use ($to, $subject, $settings) {
-                $message->to($to)->subject($subject);
-                if ($settings->reply_to) {
-                    $message->replyTo($settings->reply_to);
-                }
-            });
-
-            return;
-        }
-
+        // Rendered template content is raw HTML/text, not Blade view names.
+        // Always use html() so Laravel does not attempt to resolve $textPlain as a view path.
         $mailer->html($html, function ($message) use ($to, $subject, $settings) {
             $message->to($to)->subject($subject);
             if ($settings->reply_to) {

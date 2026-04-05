@@ -13,6 +13,13 @@
         <p>Use your {{ config('app.name') }} account email and password.</p>
       </div>
 
+      @if(session('success'))
+      <div class="alert alert--success" role="alert">
+        <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+        <span>{{ session('success') }}</span>
+      </div>
+      @endif
+
       @if($errors->any())
       <div class="alert alert--error" role="alert">
         <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
@@ -60,7 +67,7 @@
 
       <div class="login-page__meta-links" role="navigation" aria-label="Authentication links">
         <a href="{{ route('signup') }}">Create an account</a>
-        <a href="{{ route('landing') }}">Back to home</a>
+        <a href="{{ route('password.request') }}">Forgot password</a>
       </div>
     </div>
 @endsection

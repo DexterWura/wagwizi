@@ -3,10 +3,17 @@
 namespace App\Controllers\Auth;
 
 use App\Controllers\Controller;
+use App\Models\User;
 use App\Services\Auth\AuthService;
 use App\Services\Auth\SocialLoginAvailability;
+use App\Services\Notifications\NotificationChannelConfigService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AuthController extends Controller
@@ -48,6 +55,94 @@ class AuthController extends Controller
     public function showSignup(): View
     {
         return view('signup', $this->socialAuthViewData());
+    }
+
+    public function showForgotPassword(): View
+    {
+        return view('forgot-password');
+    }
+
+    public function sendPasswordResetLink(
+        Request $request,
+        NotificationChannelConfigService $mailConfig,
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'email' => 'required|email',
+        ]);
+
+        $user = User::query()->where('email', $validated['email'])->first();
+        if ($user !== null) {
+            try {
+                $token = Password::broker()->createToken($user);
+                $resetUrl = URL::temporarySignedRoute(
+                    'password.reset.form',
+                    now()->addMinutes(60),
+                    [
+                        'email' => $user->email,
+                        'token' => $token,
+                    ]
+                );
+
+                $html = view('emails.password-reset-link', [
+                    'user' => $user,
+                    'resetUrl' => $resetUrl,
+                ])->render();
+
+                $mailConfig->sendHtml(
+                    $user->email,
+                    config('app.name') . ' password reset',
+                    $html,
+                    "Use this link to reset your password: {$resetUrl}"
+                );
+            } catch (\Throwable $e) {
+                Log::error('Failed to send password reset link', [
+                    'email' => $validated['email'],
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return back()->with('success', 'If an account exists for that email, a reset link has been sent.');
+    }
+
+    public function showResetPassword(Request $request): View
+    {
+        return view('reset-password', [
+            'email' => (string) $request->query('email', ''),
+            'token' => (string) $request->query('token', ''),
+        ]);
+    }
+
+    public function resetPassword(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'email' => 'required|email',
+            'token' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $status = Password::broker()->reset(
+            [
+                'email' => $validated['email'],
+                'token' => $validated['token'],
+                'password' => $validated['password'],
+                'password_confirmation' => $validated['password_confirmation'],
+            ],
+            function (User $user, string $password): void {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                    'remember_token' => Str::random(60),
+                ])->save();
+            }
+        );
+
+        if ($status === Password::PASSWORD_RESET) {
+            return redirect()->route('login')->with('success', 'Password reset successful. You can now sign in.');
+        }
+
+        return back()
+            ->withErrors(['email' => __($status)])
+            ->withInput($request->only('email'));
     }
 
     /**
