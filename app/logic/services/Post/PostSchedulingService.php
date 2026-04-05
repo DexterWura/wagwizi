@@ -40,7 +40,12 @@ class PostSchedulingService
                 );
             }
 
-            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null, $data['media_path'] ?? null);
+            $this->syncPostMedia(
+                $post,
+                $userId,
+                $data['media_file_ids'] ?? ($data['media_file_id'] ?? null),
+                $data['media_paths'] ?? ($data['media_path'] ?? null),
+            );
 
             return $post;
         });
@@ -97,8 +102,18 @@ class PostSchedulingService
             }
         }
 
-        if (array_key_exists('media_file_id', $data) || array_key_exists('media_path', $data)) {
-            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null, $data['media_path'] ?? null);
+        if (
+            array_key_exists('media_file_id', $data)
+            || array_key_exists('media_file_ids', $data)
+            || array_key_exists('media_path', $data)
+            || array_key_exists('media_paths', $data)
+        ) {
+            $this->syncPostMedia(
+                $post,
+                $userId,
+                $data['media_file_ids'] ?? ($data['media_file_id'] ?? null),
+                $data['media_paths'] ?? ($data['media_path'] ?? null),
+            );
         }
 
         return $post->fresh();
@@ -133,7 +148,12 @@ class PostSchedulingService
                 $this->resolveCommentDelayMinutes($data),
             );
 
-            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null, $data['media_path'] ?? null);
+            $this->syncPostMedia(
+                $post,
+                $userId,
+                $data['media_file_ids'] ?? ($data['media_file_id'] ?? null),
+                $data['media_paths'] ?? ($data['media_path'] ?? null),
+            );
 
             Log::info('Post scheduled', [
                 'user_id'      => $userId,
@@ -173,7 +193,12 @@ class PostSchedulingService
                 $this->resolveCommentDelayMinutes($data),
             );
 
-            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null, $data['media_path'] ?? null);
+            $this->syncPostMedia(
+                $post,
+                $userId,
+                $data['media_file_ids'] ?? ($data['media_file_id'] ?? null),
+                $data['media_paths'] ?? ($data['media_path'] ?? null),
+            );
 
             Log::info('Post queued for immediate publish', [
                 'user_id'   => $userId,
@@ -264,7 +289,12 @@ class PostSchedulingService
                 $this->resolveCommentDelayMinutes($data),
             );
 
-            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null, $data['media_path'] ?? null);
+            $this->syncPostMedia(
+                $post,
+                $userId,
+                $data['media_file_ids'] ?? ($data['media_file_id'] ?? null),
+                $data['media_paths'] ?? ($data['media_path'] ?? null),
+            );
 
             return $post->fresh()->load('postPlatforms');
         });
@@ -413,34 +443,83 @@ class PostSchedulingService
         }
     }
 
-    private function syncPostMedia(Post $post, int $userId, mixed $mediaFileId, mixed $mediaPath = null): void
+    private function syncPostMedia(Post $post, int $userId, mixed $mediaFileIds, mixed $mediaPaths = null): void
     {
-        $media = null;
-
-        if ($mediaFileId !== null && $mediaFileId !== '') {
-            $id = (int) $mediaFileId;
-            if ($id <= 0) {
-                throw new InvalidArgumentException('Invalid media selection.');
+        $ids = [];
+        if (is_array($mediaFileIds)) {
+            foreach ($mediaFileIds as $rawId) {
+                $id = (int) $rawId;
+                if ($id > 0) {
+                    $ids[] = $id;
+                }
             }
-
-            $media = MediaFile::where('id', $id)
-                ->where('user_id', $userId)
-                ->first();
+        } elseif ($mediaFileIds !== null && $mediaFileIds !== '') {
+            $id = (int) $mediaFileIds;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
         }
+        $ids = array_values(array_unique($ids));
 
-        if ($media === null && is_string($mediaPath) && trim($mediaPath) !== '') {
-            $media = MediaFile::where('user_id', $userId)
-                ->where('path', trim($mediaPath))
-                ->first();
+        $paths = [];
+        if (is_array($mediaPaths)) {
+            foreach ($mediaPaths as $rawPath) {
+                if (is_string($rawPath) && trim($rawPath) !== '') {
+                    $paths[] = trim($rawPath);
+                }
+            }
+        } elseif (is_string($mediaPaths) && trim($mediaPaths) !== '') {
+            $paths[] = trim($mediaPaths);
         }
+        $paths = array_values(array_unique($paths));
 
-        if ($media === null) {
+        if ($ids === [] && $paths === []) {
             $post->mediaFiles()->sync([]);
             return;
         }
 
-        $post->mediaFiles()->sync([
-            $media->id => ['sort_order' => 0],
-        ]);
+        $selected = [];
+        if ($ids !== []) {
+            $byId = MediaFile::where('user_id', $userId)
+                ->whereIn('id', $ids)
+                ->get()
+                ->keyBy('id');
+
+            foreach ($ids as $id) {
+                if (isset($byId[$id])) {
+                    $selected[$id] = $byId[$id];
+                }
+            }
+        }
+
+        if ($paths !== []) {
+            $byPath = MediaFile::where('user_id', $userId)
+                ->whereIn('path', $paths)
+                ->get()
+                ->keyBy('path');
+
+            foreach ($paths as $path) {
+                if (!isset($byPath[$path])) {
+                    continue;
+                }
+                $media = $byPath[$path];
+                if (!isset($selected[$media->id])) {
+                    $selected[$media->id] = $media;
+                }
+            }
+        }
+
+        if ($selected === []) {
+            $post->mediaFiles()->sync([]);
+            return;
+        }
+
+        $payload = [];
+        $order = 0;
+        foreach ($selected as $media) {
+            $payload[$media->id] = ['sort_order' => $order++];
+        }
+
+        $post->mediaFiles()->sync($payload);
     }
 }

@@ -23,6 +23,7 @@ class PostController extends Controller
             $user = Auth::user();
             $query = $user->posts()->with([
                 'postPlatforms:id,post_id,platform',
+                'mediaFiles:id,path,type,original_name',
             ]);
 
             if ($request->filled('q')) {
@@ -88,7 +89,11 @@ class PostController extends Controller
             'platform_content'    => 'nullable|array',
             'platform_content.*'  => 'nullable|string|max:40000',
             'media_file_id'       => 'nullable|integer|exists:media_files,id',
+            'media_file_ids'      => 'nullable|array',
+            'media_file_ids.*'    => 'integer|exists:media_files,id',
             'media_path'          => 'nullable|string|max:2048',
+            'media_paths'         => 'nullable|array',
+            'media_paths.*'       => 'string|max:2048',
             'first_comment'       => 'nullable|string|max:40000',
             'comment_delay_value' => 'nullable|integer|min:1|max:10080',
             'comment_delay_unit'  => 'nullable|in:minutes,hours',
@@ -109,7 +114,11 @@ class PostController extends Controller
             'platform_content'    => 'nullable|array',
             'platform_content.*'  => 'nullable|string|max:40000',
             'media_file_id'       => 'nullable|integer|exists:media_files,id',
+            'media_file_ids'      => 'nullable|array',
+            'media_file_ids.*'    => 'integer|exists:media_files,id',
             'media_path'          => 'nullable|string|max:2048',
+            'media_paths'         => 'nullable|array',
+            'media_paths.*'       => 'string|max:2048',
             'first_comment'       => 'nullable|string|max:40000',
             'comment_delay_value' => 'nullable|integer|min:1|max:10080',
             'comment_delay_unit'  => 'nullable|in:minutes,hours',
@@ -143,7 +152,11 @@ class PostController extends Controller
             'platform_content'    => 'nullable|array',
             'platform_content.*'  => 'nullable|string|max:40000',
             'media_file_id'       => 'nullable|integer|exists:media_files,id',
+            'media_file_ids'      => 'nullable|array',
+            'media_file_ids.*'    => 'integer|exists:media_files,id',
             'media_path'          => 'nullable|string|max:2048',
+            'media_paths'         => 'nullable|array',
+            'media_paths.*'       => 'string|max:2048',
             'first_comment'       => 'nullable|string|max:40000',
             'comment_delay_value' => 'nullable|integer|min:1|max:10080',
             'comment_delay_unit'  => 'nullable|in:minutes,hours',
@@ -166,7 +179,11 @@ class PostController extends Controller
             'platform_content'    => 'nullable|array',
             'platform_content.*'  => 'nullable|string|max:40000',
             'media_file_id'       => 'nullable|integer|exists:media_files,id',
+            'media_file_ids'      => 'nullable|array',
+            'media_file_ids.*'    => 'integer|exists:media_files,id',
             'media_path'          => 'nullable|string|max:2048',
+            'media_paths'         => 'nullable|array',
+            'media_paths.*'       => 'string|max:2048',
             'first_comment'       => 'nullable|string|max:40000',
             'comment_delay_value' => 'nullable|integer|min:1|max:10080',
             'comment_delay_unit'  => 'nullable|in:minutes,hours',
@@ -204,6 +221,46 @@ class PostController extends Controller
             return response()->json([
                 'message' => "{$dispatched} platform publish job(s) dispatched.",
                 'post'    => $post->fresh(),
+            ]);
+        });
+    }
+
+    public function publishSummary(int $id): JsonResponse
+    {
+        return $this->tryServiceCall(function () use ($id) {
+            $post = \App\Models\Post::where('user_id', Auth::id())
+                ->with('postPlatforms:id,post_id,platform,status,error_message')
+                ->findOrFail($id);
+
+            $rows = $post->postPlatforms;
+            $total = $rows->count();
+            $published = $rows->where('status', 'published')->count();
+            $failed = $rows->where('status', 'failed')->count();
+            $pending = $rows->filter(fn ($pp) => in_array($pp->status, ['pending', 'publishing'], true))->count();
+            $done = $pending === 0;
+
+            $failures = $rows
+                ->where('status', 'failed')
+                ->map(fn ($pp) => [
+                    'platform' => $pp->platform,
+                    'error'    => $pp->error_message,
+                ])
+                ->values()
+                ->all();
+
+            return response()->json([
+                'success' => true,
+                'summary' => [
+                    'post_id'            => $post->id,
+                    'post_status'        => $post->status,
+                    'done'               => $done,
+                    'all_successful'     => $done && $failed === 0 && $published === $total && $total > 0,
+                    'total_platforms'    => $total,
+                    'published_count'    => $published,
+                    'failed_count'       => $failed,
+                    'pending_count'      => $pending,
+                    'failures'           => $failures,
+                ],
             ]);
         });
     }

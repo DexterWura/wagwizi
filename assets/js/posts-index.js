@@ -38,6 +38,36 @@
     });
   }
 
+  function mediaUrl(path) {
+    if (!path) return "";
+    var p = String(path).replace(/^\//, "");
+    return "/" + p;
+  }
+
+  function mediaPreviewHtml(post) {
+    var media = Array.isArray(post.media_files) ? post.media_files : [];
+    if (!media.length) return "";
+    var m = media[0];
+    var type = String((m && m.type) || "image").toLowerCase();
+    var alt = esc((m && m.original_name) || "Post media");
+
+    if (type === "video") {
+      return (
+        '<div class="posts-index-item__thumb posts-index-item__thumb--video" aria-hidden="true">' +
+        '<i class="fa-solid fa-play"></i>' +
+        "</div>"
+      );
+    }
+
+    var src = esc(mediaUrl(m && m.path));
+    if (!src) return "";
+    return (
+      '<div class="posts-index-item__thumb-wrap">' +
+      '<img class="posts-index-item__thumb" src="' + src + '" alt="' + alt + '" loading="lazy" />' +
+      "</div>"
+    );
+  }
+
   function composerUrlForPost(post) {
     return "/composer?draft=" + encodeURIComponent(String(post.id));
   }
@@ -84,6 +114,7 @@
       }
 
       li.innerHTML =
+        mediaPreviewHtml(post) +
         '<div class="posts-index-item__main">' +
         '<span class="posts-index-badge ' +
         statusClass(post.status) +

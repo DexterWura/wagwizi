@@ -245,12 +245,13 @@
                     <button type="button" class="composer-upload-zone" data-app-composer-upload aria-label="Upload or add media">
                       <i class="fa-solid fa-plus" aria-hidden="true"></i>
                     </button>
-                    <input type="file" id="composer-media-input" accept="image/*,video/*" hidden />
+                    <input type="file" id="composer-media-input" accept="image/*,video/*" multiple hidden />
                   </div>
                 </div>
                 <p class="field__hint composer-media-hint">
                   <a href="{{ route('media-library') }}"><i class="fa-solid fa-photo-film" aria-hidden="true"></i> Media library — uploads &amp; admin premium assets</a>
                 </p>
+                <p class="field__hint" data-app-composer-media-selected>No media selected.</p>
 
                 <div class="field">
                   <label class="field__label" for="composer-audience">Who can see this</label>
@@ -420,7 +421,7 @@
         </div>
         <div class="app-modal__foot">
           <a class="btn btn--composer-schedule" href="{{ route('calendar') }}" data-feedback-calendar-link hidden>Open calendar</a>
-          <button type="button" class="btn btn--primary" data-app-modal-close>Got it</button>
+          <button type="button" class="btn btn--primary" data-feedback-got-it>Got it</button>
         </div>
       </div>
     </div>

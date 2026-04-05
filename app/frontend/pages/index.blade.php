@@ -63,8 +63,7 @@
             @auth
             <a class="lp-btn lp-btn--primary lp-btn--lg" href="{{ route('composer') }}">Create a post</a>
             @else
-            <a class="lp-btn lp-btn--primary lp-btn--lg" href="{{ route('signup') }}">Get started</a>
-            <a class="lp-btn lp-btn--ghost lp-btn--lg" href="{{ route('login') }}">Sign in</a>
+            <a class="lp-btn lp-btn--primary lp-btn--lg" href="{{ route('signup') }}">Start free trial</a>
             @endauth
           </div>
 

@@ -39,18 +39,62 @@
     return contentMap;
   }
 
-  function selectedMediaId() {
-    var media = global.__composerSelectedMedia || null;
-    if (!media || media.id == null) return null;
-    var id = parseInt(String(media.id), 10);
-    return isNaN(id) ? null : id;
+  function getSelectedMediaList() {
+    var list = global.__composerSelectedMediaList;
+    return Array.isArray(list) ? list : [];
   }
 
-  function selectedMediaPath() {
-    var media = global.__composerSelectedMedia || null;
-    if (!media || media.path == null) return null;
-    var p = String(media.path || "").trim();
-    return p ? p : null;
+  function setSelectedMediaList(list) {
+    var next = Array.isArray(list) ? list : [];
+    global.__composerSelectedMediaList = next;
+    global.__composerSelectedMedia = next.length ? next[next.length - 1] : null;
+    updateSelectedMediaHint();
+  }
+
+  function addSelectedMedia(item) {
+    if (!item || item.id == null) return;
+    var id = parseInt(String(item.id), 10);
+    if (isNaN(id) || id <= 0) return;
+
+    var next = getSelectedMediaList().slice();
+    var replaced = false;
+    for (var i = 0; i < next.length; i += 1) {
+      if (parseInt(String(next[i].id), 10) === id) {
+        next[i] = item;
+        replaced = true;
+        break;
+      }
+    }
+    if (!replaced) next.push(item);
+    setSelectedMediaList(next);
+  }
+
+  function selectedMediaIds() {
+    return getSelectedMediaList()
+      .map(function (m) {
+        var id = parseInt(String(m && m.id != null ? m.id : ""), 10);
+        return isNaN(id) ? null : id;
+      })
+      .filter(function (id) { return id != null && id > 0; });
+  }
+
+  function selectedMediaPaths() {
+    return getSelectedMediaList()
+      .map(function (m) {
+        return m && m.path != null ? String(m.path).trim() : "";
+      })
+      .filter(function (p) { return !!p; });
+  }
+
+  function updateSelectedMediaHint() {
+    var el = document.querySelector("[data-app-composer-media-selected]");
+    if (!el) return;
+    var count = getSelectedMediaList().length;
+    if (count <= 0) {
+      el.textContent = "No media selected.";
+      return;
+    }
+    el.textContent = count + " media file" + (count === 1 ? "" : "s") + " selected.";
   }
 
   function parseApiError(res, fallback) {
@@ -1260,15 +1304,15 @@
           resetModalSteps();
           var sz = item.size_bytes;
           if (sz != null && typeof sz === "string") sz = parseInt(sz, 10);
-          global.__composerSelectedMedia = {
+          addSelectedMedia({
             id: item.id,
             path: item.path,
             type: item.type,
             original_name: item.original_name,
             size_bytes: sz != null && !isNaN(sz) ? sz : null
-          };
+          });
           syncComposerPreviewMedia();
-          global.App.showFlash("Selected from library: " + (item.original_name || "Media"));
+          global.App.showFlash("Selected from library: " + (item.original_name || "Media") + ". You can add more.");
         });
         gridEl.appendChild(btn);
       });
@@ -1369,36 +1413,50 @@
     }
 
     fileInput.addEventListener("change", function () {
-      if (!fileInput.files || !fileInput.files[0]) return;
-      var fd = new FormData();
-      fd.append("file", fileInput.files[0]);
-      if (global.App.apiUpload) {
-        uploadBtn.classList.add("is-loading");
-        global.App.apiUpload("/media", fd).then(function (res) {
-          uploadBtn.classList.remove("is-loading");
-          if (res._ok) {
+      if (!fileInput.files || !fileInput.files.length) return;
+      if (!global.App.apiUpload) return;
+
+      var files = Array.prototype.slice.call(fileInput.files);
+      uploadBtn.classList.add("is-loading");
+
+      var queue = Promise.resolve();
+      var successCount = 0;
+
+      files.forEach(function (file) {
+        queue = queue.then(function () {
+          var fd = new FormData();
+          fd.append("file", file);
+          return global.App.apiUpload("/media", fd).then(function (res) {
+            if (!res._ok) {
+              return;
+            }
             composerBumpMediaCountsAfterUpload(res);
             if (res.media && res.media.path) {
               var ub = res.media.size_bytes;
               if (ub != null && typeof ub === "string") ub = parseInt(ub, 10);
-              global.__composerSelectedMedia = {
+              addSelectedMedia({
                 id: res.media.id,
                 path: res.media.path,
                 type: res.media.type || "image",
                 original_name: res.media.original_name,
                 size_bytes: ub != null && !isNaN(ub) ? ub : null
-              };
-              syncComposerPreviewMedia();
+              });
+              successCount += 1;
             }
-            global.App.showFlash("Media uploaded.");
-          } else {
-            global.App.showFlash(res.message || "Upload failed.", "error");
-          }
-        }).catch(function () {
-          uploadBtn.classList.remove("is-loading");
-          global.App.showFlash("Upload failed.", "error");
+          }).catch(function () {});
         });
-      }
+      });
+
+      queue.then(function () {
+        uploadBtn.classList.remove("is-loading");
+        syncComposerPreviewMedia();
+        if (successCount > 0) {
+          global.App.showFlash(successCount + " media file" + (successCount === 1 ? "" : "s") + " uploaded and selected.");
+        } else {
+          global.App.showFlash("Upload failed.", "error");
+        }
+      });
+
       fileInput.value = "";
     });
   }
@@ -1410,6 +1468,7 @@
     var descEl = modal.querySelector("[data-feedback-desc]");
     var iconEl = modal.querySelector("[data-feedback-icon]");
     var calLink = modal.querySelector("[data-feedback-calendar-link]");
+    var gotItBtn = modal.querySelector("[data-feedback-got-it]");
     var actionButtons = document.querySelectorAll("[data-app-composer-action]");
 
     function setActionBusy(activeBtn, busy, label) {
@@ -1459,6 +1518,10 @@
         }
 
         if (action === "draft") {
+          if (modal) {
+            modal.removeAttribute("data-feedback-publish-post-id");
+            modal.removeAttribute("data-feedback-kind");
+          }
           setActionBusy(btn, true, "Saving draft…");
           if (scheduleWrap) scheduleWrap.hidden = true;
           var draftPayload = {
@@ -1466,10 +1529,10 @@
             platform_accounts: accounts,
             platform_content: platformContent
           };
-          var draftMediaId = selectedMediaId();
-          var draftMediaPath = selectedMediaPath();
-          if (draftMediaId != null) draftPayload.media_file_id = draftMediaId;
-          if (draftMediaPath != null) draftPayload.media_path = draftMediaPath;
+          var draftMediaIds = selectedMediaIds();
+          var draftMediaPaths = selectedMediaPaths();
+          if (draftMediaIds.length) draftPayload.media_file_ids = draftMediaIds;
+          if (draftMediaPaths.length) draftPayload.media_paths = draftMediaPaths;
           Object.assign(draftPayload, commentPayload);
           var editingDraftId = global.__composerEditingPostId;
           var draftReq =
@@ -1514,16 +1577,24 @@
             platform_accounts: accounts,
             platform_content: platformContent
           };
-          var publishMediaId = selectedMediaId();
-          var publishMediaPath = selectedMediaPath();
-          if (publishMediaId != null) publishPayload.media_file_id = publishMediaId;
-          if (publishMediaPath != null) publishPayload.media_path = publishMediaPath;
+          var publishMediaIds = selectedMediaIds();
+          var publishMediaPaths = selectedMediaPaths();
+          if (publishMediaIds.length) publishPayload.media_file_ids = publishMediaIds;
+          if (publishMediaPaths.length) publishPayload.media_paths = publishMediaPaths;
           Object.assign(publishPayload, commentPayload);
           var editingPubId = global.__composerEditingPostId;
 
           function finishPublish(pubRes) {
             setActionBusy(btn, false);
             if (pubRes._ok && typeof global.__composerMarkSaved === "function") global.__composerMarkSaved();
+            if (modal) {
+              modal.setAttribute("data-feedback-kind", "publish");
+              if (pubRes._ok && pubRes.post && pubRes.post.id != null) {
+                modal.setAttribute("data-feedback-publish-post-id", String(pubRes.post.id));
+              } else {
+                modal.removeAttribute("data-feedback-publish-post-id");
+              }
+            }
             if (titleEl) titleEl.textContent = pubRes._ok ? "Publishing" : "Publish failed";
             if (descEl) descEl.textContent = pubRes._ok
               ? (pubRes.message || "Your post is being published to all selected networks.")
@@ -1563,6 +1634,10 @@
         }
 
         if (action === "schedule") {
+          if (modal) {
+            modal.removeAttribute("data-feedback-publish-post-id");
+            modal.removeAttribute("data-feedback-kind");
+          }
           setActionBusy(btn, true, "Scheduling…");
           if (scheduleWrap && scheduleWrap.hidden) {
             setActionBusy(btn, false);
@@ -1597,10 +1672,10 @@
             platform_accounts: accounts,
             platform_content: platformContent
           };
-          var scheduleMediaId = selectedMediaId();
-          var scheduleMediaPath = selectedMediaPath();
-          if (scheduleMediaId != null) schedulePayload.media_file_id = scheduleMediaId;
-          if (scheduleMediaPath != null) schedulePayload.media_path = scheduleMediaPath;
+          var scheduleMediaIds = selectedMediaIds();
+          var scheduleMediaPaths = selectedMediaPaths();
+          if (scheduleMediaIds.length) schedulePayload.media_file_ids = scheduleMediaIds;
+          if (scheduleMediaPaths.length) schedulePayload.media_paths = scheduleMediaPaths;
           Object.assign(schedulePayload, commentPayload);
           if (scheduledAt) schedulePayload.scheduled_at = scheduledAt;
           if (useDelay) {
@@ -1635,6 +1710,106 @@
         }
       });
     });
+
+    if (gotItBtn && modal) {
+      gotItBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        var kind = modal.getAttribute("data-feedback-kind");
+        var publishPostId = modal.getAttribute("data-feedback-publish-post-id");
+        if (kind === "publish" && publishPostId) {
+          global.location.href = "/composer?publish_post=" + encodeURIComponent(publishPostId);
+          return;
+        }
+
+        if (global.App && typeof global.App.closeModal === "function") {
+          global.App.closeModal(modal);
+        }
+      });
+    }
+  }
+
+  function initComposerPublishFeedbackFromUrl() {
+    if (!global.App || typeof global.App.apiGet !== "function") return;
+    var params = new URLSearchParams(global.location.search || "");
+    var raw = params.get("publish_post");
+    if (!raw) return;
+    var postId = parseInt(raw, 10);
+    if (isNaN(postId) || postId <= 0) return;
+
+    function cleanupUrl() {
+      try {
+        var u = new URL(global.location.href);
+        u.searchParams.delete("publish_post");
+        global.history.replaceState({}, "", u.pathname + (u.search ? u.search : ""));
+      } catch (e) {}
+    }
+
+    function summaryMessage(summary) {
+      var total = summary.total_platforms || 0;
+      var ok = summary.published_count || 0;
+      var failed = summary.failed_count || 0;
+      if (failed <= 0) {
+        return "Post pushed to " + total + " platform" + (total === 1 ? "" : "s") + ". All successful.";
+      }
+      var failures = Array.isArray(summary.failures) ? summary.failures : [];
+      var details = failures.slice(0, 3).map(function (f) {
+        var p = f && f.platform ? String(f.platform) : "platform";
+        var err = f && f.error ? String(f.error) : "Unknown error";
+        return p + ": " + err;
+      }).join(" | ");
+      return (
+        "Post pushed to " + total + " platforms: " + ok + " successful, " + failed + " failed. " +
+        (details ? ("Failed -> " + details) : "")
+      );
+    }
+
+    var tries = 0;
+    var maxTries = 30;
+    var shownPending = false;
+
+    function poll() {
+      tries += 1;
+      global.App.apiGet("/api/v1/posts/" + postId + "/publish-summary").then(function (res) {
+        if (!res._ok || !res.summary) {
+          if (global.App.showFlash) global.App.showFlash("Could not read publish status for post #" + postId + ".", "error");
+          cleanupUrl();
+          return;
+        }
+
+        var summary = res.summary;
+        if (summary.done) {
+          if (global.App.showFlash) {
+            global.App.showFlash(summaryMessage(summary), summary.failed_count > 0 ? "error" : "success");
+          }
+          cleanupUrl();
+          return;
+        }
+
+        if (!shownPending) {
+          shownPending = true;
+          if (global.App.showFlash) {
+            global.App.showFlash("Post #" + postId + " is still publishing. We will update this status shortly.");
+          }
+        }
+
+        if (tries >= maxTries) {
+          cleanupUrl();
+          return;
+        }
+
+        global.setTimeout(poll, 2000);
+      }).catch(function () {
+        if (tries < maxTries) {
+          global.setTimeout(poll, 2000);
+        } else {
+          cleanupUrl();
+        }
+      });
+    }
+
+    poll();
   }
 
   function initCalendarDrag() {
@@ -1831,6 +2006,7 @@
       var dv = document.getElementById("composer-delay-value");
       var du = document.getElementById("composer-delay-unit");
       var media = global.__composerSelectedMedia || null;
+      var mediaList = getSelectedMediaList();
 
       return {
         master: (master.value || "").trim(),
@@ -1845,7 +2021,8 @@
         delayUnit: du ? (du.value || "") : "minutes",
         mediaId: media && media.id != null ? String(media.id) : "",
         mediaPath: media && media.path ? String(media.path) : "",
-        mediaType: media && media.type ? String(media.type) : ""
+        mediaType: media && media.type ? String(media.type) : "",
+        mediaListIds: mediaList.map(function (m) { return String(m.id); }).join(",")
       };
     }
 
@@ -1986,24 +2163,28 @@
 
       applyScheduledAtToComposer(post.scheduled_at);
 
-      var media = post.media_files && post.media_files[0];
-      if (media && media.path) {
-        var sz = media.size_bytes;
-        if (sz != null && typeof sz === "string") sz = parseInt(sz, 10);
-        global.__composerSelectedMedia = {
-          id: media.id,
-          path: media.path,
-          type: media.type === "video" ? "video" : "image",
-          original_name: media.original_name,
-          size_bytes: sz != null && !isNaN(sz) ? sz : null
-        };
+      var mediaFiles = Array.isArray(post.media_files) ? post.media_files : [];
+      if (mediaFiles.length) {
+        var mapped = mediaFiles.map(function (m) {
+          var sz = m.size_bytes;
+          if (sz != null && typeof sz === "string") sz = parseInt(sz, 10);
+          return {
+            id: m.id,
+            path: m.path,
+            type: m.type === "video" ? "video" : "image",
+            original_name: m.original_name,
+            size_bytes: sz != null && !isNaN(sz) ? sz : null
+          };
+        });
+        setSelectedMediaList(mapped);
+        var media = mapped[mapped.length - 1];
         var mt = document.getElementById("composer-media-type");
         if (mt) {
           mt.value = media.type === "video" ? "video" : "image";
           mt.dispatchEvent(new Event("change", { bubbles: true }));
         }
       } else {
-        global.__composerSelectedMedia = null;
+        setSelectedMediaList([]);
         var mtClear = document.getElementById("composer-media-type");
         if (mtClear) {
           mtClear.value = "image";
@@ -2027,7 +2208,9 @@
     initComposerOptionalSections();
     initComposerAudienceSlots();
     initComposerActions();
+    initComposerPublishFeedbackFromUrl();
     initComposerUpload();
+    updateSelectedMediaHint();
     initComposerDraftFromUrl();
     initComposerUnsavedChangesGuard();
     initMediaLibraryFilter();

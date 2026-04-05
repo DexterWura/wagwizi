@@ -51,14 +51,15 @@
           <label class="field__label" for="login-password">Password</label>
           <input class="input" id="login-password" type="password" name="password" autocomplete="current-password" placeholder="••••••••" required />
         </div>
-        <button type="submit" class="btn btn--primary login-page__submit">
-          Sign in
-        </button>
+        <div class="login-page__actions">
+          <button type="submit" class="btn btn--primary login-page__submit">
+            Sign in
+          </button>
+          <a class="btn btn--outline login-page__register-btn" href="{{ route('signup') }}">
+            Create account
+          </a>
+        </div>
       </form>
-
-      <p class="login-page__alt">
-        Don't have an account? <a href="{{ route('signup') }}">Create one</a>
-      </p>
     </div>
     <p class="login-page__back">
       <a href="{{ route('landing') }}"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Back to home</a>

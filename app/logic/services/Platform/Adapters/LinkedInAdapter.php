@@ -9,6 +9,7 @@ use App\Services\Platform\PublishResult;
 use App\Services\Platform\TokenResult;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class LinkedInAdapter extends AbstractPlatformAdapter
 {
@@ -115,6 +116,10 @@ class LinkedInAdapter extends AbstractPlatformAdapter
             ]);
 
         if (!$initResponse->successful()) {
+            Log::warning('LinkedIn initializeUpload failed', [
+                'status' => $initResponse->status(),
+                'body'   => mb_substr($initResponse->body(), 0, 500),
+            ]);
             return null;
         }
 
@@ -123,12 +128,22 @@ class LinkedInAdapter extends AbstractPlatformAdapter
 
         $imageContent = $this->downloadSafeMedia($imageUrl);
         if ($imageContent === null) {
+            Log::warning('LinkedIn media download blocked/failed', [
+                'image_url' => $imageUrl,
+            ]);
             return null;
         }
 
         $uploadResponse = Http::withToken($account->access_token)
             ->withBody($imageContent, 'application/octet-stream')
             ->put($uploadUrl);
+
+        if (!$uploadResponse->successful()) {
+            Log::warning('LinkedIn image upload failed', [
+                'status' => $uploadResponse->status(),
+                'body'   => mb_substr($uploadResponse->body(), 0, 500),
+            ]);
+        }
 
         return $uploadResponse->successful() ? $imageUrn : null;
     }
