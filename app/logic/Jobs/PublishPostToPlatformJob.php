@@ -290,7 +290,7 @@ class PublishPostToPlatformJob implements ShouldQueue
     private function canFallbackToTextOnly(Platform $platform, ?string $errorMessage): bool
     {
         // Platforms where text-only fallback is not valid for our publish flow.
-        if (in_array($platform, [Platform::Instagram, Platform::TikTok], true)) {
+        if (in_array($platform, [Platform::Instagram, Platform::TikTok, Platform::LinkedIn], true)) {
             return false;
         }
 

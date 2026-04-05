@@ -46,9 +46,11 @@ class LinkedInAdapter extends AbstractPlatformAdapter
             }
         }
 
+        $payload = $this->buildRestPostPayload($authorId, $text, $mediaUrls, $account);
+
         $response = $this->httpClient($account)
             ->withHeaders($this->linkedInHeaders())
-            ->post('/rest/posts', $this->buildRestPostPayload($authorId, $text, $mediaUrls, $account));
+            ->post('/rest/posts', $payload);
 
         if ($response->status() === 201) {
             $postUrn = $response->header('x-restli-id') ?? $response->header('X-LinkedIn-Id') ?? '';
@@ -86,13 +88,17 @@ class LinkedInAdapter extends AbstractPlatformAdapter
                 }
             }
 
-            if (!empty($imageAssets)) {
-                $payload['content'] = [
-                    'multiImage' => [
-                        'images' => $imageAssets,
-                    ],
-                ];
+            if (count($imageAssets) !== count($mediaUrls)) {
+                throw new \RuntimeException(
+                    'LinkedIn media upload failed for one or more images. The post was not published as text-only.'
+                );
             }
+
+            $payload['content'] = [
+                'multiImage' => [
+                    'images' => $imageAssets,
+                ],
+            ];
         }
 
         return $payload;
