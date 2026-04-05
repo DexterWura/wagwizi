@@ -46,7 +46,7 @@ return [
         'client_id'     => env('LINKEDIN_CLIENT_ID'),
         'client_secret' => env('LINKEDIN_CLIENT_SECRET'),
         'redirect_uri'  => env('LINKEDIN_REDIRECT_URI'),
-        'scopes'        => ['openid', 'profile', 'w_member_social', 'r_member_profileAnalytics'],
+        'scopes'        => ['openid', 'profile', 'w_member_social'],
         'max_content_length' => 3000,
         'supports_images'    => true,
         'supports_video'     => true,
