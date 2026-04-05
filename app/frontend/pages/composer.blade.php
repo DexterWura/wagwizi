@@ -242,8 +242,10 @@
                   </div>
                   <div class="field field--half composer-upload-field">
                     <span class="field__label">Add media</span>
-                    <button type="button" class="composer-upload-zone" data-app-composer-upload aria-label="Upload or add media">
+                    <button type="button" class="composer-upload-zone" data-app-composer-upload aria-label="Upload or add media files">
                       <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                      <span class="composer-upload-zone__text">Add media</span>
+                      <span class="composer-upload-zone__meta">Supports multiple files</span>
                     </button>
                     <input type="file" id="composer-media-input" accept="image/*,video/*" multiple hidden />
                   </div>
@@ -252,6 +254,13 @@
                   <a href="{{ route('media-library') }}"><i class="fa-solid fa-photo-film" aria-hidden="true"></i> Media library — uploads &amp; admin premium assets</a>
                 </p>
                 <p class="field__hint" data-app-composer-media-selected>No media selected.</p>
+                <div class="composer-selected-media" data-app-composer-media-list-wrap hidden>
+                  <div class="composer-selected-media__head">
+                    <span class="composer-selected-media__title">Selected media</span>
+                    <button type="button" class="btn btn--ghost btn--sm composer-selected-media__clear" data-app-composer-clear-media hidden>Clear all</button>
+                  </div>
+                  <div class="composer-selected-media__grid" data-app-composer-media-list></div>
+                </div>
 
                 <div class="field">
                   <label class="field__label" for="composer-audience">Who can see this</label>

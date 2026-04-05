@@ -49,6 +49,7 @@
     global.__composerSelectedMediaList = next;
     global.__composerSelectedMedia = next.length ? next[next.length - 1] : null;
     updateSelectedMediaHint();
+    renderSelectedMediaList();
   }
 
   function addSelectedMedia(item) {
@@ -86,6 +87,38 @@
       .filter(function (p) { return !!p; });
   }
 
+  function removeSelectedMediaById(id) {
+    var targetId = parseInt(String(id || ""), 10);
+    if (isNaN(targetId) || targetId <= 0) return;
+    var next = getSelectedMediaList().filter(function (m) {
+      var mediaId = parseInt(String(m && m.id != null ? m.id : ""), 10);
+      return mediaId !== targetId;
+    });
+    setSelectedMediaList(next);
+    syncComposerPreviewMedia();
+  }
+
+  function focusSelectedMediaById(id) {
+    var targetId = parseInt(String(id || ""), 10);
+    if (isNaN(targetId) || targetId <= 0) return;
+    var list = getSelectedMediaList().slice();
+    var found = null;
+    var foundIndex = -1;
+    for (var i = 0; i < list.length; i += 1) {
+      var mediaId = parseInt(String(list[i] && list[i].id != null ? list[i].id : ""), 10);
+      if (mediaId === targetId) {
+        found = list[i];
+        foundIndex = i;
+        break;
+      }
+    }
+    if (!found || foundIndex < 0 || foundIndex === list.length - 1) return;
+    list.splice(foundIndex, 1);
+    list.push(found);
+    setSelectedMediaList(list);
+    syncComposerPreviewMedia();
+  }
+
   function updateSelectedMediaHint() {
     var el = document.querySelector("[data-app-composer-media-selected]");
     if (!el) return;
@@ -94,7 +127,90 @@
       el.textContent = "No media selected.";
       return;
     }
-    el.textContent = count + " media file" + (count === 1 ? "" : "s") + " selected.";
+    if (count === 1) {
+      el.textContent = "1 media file selected.";
+      return;
+    }
+    el.textContent = count + " media files selected. Click a thumbnail below to preview or remove.";
+  }
+
+  function renderSelectedMediaList() {
+    var wrap = document.querySelector("[data-app-composer-media-list-wrap]");
+    var listEl = document.querySelector("[data-app-composer-media-list]");
+    var clearBtn = document.querySelector("[data-app-composer-clear-media]");
+    if (!wrap || !listEl) return;
+
+    var list = getSelectedMediaList();
+    listEl.innerHTML = "";
+
+    if (!list.length) {
+      wrap.hidden = true;
+      wrap.setAttribute("hidden", "");
+      if (clearBtn) clearBtn.hidden = true;
+      return;
+    }
+
+    wrap.hidden = false;
+    wrap.removeAttribute("hidden");
+    if (clearBtn) clearBtn.hidden = list.length < 2;
+
+    var active = global.__composerSelectedMedia || null;
+    var activeId = parseInt(String(active && active.id != null ? active.id : ""), 10);
+
+    list.forEach(function (item) {
+      var mediaId = parseInt(String(item && item.id != null ? item.id : ""), 10);
+      if (isNaN(mediaId) || mediaId <= 0) return;
+
+      var card = document.createElement("button");
+      card.type = "button";
+      card.className = "composer-selected-media__item";
+      if (!isNaN(activeId) && mediaId === activeId) {
+        card.classList.add("is-active");
+      }
+      card.setAttribute("data-media-id", String(mediaId));
+      card.setAttribute("title", "Click to preview this media");
+      card.addEventListener("click", function () {
+        focusSelectedMediaById(mediaId);
+      });
+
+      var thumb = document.createElement("span");
+      thumb.className = "composer-selected-media__thumb";
+      var src = composerAssetUrl(item.path || "");
+      if ((item.type || "").toLowerCase() === "video") {
+        var vid = document.createElement("video");
+        vid.src = src;
+        vid.muted = true;
+        vid.playsInline = true;
+        vid.preload = "metadata";
+        thumb.appendChild(vid);
+      } else {
+        var img = document.createElement("img");
+        img.src = src;
+        img.alt = "";
+        img.loading = "lazy";
+        thumb.appendChild(img);
+      }
+
+      var rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "composer-selected-media__remove";
+      rm.setAttribute("aria-label", "Remove media");
+      rm.textContent = "x";
+      rm.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        removeSelectedMediaById(mediaId);
+      });
+      thumb.appendChild(rm);
+
+      var name = document.createElement("span");
+      name.className = "composer-selected-media__name";
+      name.textContent = item.original_name || ("Media #" + mediaId);
+
+      card.appendChild(thumb);
+      card.appendChild(name);
+      listEl.appendChild(card);
+    });
   }
 
   function parseApiError(res, fallback) {
@@ -550,29 +666,97 @@
     );
   }
 
-  function renderMediaPreview(container, url, displayKind) {
+  function previewMediaListForMode(mode) {
+    var list = getSelectedMediaList();
+    if (!Array.isArray(list) || !list.length || mode === "none") return [];
+
+    if (mode === "video") {
+      return list.filter(function (m) {
+        return (m && String(m.type || "").toLowerCase() === "video");
+      });
+    }
+
+    return list.filter(function (m) {
+      return m && String(m.type || "").toLowerCase() !== "video";
+    });
+  }
+
+  function renderMediaPreview(container, mediaItems, displayKind) {
     if (!container) return;
     container.innerHTML = "";
-    if (!url || !displayKind) {
+    if (!Array.isArray(mediaItems) || !mediaItems.length || !displayKind) {
       container.hidden = true;
       return;
     }
     container.hidden = false;
+
+    var first = mediaItems[0];
+    var firstUrl = first && first.path ? composerAssetUrl(first.path) : "";
+    if (!firstUrl) {
+      container.hidden = true;
+      return;
+    }
+
     if (displayKind === "video") {
       var v = document.createElement("video");
       v.className = "composer-preview-video";
-      v.src = url;
+      v.src = firstUrl;
       v.controls = true;
       v.setAttribute("playsinline", "");
       v.setAttribute("preload", "metadata");
       container.appendChild(v);
     } else {
-      var img = document.createElement("img");
-      img.className = "composer-preview-img";
-      img.src = url;
-      img.alt = "";
-      img.loading = "lazy";
-      container.appendChild(img);
+      if (mediaItems.length === 1) {
+        var img = document.createElement("img");
+        img.className = "composer-preview-img";
+        img.src = firstUrl;
+        img.alt = "";
+        img.loading = "lazy";
+        container.appendChild(img);
+        return;
+      }
+
+      var gallery = document.createElement("div");
+      gallery.className = "composer-preview-gallery";
+
+      var mainWrap = document.createElement("div");
+      mainWrap.className = "composer-preview-gallery__main";
+      var mainImg = document.createElement("img");
+      mainImg.className = "composer-preview-img";
+      mainImg.src = firstUrl;
+      mainImg.alt = "";
+      mainImg.loading = "lazy";
+      mainWrap.appendChild(mainImg);
+      gallery.appendChild(mainWrap);
+
+      var thumbs = document.createElement("div");
+      thumbs.className = "composer-preview-gallery__thumbs";
+      var thumbCount = Math.min(mediaItems.length - 1, 3);
+      for (var i = 1; i <= thumbCount; i += 1) {
+        var it = mediaItems[i];
+        var tUrl = it && it.path ? composerAssetUrl(it.path) : "";
+        if (!tUrl) continue;
+
+        var cell = document.createElement("div");
+        cell.className = "composer-preview-gallery__thumb";
+        var tImg = document.createElement("img");
+        tImg.className = "composer-preview-img";
+        tImg.src = tUrl;
+        tImg.alt = "";
+        tImg.loading = "lazy";
+        cell.appendChild(tImg);
+
+        if (i === 3 && mediaItems.length > 4) {
+          var more = document.createElement("span");
+          more.className = "composer-preview-gallery__more";
+          more.textContent = "+" + String(mediaItems.length - 4);
+          cell.appendChild(more);
+        }
+
+        thumbs.appendChild(cell);
+      }
+      gallery.appendChild(thumbs);
+      container.appendChild(gallery);
     }
   }
 
@@ -580,15 +764,15 @@
     var item = global.__composerSelectedMedia || null;
     var mode = getComposerMediaMode();
     var kind = effectivePreviewKind(mode, item);
-    var url = item && item.path ? composerAssetUrl(item.path) : "";
+    var previewItems = previewMediaListForMode(mode);
     var displayKind = kind === "video" ? "video" : kind ? "image" : null;
 
     var feedMedia = document.querySelector("[data-app-composer-feed-media]");
     if (feedMedia) {
-      if (item && kind && anyCheckedPlatformSupports(kind)) {
-        renderMediaPreview(feedMedia, url, displayKind);
+      if (previewItems.length && kind && anyCheckedPlatformSupports(kind)) {
+        renderMediaPreview(feedMedia, previewItems, displayKind);
       } else {
-        renderMediaPreview(feedMedia, "", null);
+        renderMediaPreview(feedMedia, [], null);
       }
     }
 
@@ -596,10 +780,10 @@
       var slug = card.getAttribute("data-platform") || "";
       var slot = card.querySelector("[data-app-composer-preview-media]");
       if (!slot) return;
-      if (item && kind && platformShowsMediaKind(slug, kind)) {
-        renderMediaPreview(slot, url, displayKind);
+      if (previewItems.length && kind && platformShowsMediaKind(slug, kind)) {
+        renderMediaPreview(slot, previewItems, displayKind);
       } else {
-        renderMediaPreview(slot, "", null);
+        renderMediaPreview(slot, [], null);
       }
     });
 
@@ -1171,6 +1355,7 @@
     var uploadBtn = document.querySelector("[data-app-composer-upload]");
     var fileInput = document.getElementById("composer-media-input");
     var mediaTypeSel = document.getElementById("composer-media-type");
+    var clearSelectedBtn = document.querySelector("[data-app-composer-clear-media]");
     var modal = document.getElementById("modal-composer-media");
     if (!uploadBtn || !fileInput || !global.App) return;
 
@@ -1182,6 +1367,13 @@
     var libraryLoadingEl = modal ? modal.querySelector("[data-composer-media-library-loading]") : null;
 
     var pendingListQs = "";
+
+    if (clearSelectedBtn) {
+      clearSelectedBtn.addEventListener("click", function () {
+        setSelectedMediaList([]);
+        syncComposerPreviewMedia();
+      });
+    }
 
     function getComposerMediaCounts() {
       var c = global.__composerMediaCounts;
@@ -2235,6 +2427,7 @@
     initComposerPublishFeedbackFromUrl();
     initComposerUpload();
     updateSelectedMediaHint();
+    renderSelectedMediaList();
     initComposerDraftFromUrl();
     initComposerUnsavedChangesGuard();
     initMediaLibraryFilter();
