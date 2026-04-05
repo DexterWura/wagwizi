@@ -40,7 +40,7 @@ class PostSchedulingService
                 );
             }
 
-            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null);
+            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null, $data['media_path'] ?? null);
 
             return $post;
         });
@@ -97,8 +97,8 @@ class PostSchedulingService
             }
         }
 
-        if (array_key_exists('media_file_id', $data)) {
-            $this->syncPostMedia($post, $userId, $data['media_file_id']);
+        if (array_key_exists('media_file_id', $data) || array_key_exists('media_path', $data)) {
+            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null, $data['media_path'] ?? null);
         }
 
         return $post->fresh();
@@ -133,7 +133,7 @@ class PostSchedulingService
                 $this->resolveCommentDelayMinutes($data),
             );
 
-            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null);
+            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null, $data['media_path'] ?? null);
 
             Log::info('Post scheduled', [
                 'user_id'      => $userId,
@@ -173,7 +173,7 @@ class PostSchedulingService
                 $this->resolveCommentDelayMinutes($data),
             );
 
-            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null);
+            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null, $data['media_path'] ?? null);
 
             Log::info('Post queued for immediate publish', [
                 'user_id'   => $userId,
@@ -264,7 +264,7 @@ class PostSchedulingService
                 $this->resolveCommentDelayMinutes($data),
             );
 
-            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null);
+            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null, $data['media_path'] ?? null);
 
             return $post->fresh()->load('postPlatforms');
         });
@@ -413,24 +413,30 @@ class PostSchedulingService
         }
     }
 
-    private function syncPostMedia(Post $post, int $userId, mixed $mediaFileId): void
+    private function syncPostMedia(Post $post, int $userId, mixed $mediaFileId, mixed $mediaPath = null): void
     {
-        if ($mediaFileId === null || $mediaFileId === '') {
-            $post->mediaFiles()->sync([]);
-            return;
+        $media = null;
+
+        if ($mediaFileId !== null && $mediaFileId !== '') {
+            $id = (int) $mediaFileId;
+            if ($id <= 0) {
+                throw new InvalidArgumentException('Invalid media selection.');
+            }
+
+            $media = MediaFile::where('id', $id)
+                ->where('user_id', $userId)
+                ->first();
         }
 
-        $id = (int) $mediaFileId;
-        if ($id <= 0) {
-            throw new InvalidArgumentException('Invalid media selection.');
+        if ($media === null && is_string($mediaPath) && trim($mediaPath) !== '') {
+            $media = MediaFile::where('user_id', $userId)
+                ->where('path', trim($mediaPath))
+                ->first();
         }
-
-        $media = MediaFile::where('id', $id)
-            ->where('user_id', $userId)
-            ->first();
 
         if ($media === null) {
-            throw new InvalidArgumentException('Selected media is not available in your library.');
+            $post->mediaFiles()->sync([]);
+            return;
         }
 
         $post->mediaFiles()->sync([

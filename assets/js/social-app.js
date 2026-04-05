@@ -46,6 +46,13 @@
     return isNaN(id) ? null : id;
   }
 
+  function selectedMediaPath() {
+    var media = global.__composerSelectedMedia || null;
+    if (!media || media.path == null) return null;
+    var p = String(media.path || "").trim();
+    return p ? p : null;
+  }
+
   function parseApiError(res, fallback) {
     if (!res || typeof res !== "object") return fallback;
     if (typeof res.error === "string" && res.error.trim() !== "") return res.error;
@@ -1460,7 +1467,9 @@
             platform_content: platformContent
           };
           var draftMediaId = selectedMediaId();
+          var draftMediaPath = selectedMediaPath();
           if (draftMediaId != null) draftPayload.media_file_id = draftMediaId;
+          if (draftMediaPath != null) draftPayload.media_path = draftMediaPath;
           Object.assign(draftPayload, commentPayload);
           var editingDraftId = global.__composerEditingPostId;
           var draftReq =
@@ -1506,7 +1515,9 @@
             platform_content: platformContent
           };
           var publishMediaId = selectedMediaId();
+          var publishMediaPath = selectedMediaPath();
           if (publishMediaId != null) publishPayload.media_file_id = publishMediaId;
+          if (publishMediaPath != null) publishPayload.media_path = publishMediaPath;
           Object.assign(publishPayload, commentPayload);
           var editingPubId = global.__composerEditingPostId;
 
@@ -1587,7 +1598,9 @@
             platform_content: platformContent
           };
           var scheduleMediaId = selectedMediaId();
+          var scheduleMediaPath = selectedMediaPath();
           if (scheduleMediaId != null) schedulePayload.media_file_id = scheduleMediaId;
+          if (scheduleMediaPath != null) schedulePayload.media_path = scheduleMediaPath;
           Object.assign(schedulePayload, commentPayload);
           if (scheduledAt) schedulePayload.scheduled_at = scheduledAt;
           if (useDelay) {

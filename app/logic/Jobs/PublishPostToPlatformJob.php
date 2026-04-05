@@ -125,6 +125,13 @@ class PublishPostToPlatformJob implements ShouldQueue
         }
 
         $mediaUrls = $this->resolveMediaUrls($post);
+        Log::info('Resolved post media before publish', [
+            'post_platform_id' => $postPlatform->id,
+            'post_id'          => $post->id,
+            'platform'         => $platform->value,
+            'media_count'      => count($mediaUrls),
+            'media_urls'       => array_slice($mediaUrls, 0, 3),
+        ]);
 
         try {
             $result = $adapter->publish(
