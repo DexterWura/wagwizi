@@ -2637,6 +2637,10 @@ a.pill {
   min-width: 0;
 }
 
+.grid-bottom > .card {
+  min-width: 0;
+}
+
 @media (min-width: 1025px) {
   .grid-bottom {
     grid-template-columns: 1fr 1fr 1fr;
@@ -7256,17 +7260,22 @@ button.link-create {
 
 .recent-posts-list {
   list-style: none;
-  padding: 0;
+  padding: 0 1rem 1rem;
   margin: 0;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .recent-post-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr) minmax(7rem, min(11rem, 45%));
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem 0.6rem;
+  min-width: 0;
   padding: 0.5rem 0;
   border-bottom: 1px solid var(--border, rgba(255,255,255,0.06));
   font-size: 0.85rem;
+  overflow: hidden;
 }
 
 .recent-post-item:last-child {
@@ -7278,9 +7287,14 @@ button.link-create {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 0.1rem 0.5rem;
+  padding: 0.1rem 0.55rem 0.1rem 0.5rem;
   border-radius: 9999px;
   white-space: nowrap;
+  justify-self: start;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .recent-post-item__status--draft {
@@ -7304,16 +7318,28 @@ button.link-create {
 }
 
 .recent-post-item__text {
-  flex: 1;
+  display: block;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .recent-post-item__when {
+  display: block;
   color: var(--text-muted, #94a3b8);
   white-space: nowrap;
   font-size: 0.78rem;
+  line-height: 1.25;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-self: stretch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── WordPress site URL in connected card ─────────── */
