@@ -12,9 +12,27 @@
   $seoImage = trim((string) ($seoImageOverride ?? $__env->yieldContent('social-image', $defaults['image_url'] ?? '')));
   $seoTwitterSite = trim((string) ($seoTwitterSiteOverride ?? ($defaults['twitter_site'] ?? '')));
   $seoFavicon = trim((string) ($seoFaviconOverride ?? ($defaults['favicon_url'] ?? '')));
+  $tagline = trim((string) ($defaults['tagline'] ?? ''));
 
   if ($seoTitle === '') {
     $seoTitle = $siteName;
+  }
+  if (request()->routeIs('landing')) {
+    if ($tagline !== '') {
+      $seoTitle = $siteName . ' | ' . $tagline;
+    }
+  } else {
+    $pagePart = $seoTitle;
+    if ($siteName !== '') {
+      $escapedSite = preg_quote($siteName, '/');
+      $pagePart = preg_replace('/\s*[|:\-—]\s*' . $escapedSite . '\s*$/iu', '', $pagePart) ?? $pagePart;
+      $pagePart = preg_replace('/^' . $escapedSite . '\s*[|:\-—]\s*/iu', '', $pagePart) ?? $pagePart;
+      if (strcasecmp(trim($pagePart), $siteName) === 0) {
+        $pagePart = '';
+      }
+    }
+    $pagePart = trim((string) $pagePart);
+    $seoTitle = $pagePart !== '' ? ($siteName . ' | ' . $pagePart) : $siteName;
   }
   if ($seoDescription === '') {
     $seoDescription = $defaults['meta_description'] ?? '';

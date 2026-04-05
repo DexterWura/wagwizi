@@ -334,6 +334,7 @@ class AppServiceProvider extends ServiceProvider
 
             return [
                 'site_name'          => $siteName,
+                'tagline'            => $tagline,
                 'meta_title'         => $metaTitle,
                 'meta_description'   => $metaDescription,
                 'social_description' => $socialDescription,
