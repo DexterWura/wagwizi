@@ -43,8 +43,7 @@ class MediaFile extends Model
     public function posts(): BelongsToMany
     {
         return $this->belongsToMany(Post::class, 'post_media')
-                    ->withPivot('sort_order')
-                    ->withTimestamps();
+                    ->withPivot('sort_order', 'created_at');
     }
 
     public function scopeImages($query)
