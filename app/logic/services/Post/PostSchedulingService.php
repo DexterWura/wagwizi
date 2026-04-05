@@ -5,6 +5,7 @@ namespace App\Services\Post;
 use App\Models\Post;
 use App\Models\SocialAccount;
 use App\Models\PostPlatform;
+use App\Models\MediaFile;
 use App\Services\Platform\PlatformRegistry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -38,6 +39,8 @@ class PostSchedulingService
                     $this->resolveCommentDelayMinutes($data),
                 );
             }
+
+            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null);
 
             return $post;
         });
@@ -94,6 +97,10 @@ class PostSchedulingService
             }
         }
 
+        if (array_key_exists('media_file_id', $data)) {
+            $this->syncPostMedia($post, $userId, $data['media_file_id']);
+        }
+
         return $post->fresh();
     }
 
@@ -125,6 +132,8 @@ class PostSchedulingService
                 $data['first_comment'] ?? null,
                 $this->resolveCommentDelayMinutes($data),
             );
+
+            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null);
 
             Log::info('Post scheduled', [
                 'user_id'      => $userId,
@@ -163,6 +172,8 @@ class PostSchedulingService
                 $data['first_comment'] ?? null,
                 $this->resolveCommentDelayMinutes($data),
             );
+
+            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null);
 
             Log::info('Post queued for immediate publish', [
                 'user_id'   => $userId,
@@ -252,6 +263,8 @@ class PostSchedulingService
                 $data['first_comment'] ?? null,
                 $this->resolveCommentDelayMinutes($data),
             );
+
+            $this->syncPostMedia($post, $userId, $data['media_file_id'] ?? null);
 
             return $post->fresh()->load('postPlatforms');
         });
@@ -398,5 +411,30 @@ class PostSchedulingService
                 'status'            => 'pending',
             ]);
         }
+    }
+
+    private function syncPostMedia(Post $post, int $userId, mixed $mediaFileId): void
+    {
+        if ($mediaFileId === null || $mediaFileId === '') {
+            $post->mediaFiles()->sync([]);
+            return;
+        }
+
+        $id = (int) $mediaFileId;
+        if ($id <= 0) {
+            throw new InvalidArgumentException('Invalid media selection.');
+        }
+
+        $media = MediaFile::where('id', $id)
+            ->where('user_id', $userId)
+            ->first();
+
+        if ($media === null) {
+            throw new InvalidArgumentException('Selected media is not available in your library.');
+        }
+
+        $post->mediaFiles()->sync([
+            $media->id => ['sort_order' => 0],
+        ]);
     }
 }

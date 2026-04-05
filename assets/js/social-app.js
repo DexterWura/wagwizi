@@ -39,6 +39,13 @@
     return contentMap;
   }
 
+  function selectedMediaId() {
+    var media = global.__composerSelectedMedia || null;
+    if (!media || media.id == null) return null;
+    var id = parseInt(String(media.id), 10);
+    return isNaN(id) ? null : id;
+  }
+
   function parseApiError(res, fallback) {
     if (!res || typeof res !== "object") return fallback;
     if (typeof res.error === "string" && res.error.trim() !== "") return res.error;
@@ -1452,6 +1459,8 @@
             platform_accounts: accounts,
             platform_content: platformContent
           };
+          var draftMediaId = selectedMediaId();
+          if (draftMediaId != null) draftPayload.media_file_id = draftMediaId;
           Object.assign(draftPayload, commentPayload);
           var editingDraftId = global.__composerEditingPostId;
           var draftReq =
@@ -1496,6 +1505,8 @@
             platform_accounts: accounts,
             platform_content: platformContent
           };
+          var publishMediaId = selectedMediaId();
+          if (publishMediaId != null) publishPayload.media_file_id = publishMediaId;
           Object.assign(publishPayload, commentPayload);
           var editingPubId = global.__composerEditingPostId;
 
@@ -1575,6 +1586,8 @@
             platform_accounts: accounts,
             platform_content: platformContent
           };
+          var scheduleMediaId = selectedMediaId();
+          if (scheduleMediaId != null) schedulePayload.media_file_id = scheduleMediaId;
           Object.assign(schedulePayload, commentPayload);
           if (scheduledAt) schedulePayload.scheduled_at = scheduledAt;
           if (useDelay) {
