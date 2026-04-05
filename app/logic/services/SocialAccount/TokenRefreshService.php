@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Log;
 
 class TokenRefreshService
 {
+    private const MAX_TRANSIENT_REFRESH_FAILURES = 5;
+
     public function __construct(
         private readonly PlatformRegistry $registry,
     ) {}
@@ -57,13 +59,16 @@ class TokenRefreshService
             $result  = $adapter->refreshToken($account->refresh_token);
 
             if (!$result->success) {
+                $isPermanent = $this->isPermanentRefreshFailure($result->errorMessage);
+
                 Log::warning('Token refresh failed', [
                     'account_id' => $account->id,
                     'platform'   => $account->platform,
                     'error'      => $result->errorMessage,
+                    'permanent'  => $isPermanent,
                 ]);
 
-                $account->update(['status' => 'expired']);
+                $this->recordRefreshFailure($account, (string) $result->errorMessage, $isPermanent);
                 return false;
             }
 
@@ -72,6 +77,7 @@ class TokenRefreshService
                 'refresh_token'    => $result->refreshToken ?? $account->refresh_token,
                 'token_expires_at' => $result->expiresAt,
                 'status'           => 'active',
+                'metadata'         => $this->resetRefreshDiagnostics($account),
             ]);
 
             Log::info('Token refreshed successfully', [
@@ -86,6 +92,7 @@ class TokenRefreshService
                 'platform'   => $account->platform,
                 'exception'  => $e->getMessage(),
             ]);
+            $this->recordRefreshFailure($account, $e->getMessage(), false);
             return false;
         }
     }
@@ -148,11 +155,13 @@ class TokenRefreshService
             $result = $adapter->refreshToken($account->refresh_token);
 
             if (!$result->success) {
+                $isPermanent = $this->isPermanentRefreshFailure($result->errorMessage);
                 Log::warning('Bluesky session refresh failed', [
                     'account_id' => $account->id,
                     'error'      => $result->errorMessage,
+                    'permanent'  => $isPermanent,
                 ]);
-                $account->update(['status' => 'expired']);
+                $this->recordRefreshFailure($account, (string) $result->errorMessage, $isPermanent);
 
                 return false;
             }
@@ -162,6 +171,7 @@ class TokenRefreshService
                 'refresh_token'    => $result->refreshToken ?? $account->refresh_token,
                 'token_expires_at' => $result->expiresAt,
                 'status'           => 'active',
+                'metadata'         => $this->resetRefreshDiagnostics($account),
             ]);
 
             Log::info('Bluesky session refreshed', ['account_id' => $account->id]);
@@ -172,8 +182,69 @@ class TokenRefreshService
                 'account_id' => $account->id,
                 'exception'  => $e->getMessage(),
             ]);
+            $this->recordRefreshFailure($account, $e->getMessage(), false);
 
             return false;
         }
+    }
+
+    private function isPermanentRefreshFailure(?string $errorMessage): bool
+    {
+        $msg = strtolower((string) $errorMessage);
+        if ($msg === '') {
+            return false;
+        }
+
+        $permanentSignals = [
+            'invalid_grant',
+            'invalid refresh',
+            'refresh token is invalid',
+            'refresh token expired',
+            'unauthorized_client',
+            'revoked',
+            'token revoked',
+        ];
+
+        foreach ($permanentSignals as $signal) {
+            if (str_contains($msg, $signal)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function recordRefreshFailure(SocialAccount $account, string $errorMessage, bool $permanent): void
+    {
+        $metadata = is_array($account->metadata) ? $account->metadata : [];
+        $failures = (int) ($metadata['refresh_failure_count'] ?? 0) + 1;
+
+        $metadata['refresh_failure_count'] = $failures;
+        $metadata['last_refresh_error'] = mb_substr($errorMessage, 0, 400);
+        $metadata['last_refresh_attempt_at'] = now()->toIso8601String();
+
+        $newStatus = $account->status;
+        if ($permanent || $failures >= self::MAX_TRANSIENT_REFRESH_FAILURES) {
+            $newStatus = 'expired';
+            $metadata['refresh_failure_reason'] = $permanent ? 'permanent' : 'too_many_transient_failures';
+        }
+
+        $account->update([
+            'status'   => $newStatus,
+            'metadata' => $metadata,
+        ]);
+    }
+
+    private function resetRefreshDiagnostics(SocialAccount $account): array
+    {
+        $metadata = is_array($account->metadata) ? $account->metadata : [];
+        unset(
+            $metadata['refresh_failure_count'],
+            $metadata['last_refresh_error'],
+            $metadata['last_refresh_attempt_at'],
+            $metadata['refresh_failure_reason']
+        );
+
+        return $metadata;
     }
 }

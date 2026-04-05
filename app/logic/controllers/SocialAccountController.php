@@ -125,6 +125,22 @@ class SocialAccountController extends Controller
                 }
 
                 $socialUser = $this->socialiteForAccountLinking($platformEnum)->user();
+                $platformUserId = $this->extractSocialUserId($socialUser, $platformEnum);
+                $accessToken = trim((string) ($socialUser->token ?? ''));
+
+                if ($platformUserId === '') {
+                    throw new \InvalidArgumentException('Could not read your ' . $platformEnum->label() . ' account ID from OAuth response. Please reconnect and approve all requested permissions.');
+                }
+
+                if ($accessToken === '') {
+                    throw new \InvalidArgumentException('Could not read access token from ' . $platformEnum->label() . '. Please reconnect.');
+                }
+
+                $rawUser = $this->socialUserRawData($socialUser);
+                $username = $socialUser->getNickname()
+                    ?: ($rawUser['preferred_username'] ?? $rawUser['username'] ?? $rawUser['screen_name'] ?? null);
+                $displayName = $socialUser->getName()
+                    ?: ($rawUser['name'] ?? $rawUser['localizedFirstName'] ?? $username);
 
                 $storedScopes = config("platforms.{$platform}.scopes", []);
                 $storedScopes = is_array($storedScopes) ? $storedScopes : null;
@@ -132,11 +148,11 @@ class SocialAccountController extends Controller
                 $this->linkingService->linkAccount(
                     user:           Auth::user(),
                     platform:       $platformEnum,
-                    platformUserId: $socialUser->getId(),
-                    accessToken:    $socialUser->token,
-                    refreshToken:   $socialUser->refreshToken,
-                    username:       $socialUser->getNickname(),
-                    displayName:    $socialUser->getName(),
+                    platformUserId: $platformUserId,
+                    accessToken:    $accessToken,
+                    refreshToken:   $socialUser->refreshToken ?? ($rawUser['refresh_token'] ?? null),
+                    username:       $username,
+                    displayName:    $displayName,
                     avatarUrl:      $socialUser->getAvatar(),
                     scopes:         $storedScopes,
                     expiresAt:      $socialUser->expiresIn
@@ -755,5 +771,45 @@ class SocialAccountController extends Controller
                 'location_name' => $location['location_name'],
             ],
         ];
+    }
+
+    /**
+     * Socialite payload shape differs by provider (especially LinkedIn OpenID).
+     */
+    private function extractSocialUserId(object $socialUser, Platform $platform): string
+    {
+        $id = trim((string) ($socialUser->getId() ?? ''));
+        if ($id !== '') {
+            return $id;
+        }
+
+        $raw = $this->socialUserRawData($socialUser);
+
+        return match ($platform) {
+            Platform::LinkedIn => trim((string) ($raw['sub'] ?? $raw['id'] ?? '')),
+            Platform::Twitter => trim((string) ($raw['id'] ?? $raw['data']['id'] ?? '')),
+            default => trim((string) ($raw['id'] ?? '')),
+        };
+    }
+
+    /**
+     * Extract raw Socialite provider user payload.
+     *
+     * @return array<string, mixed>
+     */
+    private function socialUserRawData(object $socialUser): array
+    {
+        if (method_exists($socialUser, 'getRaw')) {
+            $raw = $socialUser->getRaw();
+            return is_array($raw) ? $raw : [];
+        }
+
+        if (property_exists($socialUser, 'user')) {
+            $vars = get_object_vars($socialUser);
+            $raw = $vars['user'] ?? null;
+            return is_array($raw) ? $raw : [];
+        }
+
+        return [];
     }
 }

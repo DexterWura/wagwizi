@@ -77,7 +77,14 @@ class PublishPostToPlatformJob implements ShouldQueue
             return;
         }
 
-        $tokenRefreshService->refreshIfNeeded($account);
+        $refreshOk = $tokenRefreshService->refreshIfNeeded($account);
+        if (!$refreshOk) {
+            Log::warning('Token refresh attempt failed before publish; continuing with current token', [
+                'post_platform_id' => $postPlatform->id,
+                'account_id'       => $account->id,
+                'platform'         => $account->platform,
+            ]);
+        }
         $account->refresh();
 
         if ($account->isTokenExpired()) {
@@ -159,34 +166,44 @@ class PublishPostToPlatformJob implements ShouldQueue
         }
 
         if ($result->success) {
-            $postPlatform->update([
-                'status'           => 'published',
-                'platform_post_id' => $result->platformPostId,
-                'published_at'     => now(),
-                'error_message'    => null,
-            ]);
-
-            $comment = trim((string) ($postPlatform->first_comment ?? ''));
-            if ($comment !== '' && $result->platformPostId !== null) {
-                $delayMinutes = $postPlatform->comment_delay_minutes;
-                $delayMinutes = is_int($delayMinutes) ? $delayMinutes : (int) $delayMinutes;
-                $delayMinutes = max(0, $delayMinutes);
-
-                $postPlatform->update([
-                    'comment_status' => 'queued',
-                    'comment_error_message' => null,
+            $this->markPublished($postPlatform, $post->id, $platform, $result);
+        } else {
+            if ($this->isAuthFailure($result->errorCode, $result->errorMessage)) {
+                Log::warning('Publish failed due to auth; forcing refresh and retrying once', [
+                    'post_platform_id' => $postPlatform->id,
+                    'platform'         => $platform->value,
+                    'error'            => $result->errorMessage,
                 ]);
 
-                PublishPostCommentJob::dispatch($postPlatform->id)->delay(now()->addMinutes($delayMinutes));
+                if ($tokenRefreshService->refresh($account)) {
+                    $account->refresh();
+
+                    try {
+                        $retryResult = $adapter->publish(
+                            account:         $account,
+                            content:         $post->content,
+                            mediaUrls:       $mediaUrls,
+                            platformContent: $postPlatform->platform_content,
+                        );
+
+                        if ($retryResult->success) {
+                            $result = $retryResult;
+                        } else {
+                            $postPlatform->update(['error_message' => $retryResult->errorMessage]);
+                        }
+                    } catch (\Throwable $e) {
+                        Log::error('Retry publish after forced refresh failed with exception', [
+                            'post_platform_id' => $postPlatform->id,
+                            'platform'         => $platform->value,
+                            'error'            => $e->getMessage(),
+                        ]);
+                    }
+                }
             }
 
-            Log::info('Post published to platform', [
-                'post_id'      => $post->id,
-                'platform'     => $platform->value,
-                'platform_post_id' => $result->platformPostId,
-            ]);
-        } else {
-            if ($this->attempts() >= $this->tries()) {
+            if ($result->success) {
+                $this->markPublished($postPlatform, $post->id, $platform, $result);
+            } elseif ($this->attempts() >= $this->tries()) {
                 $this->markFailed($postPlatform, $result->errorMessage ?? 'Unknown error');
             } else {
                 $postPlatform->update(['error_message' => $result->errorMessage]);
@@ -210,6 +227,36 @@ class PublishPostToPlatformJob implements ShouldQueue
             'post_platform_id' => $postPlatform->id,
             'platform'         => $postPlatform->platform,
             'error'            => $errorMessage,
+        ]);
+    }
+
+    private function markPublished(PostPlatform $postPlatform, int $postId, Platform $platform, \App\Services\Platform\PublishResult $result): void
+    {
+        $postPlatform->update([
+            'status'           => 'published',
+            'platform_post_id' => $result->platformPostId,
+            'published_at'     => now(),
+            'error_message'    => null,
+        ]);
+
+        $comment = trim((string) ($postPlatform->first_comment ?? ''));
+        if ($comment !== '' && $result->platformPostId !== null) {
+            $delayMinutes = $postPlatform->comment_delay_minutes;
+            $delayMinutes = is_int($delayMinutes) ? $delayMinutes : (int) $delayMinutes;
+            $delayMinutes = max(0, $delayMinutes);
+
+            $postPlatform->update([
+                'comment_status' => 'queued',
+                'comment_error_message' => null,
+            ]);
+
+            PublishPostCommentJob::dispatch($postPlatform->id)->delay(now()->addMinutes($delayMinutes));
+        }
+
+        Log::info('Post published to platform', [
+            'post_id'      => $postId,
+            'platform'     => $platform->value,
+            'platform_post_id' => $result->platformPostId,
         ]);
     }
 
@@ -301,5 +348,37 @@ class PublishPostToPlatformJob implements ShouldQueue
     {
         $policy = SiteSetting::getJson('publish_retry_policy', []);
         return (bool) ($policy['text_only_fallback'] ?? true);
+    }
+
+    private function isAuthFailure(?int $errorCode, ?string $errorMessage): bool
+    {
+        if (in_array($errorCode, [401, 403], true)) {
+            return true;
+        }
+
+        $msg = strtolower((string) $errorMessage);
+        if ($msg === '') {
+            return false;
+        }
+
+        $authSignals = [
+            'invalid token',
+            'token expired',
+            'expired token',
+            'unauthorized',
+            'permission',
+            'invalid oauth',
+            'authentication',
+            'forbidden',
+            'access denied',
+        ];
+
+        foreach ($authSignals as $signal) {
+            if (str_contains($msg, $signal)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

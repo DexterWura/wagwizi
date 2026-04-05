@@ -37,7 +37,30 @@ class PostPublishingService
 
         foreach ($pendingPlatforms as $postPlatform) {
             $postPlatform->update(['status' => 'publishing']);
-            PublishPostToPlatformJob::dispatch($postPlatform->id);
+            try {
+                PublishPostToPlatformJob::dispatch($postPlatform->id);
+            } catch (\Throwable $e) {
+                Log::warning('Queue dispatch failed; falling back to sync publish execution', [
+                    'post_id'          => $post->id,
+                    'post_platform_id' => $postPlatform->id,
+                    'error'            => $e->getMessage(),
+                ]);
+
+                try {
+                    PublishPostToPlatformJob::dispatchSync($postPlatform->id);
+                } catch (\Throwable $syncException) {
+                    $postPlatform->update([
+                        'status' => 'failed',
+                        'error_message' => 'Unable to queue publish job: ' . $syncException->getMessage(),
+                    ]);
+
+                    Log::error('Sync publish fallback failed', [
+                        'post_id'          => $post->id,
+                        'post_platform_id' => $postPlatform->id,
+                        'error'            => $syncException->getMessage(),
+                    ]);
+                }
+            }
         }
 
         $count = $pendingPlatforms->count();

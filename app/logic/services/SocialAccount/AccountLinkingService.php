@@ -65,8 +65,11 @@ class AccountLinkingService
 
         $account = DB::transaction(function () use (
             $user, $platform, $platformUserId, $accessToken, $refreshToken,
-            $username, $displayName, $avatarUrl, $scopes, $expiresAt, $metadata
+            $username, $displayName, $avatarUrl, $scopes, $expiresAt, $metadata, $existing
         ): SocialAccount {
+            // Keep the previously stored refresh token when providers omit it on subsequent OAuth callbacks.
+            $effectiveRefreshToken = $refreshToken ?? $existing?->refresh_token;
+
             return SocialAccount::updateOrCreate(
                 [
                     'user_id'          => $user->id,
@@ -75,7 +78,7 @@ class AccountLinkingService
                 ],
                 [
                     'access_token'     => $accessToken,
-                    'refresh_token'    => $refreshToken,
+                    'refresh_token'    => $effectiveRefreshToken,
                     'username'         => $username,
                     'display_name'     => $displayName,
                     'avatar_url'       => $avatarUrl,

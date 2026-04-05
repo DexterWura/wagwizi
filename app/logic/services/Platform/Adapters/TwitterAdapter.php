@@ -112,12 +112,24 @@ class TwitterAdapter extends AbstractPlatformAdapter
     public function refreshToken(string $refreshToken): TokenResult
     {
         $creds = $this->oauthClientCredentials();
+        $clientId = trim((string) ($creds['client_id'] ?? ''));
+        $clientSecret = trim((string) ($creds['client_secret'] ?? ''));
 
-        $response = Http::asForm()
+        if ($clientId === '' || $clientSecret === '') {
+            return TokenResult::fail('Twitter OAuth client credentials are missing.');
+        }
+
+        $basic = base64_encode($clientId . ':' . $clientSecret);
+
+        $response = Http::withHeaders([
+                'Authorization' => 'Basic ' . $basic,
+            ])
+            ->acceptJson()
+            ->asForm()
             ->post('https://api.x.com/2/oauth2/token', [
                 'grant_type'    => 'refresh_token',
                 'refresh_token' => $refreshToken,
-                'client_id'     => $creds['client_id'],
+                'client_id'     => $clientId,
             ]);
 
         if (!$response->successful()) {
