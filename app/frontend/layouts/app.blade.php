@@ -19,7 +19,7 @@
           var pending = sessionStorage.getItem("appNavPending");
           var rawAt = sessionStorage.getItem("appNavPendingAt");
           var pendingAt = rawAt ? parseInt(rawAt, 10) : NaN;
-          var fresh = pending && !isNaN(pendingAt) && (Date.now() - pendingAt) <= 1000;
+          var fresh = pending && !isNaN(pendingAt) && (Date.now() - pendingAt) <= 15000;
 
           if (fresh) {
             document.documentElement.classList.add("app-nav-loading");

@@ -4,6 +4,7 @@ namespace App\Services\Dashboard;
 
 use App\Models\SocialAccount;
 use App\Services\SocialAccount\TokenRefreshService;
+use App\Services\Cache\UserCacheVersionService;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Log;
 
 final class DashboardMetricsService
 {
+    private const DASHBOARD_CACHE_TTL = 120;
+
     public const RANGE_TODAY = 'today';
 
     public const RANGE_WEEK = 'week';
@@ -46,9 +49,19 @@ final class DashboardMetricsService
     {
         $range  = $this->validateRange($request->query('range'));
         $scope  = $this->validateScope($request->query('scope'));
+        $platformReq = (string) ($request->query('platform') ?? '');
+        $cacheVersion = app(UserCacheVersionService::class)->current($user->id);
+
+        $cacheKey = 'dashboard_metrics:v1:'
+            . $cacheVersion . ':'
+            . $user->id . ':'
+            . $range . ':'
+            . $scope . ':'
+            . sha1($platformReq);
+
+        return Cache::remember($cacheKey, self::DASHBOARD_CACHE_TTL, function () use ($user, $range, $scope, $platformReq): array {
         $tz     = $user->timezone ?: (string) config('app.timezone', 'UTC');
         $now    = Carbon::now($tz);
-        $platformReq = $request->query('platform');
 
         $platformOptions = $user->socialAccounts()
             ->active()
@@ -139,6 +152,7 @@ final class DashboardMetricsService
             'nextUp'                  => $nextUp,
             'totalAudienceCount'      => $totalAudience,
         ];
+        });
     }
 
     private function computeAudienceTotal(User $user, string $scope, ?string $platformSlug): ?int

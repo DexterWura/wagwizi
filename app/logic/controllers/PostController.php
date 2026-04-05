@@ -2,11 +2,13 @@
 
 namespace App\Controllers;
 
+use App\Services\Cache\UserCacheVersionService;
 use App\Services\Post\PostPublishingService;
 use App\Services\Post\PostSchedulingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
@@ -21,50 +23,68 @@ class PostController extends Controller
     {
         return $this->tryServiceCall(function () use ($request) {
             $user = Auth::user();
-            $query = $user->posts()->with([
-                'postPlatforms:id,post_id,platform',
-                'mediaFiles:id,path,type,original_name',
-            ]);
+            $cacheTtl = 20;
+            $cacheVersion = app(UserCacheVersionService::class)->current($user->id);
+            $queryHash = sha1(json_encode([
+                'q' => (string) $request->query('q', ''),
+                'status' => (string) $request->query('status', ''),
+                'sort' => (string) $request->query('sort', ''),
+                'month' => (string) $request->query('month', ''),
+                'year' => (string) $request->query('year', ''),
+                'page' => (int) $request->query('page', 1),
+                'per_page' => (int) $request->query('per_page', 0),
+            ]));
+            $cacheKey = "posts_index:v1:{$cacheVersion}:user:{$user->id}:{$queryHash}";
 
-            if ($request->filled('q')) {
-                $term = (string) $request->query('q');
-                $like = '%' . addcslashes($term, '%_\\') . '%';
-                $query->where('content', 'LIKE', $like);
-            }
+            $payload = Cache::remember($cacheKey, $cacheTtl, function () use ($request, $user): array {
+                $query = $user->posts()
+                    ->select(['id', 'user_id', 'content', 'status', 'scheduled_at', 'published_at', 'created_at'])
+                    ->with([
+                        'postPlatforms:id,post_id,platform',
+                        'mediaFiles:id,path,type,original_name',
+                    ]);
 
-            if ($request->filled('status') && $request->query('status') !== 'all') {
-                $query->where('status', (string) $request->query('status'));
-            }
+                if ($request->filled('q')) {
+                    $term = (string) $request->query('q');
+                    $like = '%' . addcslashes($term, '%_\\') . '%';
+                    $query->where('content', 'LIKE', $like);
+                }
 
-            $calendarScope = $request->has('month') && $request->has('year');
-            if ($calendarScope) {
-                $month = (int) $request->query('month');
-                $year  = (int) $request->query('year');
-                $start = \Carbon\Carbon::create($year, $month, 1)->startOfMonth();
-                $end   = $start->copy()->endOfMonth();
-                $query->where(function ($q) use ($start, $end) {
-                    $q->whereBetween('scheduled_at', [$start, $end])
-                      ->orWhere(function ($q2) {
-                          $q2->where('status', 'draft')->whereNull('scheduled_at');
-                      });
-                });
-            }
+                if ($request->filled('status') && $request->query('status') !== 'all') {
+                    $query->where('status', (string) $request->query('status'));
+                }
 
-            if ($calendarScope) {
-                $query->orderByRaw('scheduled_at IS NULL ASC')
-                    ->orderBy('scheduled_at', 'asc')
-                    ->orderByDesc('created_at');
-            } elseif ($request->query('sort') === 'scheduled') {
-                $query->orderByRaw('scheduled_at IS NULL ASC')
-                    ->orderBy('scheduled_at', 'asc')
-                    ->orderByDesc('created_at');
-            } else {
-                $query->orderByDesc('created_at')->orderByDesc('id');
-            }
+                $calendarScope = $request->has('month') && $request->has('year');
+                if ($calendarScope) {
+                    $month = (int) $request->query('month');
+                    $year  = (int) $request->query('year');
+                    $start = \Carbon\Carbon::create($year, $month, 1)->startOfMonth();
+                    $end   = $start->copy()->endOfMonth();
+                    $query->where(function ($q) use ($start, $end) {
+                        $q->whereBetween('scheduled_at', [$start, $end])
+                          ->orWhere(function ($q2) {
+                              $q2->where('status', 'draft')->whereNull('scheduled_at');
+                          });
+                    });
+                }
 
-            $posts = $query->paginate($request->integer('per_page', $calendarScope ? 50 : 15));
+                if ($calendarScope) {
+                    $query->orderByRaw('scheduled_at IS NULL ASC')
+                        ->orderBy('scheduled_at', 'asc')
+                        ->orderByDesc('created_at');
+                } elseif ($request->query('sort') === 'scheduled') {
+                    $query->orderByRaw('scheduled_at IS NULL ASC')
+                        ->orderBy('scheduled_at', 'asc')
+                        ->orderByDesc('created_at');
+                } else {
+                    $query->orderByDesc('created_at')->orderByDesc('id');
+                }
 
-            return response()->json(['success' => true, 'posts' => $posts]);
+                $posts = $query->paginate($request->integer('per_page', $calendarScope ? 50 : 15));
+                return $posts->toArray();
+            });
+
+            return response()->json(['success' => true, 'posts' => $payload]);
         });
     }
 

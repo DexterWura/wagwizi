@@ -1771,9 +1771,19 @@
 
     var done = {};
     var timers = {};
-    var delayMs = 80;
+    var delayMs = 40;
 
-    document.querySelectorAll(".app-sidebar a[href], .app-topbar a[href], .app-shell-footer a[href]").forEach(function (a) {
+    function prefetchHref(href) {
+      if (!href || done[href]) return;
+      done[href] = true;
+      var link = document.createElement("link");
+      link.rel = "prefetch";
+      link.href = href;
+      document.head.appendChild(link);
+    }
+
+    var links = document.querySelectorAll(".app-sidebar a[href], .app-topbar a[href], .app-shell-footer a[href]");
+    links.forEach(function (a) {
       var href = a.getAttribute("href");
       if (!href || href.charAt(0) !== "/" || href.charAt(1) === "/") return;
 
@@ -1783,12 +1793,7 @@
           if (done[href]) return;
           global.clearTimeout(timers[href]);
           timers[href] = global.setTimeout(function () {
-            if (done[href]) return;
-            done[href] = true;
-            var link = document.createElement("link");
-            link.rel = "prefetch";
-            link.href = href;
-            document.head.appendChild(link);
+            prefetchHref(href);
           }, delayMs);
         },
         { passive: true }
@@ -1801,6 +1806,27 @@
         },
         { passive: true }
       );
+
+      a.addEventListener("focus", function () {
+        prefetchHref(href);
+      });
+
+      a.addEventListener("touchstart", function () {
+        prefetchHref(href);
+      }, { passive: true });
+
+      a.addEventListener("mousedown", function () {
+        prefetchHref(href);
+      });
+    });
+
+    var scheduleIdle = global.requestIdleCallback || function (cb) { return global.setTimeout(cb, 250); };
+    scheduleIdle(function () {
+      links.forEach(function (a) {
+        var href = a.getAttribute("href");
+        if (!href || href.charAt(0) !== "/" || href.charAt(1) === "/") return;
+        prefetchHref(href);
+      });
     });
   }
 
@@ -1809,12 +1835,10 @@
     var html = document.documentElement;
     var NAV_PENDING_KEY = "appNavPending";
     var NAV_PENDING_AT_KEY = "appNavPendingAt";
+    var NAV_PENDING_STALE_MS = 15000;
     /** Only show overlay if navigation takes longer than this (avoids flash on fast loads). */
     var NAV_LOAD_DELAY_MS = 160;
-    /** Hard UX cap from click to hide; do not keep overlay beyond 1s. */
-    var NAV_LOAD_MAX_VISIBLE_MS = 1000;
     var navLoadTimer = null;
-    var navForceHideTimer = null;
 
     function setPreloaderVisible(visible) {
       if (preloader) {
@@ -1826,10 +1850,6 @@
       if (navLoadTimer) {
         global.clearTimeout(navLoadTimer);
         navLoadTimer = null;
-      }
-      if (navForceHideTimer) {
-        global.clearTimeout(navForceHideTimer);
-        navForceHideTimer = null;
       }
     }
 
@@ -1850,10 +1870,6 @@
         global.sessionStorage.setItem(NAV_PENDING_KEY, "1");
         global.sessionStorage.setItem(NAV_PENDING_AT_KEY, String(Date.now()));
       } catch (e) {}
-
-      navForceHideTimer = global.setTimeout(function () {
-        hideNavLoading();
-      }, NAV_LOAD_MAX_VISIBLE_MS);
     }
 
     function armNavLoading() {
@@ -1869,7 +1885,7 @@
       var pending = global.sessionStorage.getItem(NAV_PENDING_KEY);
       var rawAt = global.sessionStorage.getItem(NAV_PENDING_AT_KEY);
       var pendingAt = rawAt ? parseInt(rawAt, 10) : NaN;
-      hadPending = !!pending && !isNaN(pendingAt) && (Date.now() - pendingAt) <= NAV_LOAD_MAX_VISIBLE_MS;
+      hadPending = !!pending && !isNaN(pendingAt) && (Date.now() - pendingAt) <= NAV_PENDING_STALE_MS;
       if (!hadPending) {
         global.sessionStorage.removeItem(NAV_PENDING_KEY);
         global.sessionStorage.removeItem(NAV_PENDING_AT_KEY);
@@ -1878,9 +1894,6 @@
 
     if (hadPending) {
       setPreloaderVisible(true);
-      navForceHideTimer = global.setTimeout(function () {
-        hideNavLoading();
-      }, NAV_LOAD_MAX_VISIBLE_MS);
     }
 
     global.addEventListener("pagehide", disarmNavLoading, false);
@@ -1894,6 +1907,10 @@
       },
       false
     );
+
+    global.addEventListener("load", function () {
+      hideNavLoading();
+    }, { once: true });
 
     document.addEventListener(
       "click",
@@ -1929,12 +1946,6 @@
       },
       true
     );
-
-    if (hadPending) {
-      global.requestAnimationFrame(function () {
-        hideNavLoading();
-      });
-    }
 
     return { armNavLoading: armNavLoading, hideNavLoading: hideNavLoading };
   }

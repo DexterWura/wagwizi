@@ -6,6 +6,7 @@ use App\Models\Post;
 use App\Models\SocialAccount;
 use App\Models\PostPlatform;
 use App\Models\MediaFile;
+use App\Services\Cache\UserCacheVersionService;
 use App\Services\Platform\PlatformRegistry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -51,6 +52,7 @@ class PostSchedulingService
         });
 
         Log::info('Post draft created', ['user_id' => $userId, 'post_id' => $post->id]);
+        app(UserCacheVersionService::class)->bump($userId);
 
         return $post;
     }
@@ -116,7 +118,9 @@ class PostSchedulingService
             );
         }
 
-        return $post->fresh();
+        $fresh = $post->fresh();
+        app(UserCacheVersionService::class)->bump($userId);
+        return $fresh;
     }
 
     public function schedulePost(int $userId, array $data): Post
@@ -130,7 +134,7 @@ class PostSchedulingService
 
         $this->validatePlatformAccountsOwnership($userId, $data['platform_accounts']);
 
-        return DB::transaction(function () use ($userId, $data, $scheduledAt): Post {
+        $post = DB::transaction(function () use ($userId, $data, $scheduledAt): Post {
             $post = Post::create([
                 'user_id'      => $userId,
                 'content'      => trim($data['content']),
@@ -164,6 +168,8 @@ class PostSchedulingService
 
             return $post;
         });
+        app(UserCacheVersionService::class)->bump($userId);
+        return $post;
     }
 
     public function publishNow(int $userId, array $data): Post
@@ -176,7 +182,7 @@ class PostSchedulingService
 
         $this->validatePlatformAccountsOwnership($userId, $data['platform_accounts']);
 
-        return DB::transaction(function () use ($userId, $data): Post {
+        $post = DB::transaction(function () use ($userId, $data): Post {
             $post = Post::create([
                 'user_id' => $userId,
                 'content' => trim($data['content']),
@@ -208,6 +214,8 @@ class PostSchedulingService
 
             return $post;
         });
+        app(UserCacheVersionService::class)->bump($userId);
+        return $post;
     }
 
     public function cancelScheduled(int $userId, int $postId): Post
@@ -236,6 +244,7 @@ class PostSchedulingService
             ->update(['status' => 'cancelled']);
 
         Log::info('Scheduled post cancelled', ['user_id' => $userId, 'post_id' => $postId]);
+        app(UserCacheVersionService::class)->bump($userId);
 
         return $post->fresh();
     }
@@ -256,6 +265,7 @@ class PostSchedulingService
         $post->delete();
 
         Log::info('Post deleted', ['user_id' => $userId, 'post_id' => $postId]);
+        app(UserCacheVersionService::class)->bump($userId);
     }
 
     public function scheduleExistingPost(int $userId, int $postId, array $data): Post
@@ -274,7 +284,7 @@ class PostSchedulingService
 
         $scheduledAt = $this->resolveScheduleFromInput($data);
 
-        return DB::transaction(function () use ($post, $userId, $data, $scheduledAt): Post {
+        $result = DB::transaction(function () use ($post, $userId, $data, $scheduledAt): Post {
             $post->update([
                 'status'       => 'scheduled',
                 'scheduled_at' => $scheduledAt,
@@ -298,6 +308,8 @@ class PostSchedulingService
 
             return $post->fresh()->load('postPlatforms');
         });
+        app(UserCacheVersionService::class)->bump($userId);
+        return $result;
     }
 
     private function validateContent(array $data): void

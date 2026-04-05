@@ -4,7 +4,9 @@ namespace App\Jobs;
 
 use App\Jobs\PublishPostCommentJob;
 use App\Models\PostPlatform;
+use App\Models\Post;
 use App\Models\SiteSetting;
+use App\Services\Cache\UserCacheVersionService;
 use App\Services\Platform\Platform;
 use App\Services\Platform\PlatformRegistry;
 use App\Services\Post\PostPublishingService;
@@ -250,6 +252,7 @@ class PublishPostToPlatformJob implements ShouldQueue
             'platform'         => $postPlatform->platform,
             'error'            => $errorMessage,
         ]);
+        $this->bumpUserCacheVersion($postPlatform);
     }
 
     private function markPublished(PostPlatform $postPlatform, int $postId, Platform $platform, \App\Services\Platform\PublishResult $result): void
@@ -280,6 +283,7 @@ class PublishPostToPlatformJob implements ShouldQueue
             'platform'     => $platform->value,
             'platform_post_id' => $result->platformPostId,
         ]);
+        $this->bumpUserCacheVersion($postPlatform);
     }
 
     private function resolveMediaUrls($post): array
@@ -460,5 +464,15 @@ class PublishPostToPlatformJob implements ShouldQueue
         }
 
         return false;
+    }
+
+    private function bumpUserCacheVersion(PostPlatform $postPlatform): void
+    {
+        $userId = $postPlatform->post?->user_id
+            ?? Post::whereKey($postPlatform->post_id)->value('user_id');
+
+        if ($userId !== null) {
+            app(UserCacheVersionService::class)->bump((int) $userId);
+        }
     }
 }

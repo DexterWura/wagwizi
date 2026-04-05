@@ -5,6 +5,7 @@ namespace App\Services\Post;
 use App\Jobs\PublishPostToPlatformJob;
 use App\Models\Post;
 use App\Models\PostPlatform;
+use App\Services\Cache\UserCacheVersionService;
 use Illuminate\Support\Facades\Log;
 
 class PostPublishingService
@@ -71,6 +72,7 @@ class PostPublishingService
             'jobs_dispatched' => $count,
             'platforms'       => $pendingPlatforms->pluck('platform')->toArray(),
         ]);
+        app(UserCacheVersionService::class)->bump((int) $post->user_id);
 
         return $count;
     }
@@ -126,5 +128,6 @@ class PostPublishingService
             'published' => $published,
             'failed'    => $failed,
         ]);
+        app(UserCacheVersionService::class)->bump((int) $post->user_id);
     }
 }

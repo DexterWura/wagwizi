@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\MediaFile;
+use App\Services\Cache\UserCacheVersionService;
 use App\Utils\FileUploadUtil;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -55,6 +56,8 @@ class MediaController extends Controller
             'size_bytes'    => $sizeBytes,
             'type'          => $type,
         ]);
+
+        app(UserCacheVersionService::class)->bump((int) Auth::id());
 
         return response()->json([
             'success' => true,

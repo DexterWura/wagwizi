@@ -5,13 +5,17 @@ namespace App\Services\Insights;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Models\User;
+use App\Services\Cache\UserCacheVersionService;
 use App\Services\Platform\Platform;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class AudienceInsightsService
 {
+    private const INSIGHTS_CACHE_TTL = 180;
+
     private const REPOST_WEIGHT = 2.0;
 
     private const COMMENT_WEIGHT = 1.5;
@@ -25,6 +29,16 @@ class AudienceInsightsService
         $tz = $this->resolveTimezone($user);
         $from = $from?->copy()->timezone($tz) ?? Carbon::now($tz)->subDays(90);
         $to = $to?->copy()->timezone($tz)->endOfDay() ?? Carbon::now($tz)->endOfDay();
+        $cacheVersion = app(UserCacheVersionService::class)->current($user->id);
+
+        $cacheKey = 'audience_insights:v1:'
+            . $cacheVersion . ':'
+            . $user->id . ':'
+            . $tz . ':'
+            . $from->copy()->utc()->toDateTimeString() . ':'
+            . $to->copy()->utc()->toDateTimeString();
+
+        return Cache::remember($cacheKey, self::INSIGHTS_CACHE_TTL, function () use ($user, $from, $to, $tz): AudienceInsightsReport {
 
         $rows = $this->loadPublishedRows($user->id, $from, $to);
 
@@ -117,6 +131,7 @@ class AudienceInsightsService
             composerSummary: $composerSummary,
             sampleSize: $rows->count(),
         );
+        });
     }
 
     private function resolveTimezone(User $user): string

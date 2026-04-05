@@ -5,6 +5,7 @@ namespace App\Services\SocialAccount;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Services\Platform\Platform;
+use App\Services\Cache\UserCacheVersionService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -91,6 +92,7 @@ class AccountLinkingService
         });
 
         Cache::forget("dashboard_audience:{$account->id}");
+        app(UserCacheVersionService::class)->bump($user->id);
 
         Log::info('Social account linked', [
             'user_id'    => $user->id,
@@ -318,6 +320,8 @@ class AccountLinkingService
             'account_id' => $accountId,
             'platform'   => $account->platform,
         ]);
+
+        app(UserCacheVersionService::class)->bump($user->id);
 
         return true;
     }

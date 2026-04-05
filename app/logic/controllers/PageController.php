@@ -12,6 +12,7 @@ use App\Models\Testimonial;
 use App\Services\Billing\CurrencyDisplayService;
 use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Billing\SubscriptionFulfillmentService;
+use App\Services\Cache\UserCacheVersionService;
 use App\Services\Dashboard\DashboardMetricsService;
 use App\Services\Subscription\SubscriptionAccessService;
 use App\Services\SocialAccount\SocialAccountLimitService;
@@ -27,6 +28,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -129,6 +131,7 @@ class PageController extends Controller
     public function composer(): View
     {
         $user = Auth::user();
+        $cacheVersion = app(UserCacheVersionService::class)->current($user->id);
 
         $audienceInsights = app(AudienceInsightsService::class)->buildForUser($user);
         $composerMediaCounts = app(MediaLibraryService::class)->typeCountsForUser($user);
@@ -147,8 +150,14 @@ class PageController extends Controller
             ->mapWithKeys(static fn (Platform $p): array => [$p->value => $p->label()])
             ->all();
 
+        $socialAccounts = Cache::remember(
+            "composer_social_accounts:v1:{$cacheVersion}:{$user->id}",
+            60,
+            fn () => $user->socialAccounts()->active()->get(['id', 'platform', 'username', 'display_name'])
+        );
+
         return view('composer', [
-            'socialAccounts'               => $user->socialAccounts()->active()->get(['id', 'platform', 'username', 'display_name']),
+            'socialAccounts'               => $socialAccounts,
             'audienceInsights'             => $audienceInsights,
             'composerAiLocked'             => ! $user->canAccessComposerAi(),
             'composerAiQuotaExhausted'     => $quota->isPlatformAiQuotaExhausted($user),
@@ -168,19 +177,26 @@ class PageController extends Controller
     public function calendar(): View
     {
         $user  = Auth::user();
+        $cacheVersion = app(UserCacheVersionService::class)->current($user->id);
         $now   = Carbon::now();
         $start = $now->copy()->startOfMonth()->startOfWeek(Carbon::SUNDAY);
         $end   = $now->copy()->endOfMonth()->endOfWeek(Carbon::SATURDAY);
 
-        $scheduledPosts = $user->posts()
-            ->where(function ($q) use ($start, $end) {
-                $q->whereBetween('scheduled_at', [$start, $end])
-                  ->orWhere(function ($q2) {
-                      $q2->where('status', 'draft')->whereNull('scheduled_at');
-                  });
-            })
-            ->orderBy('scheduled_at')
-            ->get(['id', 'content', 'status', 'scheduled_at', 'platforms']);
+        $scheduledPosts = Cache::remember(
+            "calendar_posts:v1:{$cacheVersion}:{$user->id}:{$start->toDateString()}:{$end->toDateString()}",
+            30,
+            function () use ($user, $start, $end) {
+                return $user->posts()
+                    ->where(function ($q) use ($start, $end) {
+                        $q->whereBetween('scheduled_at', [$start, $end])
+                          ->orWhere(function ($q2) {
+                              $q2->where('status', 'draft')->whereNull('scheduled_at');
+                          });
+                    })
+                    ->orderBy('scheduled_at')
+                    ->get(['id', 'content', 'status', 'scheduled_at', 'platforms']);
+            }
+        );
 
         $drafts = $scheduledPosts->where('status', 'draft')->whereNull('scheduled_at');
         $scheduled = $scheduledPosts->whereNotNull('scheduled_at');
@@ -232,21 +248,26 @@ class PageController extends Controller
     public function insights(Request $request): View
     {
         $user = Auth::user();
+        $cacheVersion = app(UserCacheVersionService::class)->current($user->id);
 
-        $statusCounts = $user->posts()
-            ->whereIn('status', ['published', 'scheduled'])
-            ->selectRaw("status, count(*) as total")
-            ->groupBy('status')
-            ->pluck('total', 'status');
+        $statusCounts = Cache::remember("insights_status_counts:v1:{$cacheVersion}:{$user->id}", 90, function () use ($user) {
+            return $user->posts()
+                ->whereIn('status', ['published', 'scheduled'])
+                ->selectRaw("status, count(*) as total")
+                ->groupBy('status')
+                ->pluck('total', 'status');
+        });
 
         $totalPublished = (int) ($statusCounts['published'] ?? 0);
         $totalScheduled = (int) ($statusCounts['scheduled'] ?? 0);
 
-        $platformCounts = $user->socialAccounts()
-            ->active()
-            ->selectRaw('platform, count(*) as total')
-            ->groupBy('platform')
-            ->pluck('total', 'platform');
+        $platformCounts = Cache::remember("insights_platform_counts:v1:{$cacheVersion}:{$user->id}", 90, function () use ($user) {
+            return $user->socialAccounts()
+                ->active()
+                ->selectRaw('platform, count(*) as total')
+                ->groupBy('platform')
+                ->pluck('total', 'platform');
+        });
 
         $from = $request->query('from') ? Carbon::parse($request->query('from')) : null;
         $to = $request->query('to') ? Carbon::parse($request->query('to')) : null;
