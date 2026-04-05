@@ -3692,6 +3692,10 @@ button.link-create {
   line-height: 1.45;
 }
 
+.login-page__head--center {
+  text-align: center;
+}
+
 .login-page__panel form {
   display: flex;
   flex-direction: column;

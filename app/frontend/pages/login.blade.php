@@ -8,7 +8,7 @@
       @include('brand-logo')
     </div>
     <div class="login-page__panel">
-      <div class="login-page__head">
+      <div class="login-page__head login-page__head--center">
         <h1>Sign in</h1>
         <p>Use your {{ config('app.name') }} account email and password.</p>
       </div>

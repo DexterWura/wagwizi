@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class AdminNotificationController extends Controller
@@ -77,9 +78,21 @@ class AdminNotificationController extends Controller
             return redirect()->route('admin.notifications.settings')->with('error', 'No email on your account.');
         }
 
-        $sendService->queueEmailToUser($user, 'subscription.updated', [
-            'userName' => $user->name,
-        ]);
+        try {
+            $sendService->queueEmailToUser($user, 'subscription.updated', [
+                'userName' => $user->name,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Admin test email failed', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+
+            return redirect()
+                ->route('admin.notifications.settings')
+                ->with('error', 'Test email failed. Please verify SMTP host, port, encryption, and credentials.');
+        }
 
         return redirect()->route('admin.notifications.settings')->with('success', 'Test email queued to your address.');
     }

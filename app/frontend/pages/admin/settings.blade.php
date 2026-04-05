@@ -376,7 +376,7 @@
       }
 
       try {
-        global.localStorage.setItem(storageKey, pane);
+        window.localStorage.setItem(storageKey, pane);
       } catch (e) {}
     }
 
@@ -389,12 +389,12 @@
 
     var initialPane = 'general';
     try {
-      var qs = new URLSearchParams(global.location.search || '');
+      var qs = new URLSearchParams(window.location.search || '');
       var fromQuery = qs.get('section');
       if (fromQuery && valid.indexOf(fromQuery) !== -1) {
         initialPane = fromQuery;
       } else {
-        var fromStorage = global.localStorage.getItem(storageKey);
+        var fromStorage = window.localStorage.getItem(storageKey);
         if (fromStorage && valid.indexOf(fromStorage) !== -1) {
           initialPane = fromStorage;
         }

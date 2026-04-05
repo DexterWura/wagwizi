@@ -8,7 +8,7 @@
       @include('brand-logo')
     </div>
     <div class="login-page__panel">
-      <div class="login-page__head">
+      <div class="login-page__head login-page__head--center">
         <h1>Create account</h1>
         <p>Start managing your social media in one place.</p>
       </div>
