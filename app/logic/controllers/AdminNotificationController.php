@@ -28,52 +28,19 @@ class AdminNotificationController extends Controller
     public function updateNotificationSettings(Request $request, NotificationChannelConfigService $config): RedirectResponse
     {
         $validated = $request->validate([
-            'driver'            => 'required|in:smtp,SMTP,sendmail,SENDMAIL,log,LOG',
-            'from_name'         => 'nullable|string|max:255',
-            'from_address'      => 'nullable|email|max:255',
-            'smtp_host'         => 'nullable|string|max:255',
-            'smtp_port'         => 'nullable|integer|min:1|max:65535',
-            'smtp_encryption'   => 'nullable|in:tls,TLS,ssl,SSL',
-            'smtp_username'     => 'nullable|string|max:255',
-            'smtp_password'     => 'nullable|string|max:500',
-            'smtp_timeout'      => 'nullable|integer|min:1|max:300',
-            'reply_to'          => 'nullable|email|max:255',
-            'sms_provider'      => 'required|in:none,twilio,vonage',
-            'twilio_account_sid' => 'nullable|string|max:255',
-            'twilio_auth_token' => 'nullable|string|max:500',
-            'master_template_html' => 'nullable|string',
+            'email_send_method' => 'required|in:smtp,SMTP',
+            'smtp_host' => 'required|string|max:255',
+            'smtp_port' => 'required|integer|min:1|max:65535',
+            'smtp_encryption' => 'required|in:tls,TLS,ssl,SSL',
+            'smtp_username' => 'required|string|max:255',
+            'smtp_password' => 'nullable|string|max:500',
         ]);
 
-        $smsCredentials = [];
-        $validated['driver'] = strtolower(trim((string) ($validated['driver'] ?? 'log')));
+        $validated['email_send_method'] = strtolower(trim((string) ($validated['email_send_method'] ?? 'smtp')));
         $validated['smtp_encryption'] = strtolower(trim((string) ($validated['smtp_encryption'] ?? '')));
-        if ($validated['smtp_encryption'] === '') {
-            $validated['smtp_encryption'] = null;
-        }
         $validated['smtp_host'] = trim((string) ($validated['smtp_host'] ?? ''));
         $validated['smtp_username'] = trim((string) ($validated['smtp_username'] ?? ''));
-
-        if (($validated['sms_provider'] ?? '') === 'twilio') {
-            $existing = $config->getSettings()->sms_credentials ?? [];
-            $sid      = $request->filled('twilio_account_sid')
-                ? $request->string('twilio_account_sid')->toString()
-                : (string) ($existing['account_sid'] ?? '');
-            $token = $existing['auth_token'] ?? '';
-            if ($request->filled('twilio_auth_token')) {
-                $token = $request->string('twilio_auth_token')->toString();
-            }
-            $smsCredentials = [
-                'account_sid' => $sid,
-                'auth_token'  => $token,
-            ];
-        }
-
-        $payload = $validated;
-        $payload['smtp_encryption'] = $validated['smtp_encryption'] ?? null;
-        unset($payload['twilio_account_sid'], $payload['twilio_auth_token']);
-        $payload['sms_credentials'] = $smsCredentials;
-
-        $config->updateFromAdminRequest($payload, true);
+        $config->updateFromAdminRequest($validated, true);
 
         return redirect()->route('admin.notifications.settings')->with('success', 'Notification settings saved.');
     }

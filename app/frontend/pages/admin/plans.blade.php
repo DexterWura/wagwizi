@@ -34,6 +34,37 @@
             </div>
           @endif
 
+          <section class="card" style="margin-bottom: 18px;">
+            <div class="card__head">
+              <span>Tool Availability</span>
+            </div>
+            <div class="card__body">
+              <form method="POST" action="{{ route('admin.plans.tools.update') }}">
+                @csrf
+                <div class="field field--full">
+                  <label class="field__label">Globally enabled tools</label>
+                  <div class="admin-checkbox-grid">
+                    @foreach($toolCatalog as $toolSlug => $toolMeta)
+                      <label class="check-line">
+                        <input
+                          type="checkbox"
+                          name="enabled_tools[]"
+                          value="{{ $toolSlug }}"
+                          {{ in_array($toolSlug, $enabledToolSlugs ?? [], true) ? 'checked' : '' }}
+                        />
+                        <span>{{ $toolMeta['label'] }} <small style="opacity: .7;">({{ $toolMeta['category'] }})</small></span>
+                      </label>
+                    @endforeach
+                  </div>
+                  <p class="field__hint">Disable a tool here to hide it from all plans.</p>
+                </div>
+                <div class="admin-card-actions">
+                  <button class="btn btn--primary btn--compact" type="submit">Save tool availability</button>
+                </div>
+              </form>
+            </div>
+          </section>
+
           <div class="admin-cards-grid">
             @foreach($plans as $plan)
             <div class="card">
@@ -56,6 +87,7 @@
                 <form method="POST" action="{{ route('admin.plans.update', $plan->id) }}">
                   @csrf
                   @method('PUT')
+                  <input type="hidden" name="tools_present" value="1" />
                   <div class="admin-form-grid">
                     <div class="field">
                       <label class="field__label">Slug</label>
@@ -109,6 +141,25 @@
                         @endforeach
                       </div>
                       <p class="field__hint">Leave all checked to grant access to every enabled platform.</p>
+                    </div>
+                    <div class="field field--full">
+                      <label class="field__label">Allowed tools</label>
+                      <div class="admin-checkbox-grid">
+                        @foreach($toolCatalog as $toolSlug => $toolMeta)
+                          @php $isGloballyEnabled = in_array($toolSlug, $enabledToolSlugs ?? [], true); @endphp
+                          <label class="check-line" style="{{ $isGloballyEnabled ? '' : 'opacity: 0.55;' }}">
+                            <input
+                              type="checkbox"
+                              name="allowed_tools[]"
+                              value="{{ $toolSlug }}"
+                              {{ $plan->allowed_tools === null || in_array($toolSlug, $plan->allowed_tools ?? [], true) ? 'checked' : '' }}
+                              {{ $isGloballyEnabled ? '' : 'disabled' }}
+                            />
+                            <span>{{ $toolMeta['label'] }}</span>
+                          </label>
+                        @endforeach
+                      </div>
+                      <p class="field__hint">Only globally enabled tools are assignable to plans.</p>
                     </div>
                     <div class="field">
                       <label class="check-line">
@@ -173,10 +224,14 @@
       <div class="app-modal__panel app-modal__panel--wide">
         <div class="app-modal__head">
           <h2 id="modal-add-plan-title">Add Plan</h2>
-          <button type="button" class="app-modal__close" data-app-modal-close aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+          <div style="display:flex;align-items:center;gap:.5rem;">
+            <button type="submit" form="add-plan-form" class="btn btn--primary btn--compact">Save plan</button>
+            <button type="button" class="app-modal__close" data-app-modal-close aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+          </div>
         </div>
-        <form method="POST" action="{{ route('admin.plans.store') }}">
+        <form id="add-plan-form" method="POST" action="{{ route('admin.plans.store') }}">
           @csrf
+          <input type="hidden" name="tools_present" value="1" />
           <div class="app-modal__body">
             <div class="admin-form-grid">
               <div class="field">
@@ -215,6 +270,25 @@
               <div class="field field--full">
                 <label class="field__label">Features (one per line)</label>
                 <textarea class="input" name="features" rows="3" placeholder="Feature 1&#10;Feature 2"></textarea>
+              </div>
+              <div class="field field--full">
+                <label class="field__label">Allowed tools</label>
+                <div class="admin-checkbox-grid">
+                  @foreach($toolCatalog as $toolSlug => $toolMeta)
+                    @php $isGloballyEnabled = in_array($toolSlug, $enabledToolSlugs ?? [], true); @endphp
+                    <label class="check-line" style="{{ $isGloballyEnabled ? '' : 'opacity: 0.55;' }}">
+                      <input
+                        type="checkbox"
+                        name="allowed_tools[]"
+                        value="{{ $toolSlug }}"
+                        {{ $isGloballyEnabled ? 'checked' : '' }}
+                        {{ $isGloballyEnabled ? '' : 'disabled' }}
+                      />
+                      <span>{{ $toolMeta['label'] }}</span>
+                    </label>
+                  @endforeach
+                </div>
+                <p class="field__hint">New plans start with all globally enabled tools selected.</p>
               </div>
               <div class="field">
                 <label class="check-line">

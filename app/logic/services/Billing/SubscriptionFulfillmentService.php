@@ -8,6 +8,7 @@ use App\Models\PlanChange;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Jobs\QueueTemplatedEmailForUserJob;
+use App\Services\Affiliate\AffiliateCommissionService;
 use App\Services\Ai\PlatformAiQuotaService;
 use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,11 @@ final class SubscriptionFulfillmentService
             if ($locked === null || $locked->isCompleted()) {
                 return $user->subscription()->firstOrFail();
             }
+
+            $hasAnyCompletedPaymentsBefore = PaymentTransaction::query()
+                ->where('user_id', $user->id)
+                ->where('status', 'completed')
+                ->exists();
 
             $oldSub    = $user->subscription;
             $oldPlanId = $oldSub?->plan_id;
@@ -74,6 +80,11 @@ final class SubscriptionFulfillmentService
                 'status'       => 'completed',
                 'completed_at' => now(),
             ]);
+
+            // Affiliate payout applies only to the referred user's first successful paid subscription.
+            if (! $hasAnyCompletedPaymentsBefore) {
+                app(AffiliateCommissionService::class)->maybeAwardFirstSubscriptionCommission($user, $locked);
+            }
 
             if ($oldPlanId !== $newPlan->id) {
                 $oldPlan = $oldPlanId ? Plan::find($oldPlanId) : null;

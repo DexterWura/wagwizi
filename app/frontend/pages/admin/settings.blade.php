@@ -162,6 +162,30 @@
                     <p class="field__hint">Controls the bottom-right support shortcut in the main app (signed-in pages).</p>
                   </div>
                 </div>
+                <div class="card" data-admin-settings-pane="general">
+                  <div class="card__head">Affiliate Marketing</div>
+                  <div class="card__body">
+                    <label class="check-line check-line--spaced">
+                      <input type="hidden" name="affiliate_program_enabled" value="0" />
+                      <input type="checkbox" name="affiliate_program_enabled" value="1" {{ ($settings['affiliate_program_enabled'] ?? '0') === '1' ? 'checked' : '' }} />
+                      <span>Enable affiliate program</span>
+                    </label>
+                    <div class="field">
+                      <label class="field__label" for="affiliate_first_subscription_percent">First subscription payout (%)</label>
+                      <input
+                        class="input"
+                        id="affiliate_first_subscription_percent"
+                        name="affiliate_first_subscription_percent"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value="{{ $settings['affiliate_first_subscription_percent'] ?? '10.00' }}"
+                      />
+                    </div>
+                    <p class="field__hint">Commission is awarded once, on the referred user's first successful paid subscription transaction.</p>
+                  </div>
+                </div>
                 @if($socialGoogleConfigured || $socialLinkedinConfigured)
                 <div class="card" data-admin-settings-pane="general">
                   <div class="card__head">Social login</div>

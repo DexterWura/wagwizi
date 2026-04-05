@@ -106,7 +106,7 @@ Route::middleware('auth')->group(function () {
         ->middleware('throttle:20,1')
         ->name('settings.ai');
     Route::post('/composer/ai',            [ComposerAiController::class, 'chat'])
-        ->middleware('throttle:30,1')
+        ->middleware(['throttle:30,1', 'plan_tool:ai_caption_generator'])
         ->name('composer.ai');
 
     Route::get('/support-tickets',        [SupportTicketController::class, 'index'])->name('support-tickets.index');
@@ -142,6 +142,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/plans',                [AdminController::class, 'plans'])->name('plans');
         Route::post('/plans',               [AdminController::class, 'storePlan'])->name('plans.store');
+        Route::post('/plans/tools',         [AdminController::class, 'updatePlanTools'])->name('plans.tools.update');
         Route::put('/plans/{id}',           [AdminController::class, 'updatePlan'])->name('plans.update');
         Route::delete('/plans/{id}',        [AdminController::class, 'destroyPlan'])->name('plans.destroy');
 

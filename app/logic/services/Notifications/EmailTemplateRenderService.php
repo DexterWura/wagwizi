@@ -3,7 +3,6 @@
 namespace App\Services\Notifications;
 
 use App\Models\EmailTemplate;
-use App\Models\NotificationChannelSetting;
 use App\Models\SiteSetting;
 use App\Models\User;
 
@@ -53,19 +52,13 @@ class EmailTemplateRenderService
      */
     public function renderTemplate(EmailTemplate $template, array $vars): array
     {
-        $master = NotificationChannelSetting::current();
-
         $subject = $this->sanitizeSubject(
             $this->placeholders->render($template->subject, $vars, [])
         );
 
         $bodyHtml = $this->placeholders->render($template->body_html, $vars, []);
 
-        $masterHtml = $master->master_template_html
-            ? $this->placeholders->render($master->master_template_html, array_merge($vars, [
-                'bodyHtml' => $bodyHtml,
-            ]), ['bodyHtml'])
-            : $bodyHtml;
+        $masterHtml = $this->defaultWrapper($bodyHtml, (string) ($vars['siteName'] ?? $this->siteName()));
 
         $text = null;
         if ($template->body_text) {
@@ -77,6 +70,17 @@ class EmailTemplateRenderService
             'html'    => $masterHtml,
             'text'    => $text,
         ];
+    }
+
+    private function defaultWrapper(string $bodyHtml, string $siteName): string
+    {
+        return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'
+            . e($siteName)
+            . '</title></head><body style="font-family:system-ui,sans-serif;line-height:1.5;"><div style="max-width:600px;margin:0 auto;padding:24px;">'
+            . $bodyHtml
+            . '<hr style="border:none;border-top:1px solid #eee;margin:24px 0;"><p style="font-size:12px;color:#666;">'
+            . e($siteName)
+            . '</p></div></body></html>';
     }
 
     private function sanitizeSubject(string $subject): string

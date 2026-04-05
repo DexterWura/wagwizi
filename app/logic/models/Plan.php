@@ -20,6 +20,7 @@ class Plan extends Model
         'max_scheduled_posts_per_month',
         'features',
         'allowed_platforms',
+        'allowed_tools',
         'is_active',
         'is_lifetime',
         'lifetime_max_subscribers',
@@ -36,6 +37,7 @@ class Plan extends Model
         return [
             'features'           => 'array',
             'allowed_platforms'  => 'array',
+            'allowed_tools'      => 'array',
             'is_active'          => 'boolean',
             'is_lifetime'        => 'boolean',
             'is_free'            => 'boolean',
@@ -86,6 +88,15 @@ class Plan extends Model
         }
 
         return in_array($slug, $this->allowed_platforms, true);
+    }
+
+    public function allowsTool(string $slug): bool
+    {
+        if ($this->allowed_tools === null) {
+            return true;
+        }
+
+        return in_array($slug, $this->allowed_tools, true);
     }
 
     public function hasReachedLifetimeCap(): bool

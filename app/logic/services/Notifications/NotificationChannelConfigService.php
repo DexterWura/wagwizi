@@ -23,21 +23,12 @@ class NotificationChannelConfigService
         $s = $this->getSettings();
 
         return [
-            'driver'               => $s->driver,
-            'from_name'            => $s->from_name,
-            'from_address'         => $s->from_address,
+            'email_send_method'    => $s->email_send_method,
             'smtp_host'            => $s->smtp_host,
             'smtp_port'            => $s->smtp_port,
             'smtp_encryption'      => $s->smtp_encryption,
             'smtp_username'        => $s->smtp_username,
             'smtp_password_masked' => $s->smtp_password ? '********' : '',
-            'smtp_timeout'         => $s->smtp_timeout,
-            'reply_to'             => $s->reply_to,
-            'sms_provider'         => $s->sms_provider,
-            'sms_credentials_set'  => ! empty($s->sms_credentials),
-            'twilio_account_sid'   => $s->sms_credentials['account_sid'] ?? '',
-            'twilio_auth_token_masked' => ! empty($s->sms_credentials['auth_token'] ?? null) ? '********' : '',
-            'master_template_html' => $s->master_template_html,
         ];
     }
 
@@ -48,31 +39,14 @@ class NotificationChannelConfigService
     {
         $s = $this->getSettings();
 
-        $s->driver = $input['driver'] ?? $s->driver;
-        $s->from_name = $input['from_name'] ?? null;
-        $s->from_address = $input['from_address'] ?? null;
+        $s->email_send_method = $input['email_send_method'] ?? 'smtp';
         $s->smtp_host = $input['smtp_host'] ?? null;
         $s->smtp_port = isset($input['smtp_port']) ? (int) $input['smtp_port'] : null;
         $s->smtp_encryption = $input['smtp_encryption'] ?? null;
         $s->smtp_username = $input['smtp_username'] ?? null;
-        $s->smtp_timeout = isset($input['smtp_timeout']) ? (int) $input['smtp_timeout'] : null;
-        $s->reply_to = $input['reply_to'] ?? null;
-        $s->sms_provider = $input['sms_provider'] ?? 'none';
 
         if (! $smtpPasswordBlankMeansKeep || ! empty($input['smtp_password'])) {
             $s->smtp_password = $input['smtp_password'] ?? null;
-        }
-
-        if (array_key_exists('sms_credentials', $input) && is_array($input['sms_credentials'])) {
-            $s->sms_credentials = $input['sms_credentials'] !== [] ? $input['sms_credentials'] : null;
-        }
-
-        if (array_key_exists('master_template_html', $input)) {
-            $s->master_template_html = $input['master_template_html'];
-        }
-
-        if (($s->sms_provider ?? '') === 'none') {
-            $s->sms_credentials = null;
         }
 
         $s->save();
@@ -83,26 +57,25 @@ class NotificationChannelConfigService
         $settings = $this->getSettings();
         $name = self::DYNAMIC_MAILER;
 
-        $mailer = match ($settings->driver) {
+        $mailer = match ($settings->email_send_method) {
             'smtp' => $this->buildSmtpMailerConfig($settings),
-            'sendmail' => [
-                'transport' => 'sendmail',
-                'path'      => config('mail.mailers.sendmail.path', '/usr/sbin/sendmail -bs -i'),
-            ],
-            'log' => [
-                'transport' => 'log',
-                'channel'     => env('MAIL_LOG_CHANNEL'),
-            ],
             default => [
-                'transport' => 'log',
-                'channel'     => env('MAIL_LOG_CHANNEL'),
+                'transport' => 'smtp',
+                'url' => null,
+                'host' => $settings->smtp_host ?: '127.0.0.1',
+                'port' => $settings->smtp_port ?: 587,
+                'encryption' => $settings->smtp_encryption ?: null,
+                'username' => $settings->smtp_username,
+                'password' => $settings->smtp_password,
+                'timeout' => null,
+                'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) config('app.url', 'http://localhost'), PHP_URL_HOST)),
             ],
         };
 
         Config::set("mail.mailers.{$name}", $mailer);
 
-        $fromAddress = $settings->from_address ?: (config('mail.from.address') ?: 'hello@example.com');
-        $fromName    = $settings->from_name ?: (config('mail.from.name') ?: config('app.name'));
+        $fromAddress = config('mail.from.address') ?: 'hello@example.com';
+        $fromName    = config('mail.from.name') ?: config('app.name');
 
         Config::set('mail.from', [
             'address' => $fromAddress,
@@ -113,16 +86,12 @@ class NotificationChannelConfigService
     public function sendHtml(string $to, string $subject, string $html, ?string $textPlain = null): void
     {
         $this->applyDynamicMailerConfig();
-        $settings = $this->getSettings();
 
         $mailer = Mail::mailer(self::DYNAMIC_MAILER);
         // Rendered template content is raw HTML/text, not Blade view names.
         // Always use html() so Laravel does not attempt to resolve $textPlain as a view path.
-        $mailer->html($html, function ($message) use ($to, $subject, $settings) {
+        $mailer->html($html, function ($message) use ($to, $subject) {
             $message->to($to)->subject($subject);
-            if ($settings->reply_to) {
-                $message->replyTo($settings->reply_to);
-            }
         });
     }
 
@@ -139,7 +108,7 @@ class NotificationChannelConfigService
             'encryption'   => $settings->smtp_encryption ?: null,
             'username'     => $settings->smtp_username,
             'password'     => $settings->smtp_password,
-            'timeout'      => $settings->smtp_timeout,
+            'timeout'      => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) config('app.url', 'http://localhost'), PHP_URL_HOST)),
         ];
     }

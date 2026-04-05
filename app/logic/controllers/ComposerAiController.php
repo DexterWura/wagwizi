@@ -8,6 +8,7 @@ use App\Services\Ai\ComposerAiChatService;
 use App\Services\Ai\PlatformAiPlanHasNoTokensException;
 use App\Services\Ai\PlatformAiQuotaExceededException;
 use App\Services\Ai\PlatformAiQuotaService;
+use App\Services\Tools\ToolAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,6 +23,15 @@ class ComposerAiController extends Controller
         $user = Auth::user();
         if ($user === null) {
             return response()->json(['success' => false, 'message' => 'Unauthenticated.'], 401);
+        }
+
+        $toolDecision = app(ToolAccessService::class)->evaluateUserAccess($user, 'ai_caption_generator');
+        if (! ($toolDecision['allowed'] ?? false)) {
+            return response()->json([
+                'success'    => false,
+                'error_code' => (string) ($toolDecision['code'] ?? 'tool_not_allowed'),
+                'message'    => (string) ($toolDecision['message'] ?? 'Your plan does not allow this tool.'),
+            ], 403);
         }
 
         if (! $user->canAccessComposerAi()) {

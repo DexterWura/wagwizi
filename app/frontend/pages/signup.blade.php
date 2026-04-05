@@ -47,6 +47,7 @@
 
       <form method="POST" action="{{ route('signup') }}">
         @csrf
+        <input type="hidden" name="referral_code" value="{{ old('referral_code', $referralCode ?? '') }}" />
         <div class="field">
           <label class="field__label" for="signup-name">Display name</label>
           <input class="input" id="signup-name" type="text" name="name" value="{{ old('name') }}" autocomplete="name" placeholder="Your name" required />

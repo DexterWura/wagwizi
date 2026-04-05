@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\Ai\PlatformAiConfigService;
 use App\Services\Ai\PlatformAiQuotaService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -18,6 +19,8 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'referral_code',
+        'referred_by_user_id',
         'password',
         'google_id',
         'linkedin_id',
@@ -125,6 +128,21 @@ class User extends Authenticatable
     public function marketingCampaignsCreated(): HasMany
     {
         return $this->hasMany(MarketingCampaign::class, 'created_by');
+    }
+
+    public function referredBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'referred_by_user_id');
+    }
+
+    public function referrals(): HasMany
+    {
+        return $this->hasMany(User::class, 'referred_by_user_id');
+    }
+
+    public function affiliateCommissionsEarned(): HasMany
+    {
+        return $this->hasMany(AffiliateCommission::class, 'referrer_user_id');
     }
 
     /**

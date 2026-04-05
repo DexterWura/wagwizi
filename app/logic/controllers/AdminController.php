@@ -30,6 +30,7 @@ use App\Services\Platform\Platform;
 use App\Services\Landing\LandingFeaturesDeepService;
 use App\Services\Notifications\InAppNotificationService;
 use App\Services\Seo\PublicSeoFilesService;
+use App\Services\Tools\ToolAccessService;
 use App\Utils\FileUploadUtil;
 use Illuminate\Support\Str;
 use Illuminate\Http\RedirectResponse;
@@ -111,9 +112,18 @@ class AdminController extends Controller
     {
         $plans = Plan::orderBy('sort_order')->get();
         $enabledPlatforms = SiteSetting::getJson('enabled_platforms', []);
+        $toolAccess = app(ToolAccessService::class);
+        $toolCatalog = $toolAccess->catalog();
+        $enabledToolSlugs = $toolAccess->globallyEnabledToolSlugs();
         $pricingBaseCurrency = app(CurrencyDisplayService::class)->baseCurrency();
 
-        return view('admin.plans', compact('plans', 'enabledPlatforms', 'pricingBaseCurrency'));
+        return view('admin.plans', compact(
+            'plans',
+            'enabledPlatforms',
+            'pricingBaseCurrency',
+            'toolCatalog',
+            'enabledToolSlugs'
+        ));
     }
 
     public function storePlan(Request $request): RedirectResponse
@@ -129,6 +139,9 @@ class AdminController extends Controller
             'features'                      => 'nullable|string',
             'allowed_platforms'             => 'nullable|array',
             'allowed_platforms.*'           => 'string',
+            'allowed_tools'                 => 'nullable|array',
+            'allowed_tools.*'               => 'string',
+            'tools_present'                 => 'nullable|boolean',
             'is_active'                     => 'boolean',
             'is_free'                       => 'boolean',
             'is_lifetime'                   => 'boolean',
@@ -144,6 +157,15 @@ class AdminController extends Controller
         $validated['is_free'] = $request->boolean('is_free');
         $validated['is_lifetime'] = $request->boolean('is_lifetime');
         $validated['has_free_trial'] = $request->boolean('has_free_trial');
+        $toolCatalogSlugs = array_keys(app(ToolAccessService::class)->catalog());
+        if ($request->boolean('tools_present')) {
+            $validated['allowed_tools'] = array_values(array_filter(
+                $validated['allowed_tools'] ?? [],
+                static fn (string $slug): bool => in_array($slug, $toolCatalogSlugs, true),
+            ));
+        } else {
+            unset($validated['allowed_tools']);
+        }
         if (! $validated['has_free_trial']) {
             $validated['free_trial_days'] = null;
         }
@@ -177,6 +199,9 @@ class AdminController extends Controller
             'features'                      => 'nullable|string',
             'allowed_platforms'             => 'nullable|array',
             'allowed_platforms.*'           => 'string',
+            'allowed_tools'                 => 'nullable|array',
+            'allowed_tools.*'               => 'string',
+            'tools_present'                 => 'nullable|boolean',
             'is_active'                     => 'boolean',
             'is_free'                       => 'boolean',
             'is_lifetime'                   => 'boolean',
@@ -192,6 +217,13 @@ class AdminController extends Controller
         $validated['is_free'] = $request->boolean('is_free');
         $validated['is_lifetime'] = $request->boolean('is_lifetime');
         $validated['has_free_trial'] = $request->boolean('has_free_trial');
+        $toolCatalogSlugs = array_keys(app(ToolAccessService::class)->catalog());
+        if ($request->boolean('tools_present')) {
+            $validated['allowed_tools'] = array_values(array_filter(
+                $validated['allowed_tools'] ?? [],
+                static fn (string $slug): bool => in_array($slug, $toolCatalogSlugs, true),
+            ));
+        }
         if (! $validated['has_free_trial']) {
             $validated['free_trial_days'] = null;
         }
@@ -204,6 +236,11 @@ class AdminController extends Controller
 
         if (! $request->has('allowed_platforms')) {
             $validated['allowed_platforms'] = null;
+        }
+        if ($request->boolean('tools_present') && ! $request->has('allowed_tools')) {
+            $validated['allowed_tools'] = [];
+        } elseif (! $request->boolean('tools_present') && ! $request->has('allowed_tools')) {
+            $validated['allowed_tools'] = null;
         }
 
         $validated['platform_ai_tokens_per_period'] = (int) $validated['platform_ai_tokens_per_period'];
@@ -240,6 +277,14 @@ class AdminController extends Controller
         return array_values(array_filter(array_map('trim', explode("\n", $raw))));
     }
 
+    /**
+     * @return array<string, array{label: string, category: string}>
+     */
+    private function toolCatalog(): array
+    {
+        return app(ToolAccessService::class)->catalog();
+    }
+
     // ── Platforms ────────────────────────────────────────
 
     public function platforms(): View
@@ -262,6 +307,26 @@ class AdminController extends Controller
         SiteSetting::setJson('enabled_platforms', $enabled);
 
         return back()->with('success', 'Platform settings saved.');
+    }
+
+    public function updatePlanTools(Request $request): RedirectResponse
+    {
+        $catalog = $this->toolCatalog();
+        $allowedToolSlugs = array_keys($catalog);
+
+        $validated = $request->validate([
+            'enabled_tools' => 'nullable|array',
+            'enabled_tools.*' => 'string',
+        ]);
+
+        $enabled = array_values(array_unique(array_filter(
+            $validated['enabled_tools'] ?? [],
+            static fn (string $slug): bool => in_array($slug, $allowedToolSlugs, true),
+        )));
+
+        SiteSetting::setJson('enabled_download_tools', $enabled);
+
+        return back()->with('success', 'Tool availability updated.');
     }
 
     // ── Testimonials ────────────────────────────────────
@@ -455,6 +520,8 @@ class AdminController extends Controller
             'seo_favicon_path'           => SiteSetting::get('seo_favicon_path', ''),
             'registration_open'          => SiteSetting::get('registration_open', '1'),
             'show_floating_help'         => SiteSetting::get('show_floating_help', '1'),
+            'affiliate_program_enabled'  => SiteSetting::get('affiliate_program_enabled', '0'),
+            'affiliate_first_subscription_percent' => SiteSetting::get('affiliate_first_subscription_percent', '10.00'),
             'social_login_google'        => SiteSetting::get('social_login_google', '1'),
             'social_login_linkedin'      => SiteSetting::get('social_login_linkedin', '1'),
             'default_display_timezone'   => SiteSetting::get('default_display_timezone', 'UTC'),
@@ -590,6 +657,8 @@ class AdminController extends Controller
             'seo_social_description' => 'nullable|string|max:320',
             'seo_keywords' => 'nullable|string|max:500',
             'seo_twitter_site' => 'nullable|string|max:50',
+            'affiliate_program_enabled' => 'nullable|boolean',
+            'affiliate_first_subscription_percent' => 'nullable|numeric|min:0|max:100',
             'seo_image' => 'nullable|file|image|max:5120',
             'seo_image_existing' => 'nullable|string|max:500',
             'seo_image_remove' => 'nullable|boolean',
@@ -611,6 +680,9 @@ class AdminController extends Controller
         SiteSetting::set('seo_social_description', Str::limit(trim(strip_tags((string) $request->input('seo_social_description', ''))), 320));
         SiteSetting::set('seo_keywords', Str::limit(trim(strip_tags((string) $request->input('seo_keywords', ''))), 500));
         SiteSetting::set('seo_twitter_site', Str::limit(trim(strip_tags((string) $request->input('seo_twitter_site', ''))), 50));
+        SiteSetting::set('affiliate_program_enabled', $request->boolean('affiliate_program_enabled') ? '1' : '0');
+        $affiliatePercent = max(0, min(100, (float) $request->input('affiliate_first_subscription_percent', 10)));
+        SiteSetting::set('affiliate_first_subscription_percent', number_format($affiliatePercent, 2, '.', ''));
 
         $existingSeoImage = trim((string) SiteSetting::get('seo_image_path', ''));
         if ($request->boolean('seo_image_remove')) {

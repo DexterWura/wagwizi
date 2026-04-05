@@ -8,6 +8,7 @@ use App\Services\Subscription\DefaultSubscriptionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 
 class AuthService
@@ -47,13 +48,15 @@ class AuthService
         return ['success' => true, 'user' => $user];
     }
 
-    public function register(string $name, string $email, string $password): User
+    public function register(string $name, string $email, string $password, ?int $referredByUserId = null): User
     {
-        return DB::transaction(function () use ($name, $email, $password): User {
+        return DB::transaction(function () use ($name, $email, $password, $referredByUserId): User {
             $user = User::create([
                 'name'     => $name,
                 'email'    => $email,
                 'password' => $password,
+                'referral_code' => $this->generateUniqueReferralCode(),
+                'referred_by_user_id' => $referredByUserId,
             ]);
 
             Auth::login($user);
@@ -109,6 +112,7 @@ class AuthService
             $user = User::create([
                 'name'              => $socialUser->getName() ?? $socialUser->getNickname() ?? 'User',
                 'email'             => $email,
+                'referral_code'     => $this->generateUniqueReferralCode(),
                 $providerIdColumn   => $socialUser->getId(),
                 'avatar_path'       => $socialUser->getAvatar(),
                 'profile_completed' => false,
@@ -184,5 +188,14 @@ class AuthService
             'provider'   => $provider,
             'match_type' => $matchType,
         ]);
+    }
+
+    private function generateUniqueReferralCode(): string
+    {
+        do {
+            $code = strtoupper(Str::random(10));
+        } while (User::query()->where('referral_code', $code)->exists());
+
+        return $code;
     }
 }

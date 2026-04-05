@@ -54,7 +54,10 @@ class AuthController extends Controller
 
     public function showSignup(): View
     {
-        return view('signup', $this->socialAuthViewData());
+        $viewData = $this->socialAuthViewData();
+        $viewData['referralCode'] = trim((string) request()->query('ref', ''));
+
+        return view('signup', $viewData);
     }
 
     public function showForgotPassword(): View
@@ -162,12 +165,21 @@ class AuthController extends Controller
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
+            'referral_code' => 'nullable|string|max:24|exists:users,referral_code',
         ]);
+
+        $referredByUserId = null;
+        if (! empty($validated['referral_code'])) {
+            $referredByUserId = User::query()
+                ->where('referral_code', $validated['referral_code'])
+                ->value('id');
+        }
 
         $this->authService->register(
             $validated['name'],
             $validated['email'],
-            $validated['password']
+            $validated['password'],
+            $referredByUserId ? (int) $referredByUserId : null
         );
 
         $request->session()->regenerate();
