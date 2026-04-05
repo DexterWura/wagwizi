@@ -353,9 +353,19 @@
 
     var buttons = toggleRoot.querySelectorAll("[data-lp-billing]");
     var cards = document.querySelectorAll("[data-lp-pricing-card][data-monthly]");
+    var saveBadge = toggleRoot.querySelector(".lp-billing-toggle__save");
 
     function monthlyEquivFromYearly(yearlyTotal) {
       return Math.round(yearlyTotal / 12);
+    }
+
+    function savePercent(monthly, yearlyTotal) {
+      var annualMonthly = monthly * 12;
+      if (!isFinite(annualMonthly) || annualMonthly <= 0) return null;
+      if (!isFinite(yearlyTotal) || yearlyTotal <= 0) return null;
+      var pct = ((annualMonthly - yearlyTotal) / annualMonthly) * 100;
+      if (!isFinite(pct) || pct <= 0) return null;
+      return Math.round(pct);
     }
 
     function annualBillingLabel(total) {
@@ -399,6 +409,27 @@
       });
     }
 
+    function applySaveBadge() {
+      if (!saveBadge) return;
+      var best = null;
+      cards.forEach(function (card) {
+        var monthly = parseFloat(card.getAttribute("data-monthly"), 10);
+        var yearlyTotal = parseFloat(card.getAttribute("data-yearly-total"), 10);
+        var pct = savePercent(monthly, yearlyTotal);
+        if (pct === null) return;
+        if (best === null || pct > best) best = pct;
+      });
+
+      if (best === null) {
+        saveBadge.textContent = "";
+        saveBadge.setAttribute("hidden", "");
+        return;
+      }
+
+      saveBadge.removeAttribute("hidden");
+      saveBadge.textContent = "Save " + best + "%";
+    }
+
     function setMode(mode) {
       buttons.forEach(function (btn) {
         var isSel = btn.getAttribute("data-lp-billing") === mode;
@@ -418,6 +449,7 @@
       });
     });
 
+    applySaveBadge();
     setMode(current);
   }
 

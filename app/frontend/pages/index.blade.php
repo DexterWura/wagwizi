@@ -400,7 +400,7 @@
       <section class="lp-section lp-pricing" id="pricing">
         <div class="lp-section__head" data-lp-reveal>
           <h2>Pricing</h2>
-          <p>Same tiers as in the app. Switch billing period to compare monthly vs annual (save about 20% on paid plans).</p>
+          <p>Find the right plan for your needs(select monthly or yearly)</p>
         </div>
         <div class="lp-wrap">
           <div class="lp-billing-toggle-wrap" data-lp-reveal data-lp-currency-symbol="{{ $currencyDisplay->symbol($currencyDisplay->defaultCurrency()) }}">
@@ -534,7 +534,7 @@
           <a class="lp-logo" href="{{ route('landing') }}" aria-label="{{ config('app.name') }} home">
             @include('brand-logo')
           </a>
-          <p>Social scheduling and analytics UI — bring your own backend.</p>
+          <p>{{ $heroSubheading }}</p>
           <div class="lp-footer__social">
             <a href="#" aria-label="LinkedIn"><i class="fa-brands fa-linkedin"></i></a>
             <a href="#" aria-label="X"><i class="fa-brands fa-x-twitter"></i></a>
