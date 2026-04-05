@@ -93,6 +93,23 @@
                       </label>
                       <p class="field__hint">Recommended: 1200x630 image (JPG/PNG/WebP).</p>
                     </div>
+                    <div class="field">
+                      <label class="field__label" for="seo_favicon">Favicon</label>
+                      <input class="input" type="file" id="seo_favicon" name="seo_favicon" accept=".ico,image/png,image/jpeg,image/webp,image/svg+xml" />
+                      <input type="hidden" name="seo_favicon_existing" value="{{ $settings['seo_favicon_path'] }}" />
+                      <label class="check-line check-line--spaced">
+                        <input type="hidden" name="seo_favicon_remove" value="0" />
+                        <input type="checkbox" name="seo_favicon_remove" value="1" />
+                        <span>Remove current favicon</span>
+                      </label>
+                      @if(!empty($settings['seo_favicon_path']))
+                      <div class="admin-seo-favicon-preview">
+                        <img src="{{ asset($settings['seo_favicon_path']) }}" alt="Current favicon preview" />
+                        <a href="{{ asset($settings['seo_favicon_path']) }}" target="_blank" rel="noopener noreferrer">{{ $settings['seo_favicon_path'] }}</a>
+                      </div>
+                      @endif
+                      <p class="field__hint">Best results: square icon (32x32, 48x48, or 64x64).</p>
+                    </div>
                     <div class="admin-seo-preview" data-seo-preview>
                       <p class="admin-seo-preview__label">Search preview</p>
                       <div class="admin-seo-preview__serp">

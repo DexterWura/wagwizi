@@ -282,6 +282,7 @@ class AppServiceProvider extends ServiceProvider
             $keywords = '';
             $twitterSite = '';
             $imagePath = '';
+            $faviconPath = '';
 
             try {
                 if (Schema::hasTable('site_settings')) {
@@ -293,6 +294,7 @@ class AppServiceProvider extends ServiceProvider
                     $keywords = trim((string) SiteSetting::get('seo_keywords', ''));
                     $twitterSite = trim((string) SiteSetting::get('seo_twitter_site', ''));
                     $imagePath = trim((string) SiteSetting::get('seo_image_path', ''));
+                    $faviconPath = trim((string) SiteSetting::get('seo_favicon_path', ''));
                 }
             } catch (\Throwable) {
             }
@@ -321,6 +323,15 @@ class AppServiceProvider extends ServiceProvider
                 }
             }
 
+            $faviconUrl = '';
+            if ($faviconPath !== '') {
+                if (filter_var($faviconPath, FILTER_VALIDATE_URL)) {
+                    $faviconUrl = $faviconPath;
+                } else {
+                    $faviconUrl = url('/' . ltrim($faviconPath, '/'));
+                }
+            }
+
             return [
                 'site_name'          => $siteName,
                 'meta_title'         => $metaTitle,
@@ -329,6 +340,7 @@ class AppServiceProvider extends ServiceProvider
                 'keywords'           => $keywords,
                 'twitter_site'       => $twitterSite,
                 'image_url'          => $imageUrl,
+                'favicon_url'        => $faviconUrl,
                 'robots'             => 'index,follow',
                 'type'               => 'website',
             ];

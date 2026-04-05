@@ -13,8 +13,6 @@
       })();
     </script>
     @include('seo-meta', [
-      'seoTitleOverride' => 'System Status — ' . config('app.name'),
-      'seoDescriptionOverride' => 'Live service health and uptime for ' . config('app.name') . '.',
       'seoCanonicalOverride' => route('status'),
       'seoTypeOverride' => 'website',
       'seoRobotsOverride' => 'index,follow',

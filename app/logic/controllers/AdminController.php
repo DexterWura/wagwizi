@@ -452,6 +452,7 @@ class AdminController extends Controller
             'seo_keywords'               => SiteSetting::get('seo_keywords', ''),
             'seo_twitter_site'           => SiteSetting::get('seo_twitter_site', ''),
             'seo_image_path'             => SiteSetting::get('seo_image_path', ''),
+            'seo_favicon_path'           => SiteSetting::get('seo_favicon_path', ''),
             'registration_open'          => SiteSetting::get('registration_open', '1'),
             'show_floating_help'         => SiteSetting::get('show_floating_help', '1'),
             'social_login_google'        => SiteSetting::get('social_login_google', '1'),
@@ -588,6 +589,9 @@ class AdminController extends Controller
             'seo_image' => 'nullable|file|image|max:5120',
             'seo_image_existing' => 'nullable|string|max:500',
             'seo_image_remove' => 'nullable|boolean',
+            'seo_favicon' => 'nullable|file|mimes:ico,png,jpg,jpeg,webp,svg|max:2048',
+            'seo_favicon_existing' => 'nullable|string|max:500',
+            'seo_favicon_remove' => 'nullable|boolean',
         ]);
 
         $fields = ['app_name', 'app_tagline', 'hero_eyebrow', 'hero_heading', 'hero_subheading', 'registration_open', 'show_floating_help'];
@@ -619,6 +623,24 @@ class AdminController extends Controller
             $incomingExisting = trim((string) $request->input('seo_image_existing', ''));
             if ($incomingExisting !== '' && str_starts_with($incomingExisting, 'assets/uploads/seo/')) {
                 SiteSetting::set('seo_image_path', $incomingExisting);
+            }
+        }
+
+        $existingFavicon = trim((string) SiteSetting::get('seo_favicon_path', ''));
+        if ($request->boolean('seo_favicon_remove')) {
+            if ($existingFavicon !== '' && str_starts_with($existingFavicon, 'assets/uploads/seo/')) {
+                FileUploadUtil::delete($existingFavicon);
+            }
+            SiteSetting::set('seo_favicon_path', '');
+        } elseif ($request->hasFile('seo_favicon')) {
+            if ($existingFavicon !== '' && str_starts_with($existingFavicon, 'assets/uploads/seo/')) {
+                FileUploadUtil::delete($existingFavicon);
+            }
+            SiteSetting::set('seo_favicon_path', FileUploadUtil::store($request->file('seo_favicon'), 'seo'));
+        } else {
+            $incomingFavicon = trim((string) $request->input('seo_favicon_existing', ''));
+            if ($incomingFavicon !== '' && str_starts_with($incomingFavicon, 'assets/uploads/seo/')) {
+                SiteSetting::set('seo_favicon_path', $incomingFavicon);
             }
         }
 

@@ -11,6 +11,7 @@
   $seoCanonical = trim((string) ($seoCanonicalOverride ?? $__env->yieldContent('canonical-url', url()->current())));
   $seoImage = trim((string) ($seoImageOverride ?? $__env->yieldContent('social-image', $defaults['image_url'] ?? '')));
   $seoTwitterSite = trim((string) ($seoTwitterSiteOverride ?? ($defaults['twitter_site'] ?? '')));
+  $seoFavicon = trim((string) ($seoFaviconOverride ?? ($defaults['favicon_url'] ?? '')));
 
   if ($seoTitle === '') {
     $seoTitle = $siteName;
@@ -34,6 +35,11 @@
 @endif
 <meta name="robots" content="{{ $seoRobots }}" />
 <link rel="canonical" href="{{ $seoCanonical }}" />
+@if($seoFavicon !== '')
+<link rel="icon" href="{{ $seoFavicon }}" />
+<link rel="shortcut icon" href="{{ $seoFavicon }}" />
+<link rel="apple-touch-icon" href="{{ $seoFavicon }}" />
+@endif
 
 <meta property="og:type" content="{{ $seoType !== '' ? $seoType : 'website' }}" />
 <meta property="og:site_name" content="{{ $siteName }}" />

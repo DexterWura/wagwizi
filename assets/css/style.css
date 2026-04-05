@@ -7547,6 +7547,33 @@ button.link-create {
   color: var(--text-faint);
 }
 
+.admin-seo-favicon-preview {
+  margin-top: 0.55rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.8rem;
+}
+
+.admin-seo-favicon-preview img {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+  background: var(--bg-elevated);
+}
+
+.admin-seo-favicon-preview a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.admin-seo-favicon-preview a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
 .admin-landing-features-form {
   margin-top: 1.25rem;
 }

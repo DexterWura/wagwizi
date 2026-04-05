@@ -4,8 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     @include('seo-meta', [
-      'seoTitleOverride' => trim($heroHeading) !== '' ? ($heroHeading . ' — ' . config('app.name')) : config('app.name'),
-      'seoDescriptionOverride' => \Illuminate\Support\Str::limit($heroSubheading, 160),
       'seoCanonicalOverride' => route('landing'),
       'seoTypeOverride' => 'website',
       'seoRobotsOverride' => 'index,follow',
