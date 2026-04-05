@@ -74,14 +74,24 @@ class PostSchedulingService
         ], fn ($v) => $v !== null));
 
         if (isset($data['platform_accounts'])) {
-            $this->syncPlatformAccounts(
-                $post,
-                $userId,
-                $data['platform_accounts'],
-                $data['platform_content'] ?? [],
-                $data['first_comment'] ?? null,
-                $this->resolveCommentDelayMinutes($data),
-            );
+            $platformAccounts = is_array($data['platform_accounts'])
+                ? $data['platform_accounts']
+                : [];
+
+            if ($platformAccounts === []) {
+                // Editing a failed/draft post should allow clearing all targets first.
+                $post->postPlatforms()->delete();
+                $post->update(['platforms' => []]);
+            } else {
+                $this->syncPlatformAccounts(
+                    $post,
+                    $userId,
+                    $platformAccounts,
+                    $data['platform_content'] ?? [],
+                    $data['first_comment'] ?? null,
+                    $this->resolveCommentDelayMinutes($data),
+                );
+            }
         }
 
         return $post->fresh();

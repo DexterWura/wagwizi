@@ -87,10 +87,7 @@ class MentionSuggestionService
         $response = Http::withToken($account->access_token)
             ->timeout(15)
             ->acceptJson()
-            ->withHeaders([
-                'X-Restli-Protocol-Version' => '2.0.0',
-                'LinkedIn-Version'          => '202401',
-            ])
+            ->withHeaders($this->linkedInHeaders())
             ->get('https://api.linkedin.com/v2/people', [
                 'q'        => 'peopleSearch',
                 'keywords' => $q,
@@ -156,6 +153,23 @@ class MentionSuggestionService
         $v = reset($node);
 
         return is_string($v) ? $v : '';
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function linkedInHeaders(): array
+    {
+        $headers = [
+            'X-Restli-Protocol-Version' => '2.0.0',
+        ];
+
+        $version = trim((string) config('platforms.linkedin.api_version', ''));
+        if ($version !== '') {
+            $headers['LinkedIn-Version'] = $version;
+        }
+
+        return $headers;
     }
 
     /**

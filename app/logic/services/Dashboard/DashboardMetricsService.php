@@ -311,10 +311,7 @@ final class DashboardMetricsService
         $resp = Http::withToken($account->access_token)
             ->timeout(12)
             ->acceptJson()
-            ->withHeaders([
-                'X-Restli-Protocol-Version' => '2.0.0',
-                'LinkedIn-Version'          => '202401',
-            ])
+            ->withHeaders($this->linkedInHeaders())
             ->get('https://api.linkedin.com/rest/memberFollowersCount', [
                 'q' => 'me',
             ]);
@@ -439,5 +436,22 @@ final class DashboardMetricsService
         }
 
         return $allowed[0];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function linkedInHeaders(): array
+    {
+        $headers = [
+            'X-Restli-Protocol-Version' => '2.0.0',
+        ];
+
+        $version = trim((string) config('platforms.linkedin.api_version', ''));
+        if ($version !== '') {
+            $headers['LinkedIn-Version'] = $version;
+        }
+
+        return $headers;
     }
 }

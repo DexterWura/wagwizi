@@ -47,10 +47,7 @@ class LinkedInAdapter extends AbstractPlatformAdapter
         }
 
         $response = $this->httpClient($account)
-            ->withHeaders([
-                'X-Restli-Protocol-Version' => '2.0.0',
-                'LinkedIn-Version'          => '202401',
-            ])
+            ->withHeaders($this->linkedInHeaders())
             ->post('/rest/posts', $this->buildRestPostPayload($authorId, $text, $mediaUrls, $account));
 
         if ($response->status() === 201) {
@@ -104,7 +101,7 @@ class LinkedInAdapter extends AbstractPlatformAdapter
     private function registerAndUploadImage(SocialAccount $account, string $authorId, string $imageUrl): ?string
     {
         $initResponse = $this->httpClient($account)
-            ->withHeaders(['X-Restli-Protocol-Version' => '2.0.0'])
+            ->withHeaders($this->linkedInHeaders())
             ->post('/rest/images?action=initializeUpload', [
                 'initializeUploadRequest' => [
                     'owner' => "urn:li:person:{$authorId}",
@@ -133,7 +130,7 @@ class LinkedInAdapter extends AbstractPlatformAdapter
     public function deletePost(SocialAccount $account, string $platformPostId): bool
     {
         $response = $this->httpClient($account)
-            ->withHeaders(['X-Restli-Protocol-Version' => '2.0.0'])
+            ->withHeaders($this->linkedInHeaders())
             ->delete("/rest/posts/{$platformPostId}");
 
         return $response->successful();
@@ -181,10 +178,7 @@ class LinkedInAdapter extends AbstractPlatformAdapter
         }
 
         $response = $this->httpClient($account)
-            ->withHeaders([
-                'X-Restli-Protocol-Version' => '2.0.0',
-                'LinkedIn-Version'          => '202401',
-            ])
+            ->withHeaders($this->linkedInHeaders())
             ->post('/rest/socialActions/' . rawurlencode($target) . '/comments', [
                 'actor'   => "urn:li:person:{$actorId}",
                 'message' => [
@@ -217,5 +211,24 @@ class LinkedInAdapter extends AbstractPlatformAdapter
         }
 
         return null;
+    }
+
+    /**
+     * LinkedIn version header changes over time; keep it configurable.
+     *
+     * @return array<string, string>
+     */
+    private function linkedInHeaders(): array
+    {
+        $headers = [
+            'X-Restli-Protocol-Version' => '2.0.0',
+        ];
+
+        $version = trim((string) config('platforms.linkedin.api_version', ''));
+        if ($version !== '') {
+            $headers['LinkedIn-Version'] = $version;
+        }
+
+        return $headers;
     }
 }
