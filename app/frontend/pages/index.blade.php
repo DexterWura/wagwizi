@@ -322,7 +322,7 @@
                 <i class="fa-solid fa-play" aria-hidden="true"></i>
               </div>
               <p class="lp-video__title">GROW YOUR SOCIALS FAST</p>
-              <p class="lp-video__sub">Demo video — connect your player here</p>
+              <p class="lp-video__sub">Demo video</p>
             </div>
           </div>
         </div>
