@@ -3296,6 +3296,13 @@ button.link-create {
   max-width: 640px;
 }
 
+.app-modal__form {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
 .app-modal.is-open .app-modal__panel {
   transform: translateY(0) translateZ(0);
 }

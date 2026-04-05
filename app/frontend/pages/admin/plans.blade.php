@@ -229,7 +229,7 @@
             <button type="button" class="app-modal__close" data-app-modal-close aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
           </div>
         </div>
-        <form id="add-plan-form" method="POST" action="{{ route('admin.plans.store') }}">
+        <form id="add-plan-form" class="app-modal__form" method="POST" action="{{ route('admin.plans.store') }}">
           @csrf
           <input type="hidden" name="tools_present" value="1" />
           <div class="app-modal__body">
