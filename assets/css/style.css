@@ -1085,15 +1085,28 @@ html.app-nav-loading .app-nav-preloader {
 
 @media (max-width: 900px) {
   .app-topbar:not(.app-topbar--composer) .app-topbar__cluster {
-    flex-basis: 100%;
-    justify-content: flex-start;
-    padding-left: calc(40px + 0.5rem);
+    flex-basis: auto;
+    justify-content: flex-end;
+    padding-left: 0;
+    margin-left: auto;
+    gap: 0.35rem;
   }
 
+  /* Keep the top bar lightweight on phones; full account/navigation controls
+     remain available in the hamburger sidebar. */
+  .app-topbar:not(.app-topbar--composer) .btn--topbar-upgrade,
+  .app-topbar:not(.app-topbar--composer) .app-theme-toggle,
+  .app-topbar:not(.app-topbar--composer) .app-topbar__account-wrap,
   .app-topbar:not(.app-topbar--composer) .app-topbar__date {
-    width: 100%;
-    flex-basis: 100%;
-    order: -1;
+    display: none;
+  }
+
+  .app-topbar:not(.app-topbar--composer) .app-topbar__lead {
+    font-size: 0.84rem;
+  }
+
+  .app-topbar:not(.app-topbar--composer) .app-topbar__name {
+    max-width: min(9.75rem, 42vw);
   }
 }
 
