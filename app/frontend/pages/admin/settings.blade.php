@@ -33,6 +33,7 @@
 
           <form method="POST" action="{{ route('admin.settings.update') }}" enctype="multipart/form-data">
             @csrf
+            <input type="hidden" name="return_section" value="general" data-admin-return-section />
             <div class="grid-balance" data-admin-settings-grid>
               <div data-admin-settings-column>
                 <div class="card" data-admin-settings-pane="general">
@@ -208,6 +209,7 @@
 
           <form method="POST" action="{{ route('admin.settings.landing-features-deep') }}" enctype="multipart/form-data" class="card admin-landing-features-form" data-admin-settings-pane="landing">
             @csrf
+            <input type="hidden" name="return_section" value="landing" />
             <div class="card__head">Landing page — Features deep</div>
             <div class="card__body">
               <p class="field__hint">The four rows in <code>#features-deep</code> on the home page. For <strong>Icon row</strong>, leave classes empty to use enabled platform icons, or enter comma-separated Font Awesome classes (e.g. <code>fa-brands fa-x-twitter fa-2x,fa-brands fa-linkedin fa-2x</code>).</p>
@@ -289,12 +291,14 @@
               <div class="admin-seo-files-actions">
                 <form method="POST" action="{{ route('admin.settings.generate-sitemap') }}" class="inline-form">
                   @csrf
+                  <input type="hidden" name="return_section" value="seo" />
                   <button type="submit" class="btn btn--outline">
                     <i class="fa-solid fa-sitemap" aria-hidden="true"></i> Create sitemap
                   </button>
                 </form>
                 <form method="POST" action="{{ route('admin.settings.generate-robots') }}" class="inline-form">
                   @csrf
+                  <input type="hidden" name="return_section" value="seo" />
                   <button type="submit" class="btn btn--outline">
                     <i class="fa-solid fa-robot" aria-hidden="true"></i> Create robots.txt
                   </button>
@@ -309,6 +313,7 @@
               <p class="field__hint">Runs <code>php artisan optimize:clear</code> — clears application cache, compiled views, route and config cache, and related caches. Use after deploys or if the app feels stale.</p>
               <form method="POST" action="{{ route('admin.settings.clear-cache') }}" class="inline-form">
                 @csrf
+                <input type="hidden" name="return_section" value="maintenance" />
                 <button type="submit" class="btn btn--outline" onclick="return confirm('Clear all application caches?');">
                   <i class="fa-solid fa-broom" aria-hidden="true"></i> Clear site cache
                 </button>
@@ -326,8 +331,10 @@
 
     var paneEls = Array.prototype.slice.call(document.querySelectorAll('[data-admin-settings-pane]'));
     var btns = Array.prototype.slice.call(nav.querySelectorAll('[data-admin-settings-target]'));
+    var returnSectionInputs = Array.prototype.slice.call(document.querySelectorAll('[data-admin-return-section]'));
     var columns = Array.prototype.slice.call(document.querySelectorAll('[data-admin-settings-column]'));
     var grid = document.querySelector('[data-admin-settings-grid]');
+    var storageKey = 'admin-settings:last-pane';
     var valid = ['general', 'seo', 'landing', 'maintenance'];
 
     function paneMatch(el, pane) {
@@ -343,6 +350,10 @@
         var on = btn.getAttribute('data-admin-settings-target') === pane;
         btn.classList.toggle('is-active', on);
         btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+
+      returnSectionInputs.forEach(function (input) {
+        input.value = pane;
       });
 
       paneEls.forEach(function (el) {
@@ -363,6 +374,10 @@
         var visibleCols = columns.filter(function (col) { return !col.hidden; }).length;
         grid.setAttribute('data-admin-single-column', visibleCols <= 1 ? '1' : '0');
       }
+
+      try {
+        global.localStorage.setItem(storageKey, pane);
+      } catch (e) {}
     }
 
     btns.forEach(function (btn) {
@@ -372,7 +387,21 @@
       });
     });
 
-    applyPane('general');
+    var initialPane = 'general';
+    try {
+      var qs = new URLSearchParams(global.location.search || '');
+      var fromQuery = qs.get('section');
+      if (fromQuery && valid.indexOf(fromQuery) !== -1) {
+        initialPane = fromQuery;
+      } else {
+        var fromStorage = global.localStorage.getItem(storageKey);
+        if (fromStorage && valid.indexOf(fromStorage) !== -1) {
+          initialPane = fromStorage;
+        }
+      }
+    } catch (e) {}
+
+    applyPane(initialPane);
   })();
 
   (function () {

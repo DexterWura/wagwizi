@@ -575,7 +575,11 @@ class AdminController extends Controller
 
         SiteSetting::setJson('landing_features_deep', $out);
 
-        return back()->with('success', 'Landing features deep section saved.');
+        return $this->redirectToSettingsSection(
+            (string) $request->input('return_section', 'landing'),
+            'Landing features deep section saved.',
+            'success'
+        );
     }
 
     public function updateSettings(Request $request): RedirectResponse
@@ -661,7 +665,11 @@ class AdminController extends Controller
 
         Cache::forget('global:seo_defaults');
 
-        return back()->with('success', 'Settings saved.');
+        return $this->redirectToSettingsSection(
+            (string) $request->input('return_section', 'general'),
+            'Settings saved.',
+            'success'
+        );
     }
 
     // ── Migrations ──────────────────────────────────────
@@ -984,8 +992,10 @@ class AdminController extends Controller
         return back()->with('success', 'Operations settings updated.');
     }
 
-    public function clearApplicationCache(): RedirectResponse
+    public function clearApplicationCache(Request $request): RedirectResponse
     {
+        $section = (string) $request->input('return_section', 'maintenance');
+
         try {
             Artisan::call('config:clear');
             Artisan::call('route:clear');
@@ -993,7 +1003,7 @@ class AdminController extends Controller
             Artisan::call('cache:clear');
             Artisan::call('event:clear');
         } catch (\Throwable $e) {
-            return back()->with('error', 'Could not clear caches: ' . $e->getMessage());
+            return $this->redirectToSettingsSection($section, 'Could not clear caches: ' . $e->getMessage(), 'error');
         }
 
         try {
@@ -1001,36 +1011,54 @@ class AdminController extends Controller
             Artisan::call('route:cache');
             Artisan::call('view:cache');
         } catch (\Throwable $e) {
-            return back()->with('success', 'Caches cleared but could not rebuild: ' . $e->getMessage());
+            return $this->redirectToSettingsSection($section, 'Caches cleared but could not rebuild: ' . $e->getMessage(), 'success');
         }
 
-        return back()->with('success', 'All caches cleared and rebuilt (config, routes, views, events, application cache).');
+        return $this->redirectToSettingsSection(
+            $section,
+            'All caches cleared and rebuilt (config, routes, views, events, application cache).',
+            'success'
+        );
     }
 
-    public function clearSiteCache(): RedirectResponse
+    public function clearSiteCache(Request $request): RedirectResponse
     {
-        return $this->clearApplicationCache();
+        return $this->clearApplicationCache($request);
     }
 
-    public function generateSitemap(PublicSeoFilesService $seo): RedirectResponse
+    public function generateSitemap(Request $request, PublicSeoFilesService $seo): RedirectResponse
     {
+        $section = (string) $request->input('return_section', 'seo');
+
         try {
             $seo->writeSitemap();
         } catch (\Throwable $e) {
-            return back()->with('error', 'Could not write sitemap.xml: ' . $e->getMessage());
+            return $this->redirectToSettingsSection($section, 'Could not write sitemap.xml: ' . $e->getMessage(), 'error');
         }
 
-        return back()->with('success', 'sitemap.xml was generated and saved at the site root.');
+        return $this->redirectToSettingsSection($section, 'sitemap.xml was generated and saved at the site root.', 'success');
     }
 
-    public function generateRobotsTxt(PublicSeoFilesService $seo): RedirectResponse
+    public function generateRobotsTxt(Request $request, PublicSeoFilesService $seo): RedirectResponse
     {
+        $section = (string) $request->input('return_section', 'seo');
+
         try {
             $seo->writeRobotsTxt();
         } catch (\Throwable $e) {
-            return back()->with('error', 'Could not write robots.txt: ' . $e->getMessage());
+            return $this->redirectToSettingsSection($section, 'Could not write robots.txt: ' . $e->getMessage(), 'error');
         }
 
-        return back()->with('success', 'robots.txt was generated and saved at the site root.');
+        return $this->redirectToSettingsSection($section, 'robots.txt was generated and saved at the site root.', 'success');
+    }
+
+    private function redirectToSettingsSection(string $section, string $message, string $type = 'success'): RedirectResponse
+    {
+        $allowed = ['general', 'seo', 'landing', 'maintenance'];
+        $normalized = in_array($section, $allowed, true) ? $section : 'general';
+
+        return redirect()
+            ->route('admin.settings', ['section' => $normalized])
+            ->with($type, $message);
     }
 }

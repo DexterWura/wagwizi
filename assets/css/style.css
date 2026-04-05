@@ -3734,9 +3734,9 @@ button.link-create {
   font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: #fff;
-  border-color: #0a4bd1;
-  background: linear-gradient(180deg, #0b63ff 0%, #0146c8 100%);
+  color: #1a0a00;
+  border-color: var(--accent-orange);
+  background: var(--accent-orange);
 }
 
 .login-page__submit:hover {
@@ -3759,7 +3759,7 @@ button.link-create {
   font-size: 0.92rem;
   font-weight: 700;
   text-decoration: none;
-  color: #0b63ff;
+  color: var(--accent-orange);
 }
 
 .login-page__meta-links a + a {
@@ -3767,7 +3767,8 @@ button.link-create {
 }
 
 .login-page__meta-links a:hover {
-  background: rgba(11, 99, 255, 0.08);
+  background: var(--accent-orange-dim);
+  color: var(--text);
 }
 
 /* ─── Alert banners ────────────────────────────────────── */
