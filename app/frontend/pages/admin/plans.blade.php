@@ -272,6 +272,21 @@
                 <textarea class="input" name="features" rows="3" placeholder="Feature 1&#10;Feature 2"></textarea>
               </div>
               <div class="field field--full">
+                <label class="field__label">Allowed platforms</label>
+                <div class="admin-checkbox-grid">
+                  @foreach($enabledPlatforms as $slug)
+                    @php $plat = \App\Services\Platform\Platform::tryFrom($slug); @endphp
+                    @if($plat)
+                      <label class="check-line">
+                        <input type="checkbox" name="allowed_platforms[]" value="{{ $slug }}" checked />
+                        <span><i class="{{ $plat->icon() }}" aria-hidden="true"></i> {{ $plat->label() }}</span>
+                      </label>
+                    @endif
+                  @endforeach
+                </div>
+                <p class="field__hint">New plans start with access to every enabled platform.</p>
+              </div>
+              <div class="field field--full">
                 <label class="field__label">Allowed tools</label>
                 <div class="admin-checkbox-grid">
                   @foreach($toolCatalog as $toolSlug => $toolMeta)
