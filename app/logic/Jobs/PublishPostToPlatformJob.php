@@ -273,11 +273,39 @@ class PublishPostToPlatformJob implements ShouldQueue
     {
         $mediaFiles = $post->mediaFiles;
 
-        if ($mediaFiles === null || $mediaFiles->isEmpty()) {
-            return [];
+        if ($mediaFiles !== null && !$mediaFiles->isEmpty()) {
+            $urls = $mediaFiles->pluck('url')->filter()->values()->toArray();
+            if ($urls !== []) {
+                return $urls;
+            }
         }
 
-        return $mediaFiles->pluck('url')->filter()->values()->toArray();
+        $fallback = [];
+        $mediaPaths = $post->media_paths;
+        if (is_array($mediaPaths)) {
+            foreach ($mediaPaths as $path) {
+                if (!is_string($path) || trim($path) === '') {
+                    continue;
+                }
+                $fallback[] = $this->toAbsoluteMediaUrl($path);
+            }
+        }
+
+        return array_values(array_unique(array_filter($fallback)));
+    }
+
+    private function toAbsoluteMediaUrl(string $path): string
+    {
+        $trimmed = trim($path);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        if (filter_var($trimmed, FILTER_VALIDATE_URL)) {
+            return $trimmed;
+        }
+
+        return rtrim((string) config('app.url'), '/') . '/' . ltrim($trimmed, '/');
     }
 
     public function failed(\Throwable $exception): void

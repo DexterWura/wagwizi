@@ -6,7 +6,7 @@ use Monolog\Processor\PsrLogMessageProcessor;
 
 return [
 
-    'default' => env('LOG_CHANNEL', 'weekly'),
+    'default' => env('LOG_CHANNEL', 'stack'),
 
     'deprecations' => [
         'channel' => env('LOG_DEPRECATIONS_CHANNEL', 'null'),
@@ -14,6 +14,11 @@ return [
     ],
 
     'channels' => [
+        'stack' => [
+            'driver' => 'stack',
+            'channels' => ['weekly', 'single'],
+            'ignore_exceptions' => false,
+        ],
 
         /*
         |----------------------------------------------------------------------

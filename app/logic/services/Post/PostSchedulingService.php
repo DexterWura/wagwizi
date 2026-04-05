@@ -475,6 +475,7 @@ class PostSchedulingService
 
         if ($ids === [] && $paths === []) {
             $post->mediaFiles()->sync([]);
+            $post->update(['media_paths' => []]);
             return;
         }
 
@@ -511,15 +512,21 @@ class PostSchedulingService
 
         if ($selected === []) {
             $post->mediaFiles()->sync([]);
+            $post->update(['media_paths' => []]);
             return;
         }
 
         $payload = [];
+        $resolvedPaths = [];
         $order = 0;
         foreach ($selected as $media) {
             $payload[$media->id] = ['sort_order' => $order++];
+            if (is_string($media->path) && trim($media->path) !== '') {
+                $resolvedPaths[] = trim($media->path);
+            }
         }
 
         $post->mediaFiles()->sync($payload);
+        $post->update(['media_paths' => array_values(array_unique($resolvedPaths))]);
     }
 }

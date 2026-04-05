@@ -47,59 +47,69 @@ class LinkedInAdapter extends AbstractPlatformAdapter
             }
         }
 
-        $payload = $this->buildRestPostPayload($authorId, $text, $mediaUrls, $account);
+        $payload = $this->buildUgcPostPayload($authorId, $text, $mediaUrls, $account);
 
         $response = $this->httpClient($account)
             ->withHeaders($this->linkedInHeaders())
-            ->post('/rest/posts', $payload);
+            ->post('/v2/ugcPosts', $payload);
 
         if ($response->status() === 201) {
-            $postUrn = $response->header('x-restli-id') ?? $response->header('X-LinkedIn-Id') ?? '';
+            $postUrn = $this->normalizePostedUrn(
+                $response->header('x-restli-id') ?? $response->header('X-RestLi-Id') ?? ''
+            );
+
             $this->logPublishSuccess($postUrn);
 
             return PublishResult::ok(
                 $postUrn,
-                "https://www.linkedin.com/feed/update/{$postUrn}/",
+                $postUrn !== '' ? "https://www.linkedin.com/feed/update/{$postUrn}/" : null,
             );
         }
 
         return $this->failFromResponse($response);
     }
 
-    private function buildRestPostPayload(string $authorId, string $text, array $mediaUrls, SocialAccount $account): array
+    private function buildUgcPostPayload(string $authorId, string $text, array $mediaUrls, SocialAccount $account): array
     {
-        $payload = [
-            'author'           => "urn:li:person:{$authorId}",
-            'commentary'       => $text,
-            'visibility'       => 'PUBLIC',
-            'distribution'     => [
-                'feedDistribution'               => 'MAIN_FEED',
-                'targetEntities'                 => [],
-                'thirdPartyDistributionChannels' => [],
-            ],
-            'lifecycleState'   => 'PUBLISHED',
-        ];
+        $shareMediaCategory = 'NONE';
+        $mediaPayload = [];
 
         if (!empty($mediaUrls)) {
-            $imageAssets = [];
+            $shareMediaCategory = 'IMAGE';
+
             foreach ($mediaUrls as $url) {
                 $asset = $this->registerAndUploadImage($account, $authorId, $url);
                 if ($asset !== null) {
-                    $imageAssets[] = ['id' => $asset];
+                    $mediaPayload[] = [
+                        'status' => 'READY',
+                        'media'  => $asset,
+                    ];
                 }
             }
 
-            if (count($imageAssets) !== count($mediaUrls)) {
+            if (count($mediaPayload) !== count($mediaUrls)) {
                 throw new \RuntimeException(
                     'LinkedIn media upload failed for one or more images. The post was not published as text-only.'
                 );
             }
+        }
 
-            $payload['content'] = [
-                'multiImage' => [
-                    'images' => $imageAssets,
+        $payload = [
+            'author'         => "urn:li:person:{$authorId}",
+            'lifecycleState' => 'PUBLISHED',
+            'specificContent' => [
+                'com.linkedin.ugc.ShareContent' => [
+                    'shareCommentary'   => ['text' => $text],
+                    'shareMediaCategory' => $shareMediaCategory,
                 ],
-            ];
+            ],
+            'visibility' => [
+                'com.linkedin.ugc.MemberNetworkVisibility' => 'PUBLIC',
+            ],
+        ];
+
+        if ($shareMediaCategory === 'IMAGE') {
+            $payload['specificContent']['com.linkedin.ugc.ShareContent']['media'] = $mediaPayload;
         }
 
         return $payload;
@@ -109,9 +119,14 @@ class LinkedInAdapter extends AbstractPlatformAdapter
     {
         $initResponse = $this->httpClient($account)
             ->withHeaders($this->linkedInHeaders())
-            ->post('/rest/images?action=initializeUpload', [
-                'initializeUploadRequest' => [
+            ->post('/v2/assets?action=registerUpload', [
+                'registerUploadRequest' => [
+                    'recipes' => ['urn:li:digitalmediaRecipe:feedshare-image'],
                     'owner' => "urn:li:person:{$authorId}",
+                    'serviceRelationships' => [[
+                        'relationshipType' => 'OWNER',
+                        'identifier' => 'urn:li:userGeneratedContent',
+                    ]],
                 ],
             ]);
 
@@ -123,8 +138,8 @@ class LinkedInAdapter extends AbstractPlatformAdapter
             return null;
         }
 
-        $uploadUrl = $initResponse->json('value.uploadUrl');
-        $imageUrn  = $initResponse->json('value.image');
+        $uploadUrl = $initResponse->json('value.uploadMechanism.com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest.uploadUrl');
+        $imageUrn  = $initResponse->json('value.asset');
 
         $imageContent = $this->downloadSafeMedia($imageUrl);
         if ($imageContent === null) {
@@ -146,6 +161,28 @@ class LinkedInAdapter extends AbstractPlatformAdapter
         }
 
         return $uploadResponse->successful() ? $imageUrn : null;
+    }
+
+    private function normalizePostedUrn(string $raw): string
+    {
+        $value = trim(rawurldecode($raw));
+        if ($value === '') {
+            return '';
+        }
+
+        if (str_starts_with($value, 'urn:li:')) {
+            return $value;
+        }
+
+        if (str_starts_with($value, 'ugcPost:') || str_starts_with($value, 'share:')) {
+            return 'urn:li:' . $value;
+        }
+
+        if (preg_match('/^\d+$/', $value) === 1) {
+            return 'urn:li:ugcPost:' . $value;
+        }
+
+        return $value;
     }
 
     public function deletePost(SocialAccount $account, string $platformPostId): bool
