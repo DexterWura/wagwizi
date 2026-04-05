@@ -74,7 +74,10 @@ class NotificationChannelConfigService
 
         Config::set("mail.mailers.{$name}", $mailer);
 
-        $fromAddress = config('mail.from.address') ?: 'hello@example.com';
+        $smtpFrom = (string) ($settings->smtp_username ?? '');
+        $fromAddress = filter_var($smtpFrom, FILTER_VALIDATE_EMAIL)
+            ? $smtpFrom
+            : (config('mail.from.address') ?: 'hello@example.com');
         $fromName    = config('mail.from.name') ?: config('app.name');
 
         Config::set('mail.from', [
@@ -86,12 +89,17 @@ class NotificationChannelConfigService
     public function sendHtml(string $to, string $subject, string $html, ?string $textPlain = null): void
     {
         $this->applyDynamicMailerConfig();
+        $settings = $this->getSettings();
 
         $mailer = Mail::mailer(self::DYNAMIC_MAILER);
         // Rendered template content is raw HTML/text, not Blade view names.
         // Always use html() so Laravel does not attempt to resolve $textPlain as a view path.
-        $mailer->html($html, function ($message) use ($to, $subject) {
+        $mailer->html($html, function ($message) use ($to, $subject, $settings) {
             $message->to($to)->subject($subject);
+            $smtpFrom = (string) ($settings->smtp_username ?? '');
+            if ($smtpFrom !== '' && filter_var($smtpFrom, FILTER_VALIDATE_EMAIL)) {
+                $message->from($smtpFrom, (string) config('app.name'));
+            }
         });
     }
 
