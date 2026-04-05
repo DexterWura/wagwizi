@@ -138,8 +138,25 @@ class LinkedInAdapter extends AbstractPlatformAdapter
             return null;
         }
 
-        $uploadUrl = $initResponse->json('value.uploadMechanism.com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest.uploadUrl');
-        $imageUrn  = $initResponse->json('value.asset');
+        $initData = $initResponse->json();
+        $value = is_array($initData['value'] ?? null) ? $initData['value'] : [];
+        $uploadMechanism = is_array($value['uploadMechanism'] ?? null) ? $value['uploadMechanism'] : [];
+        $httpUpload = is_array($uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'] ?? null)
+            ? $uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest']
+            : [];
+
+        $uploadUrl = $httpUpload['uploadUrl'] ?? null;
+        $imageUrn  = $value['asset'] ?? null;
+
+        if (!is_string($uploadUrl) || trim($uploadUrl) === '' || !is_string($imageUrn) || trim($imageUrn) === '') {
+            Log::warning('LinkedIn initializeUpload missing upload metadata', [
+                'status' => $initResponse->status(),
+                'body'   => mb_substr($initResponse->body(), 0, 800),
+                'has_value' => is_array($value),
+                'upload_mechanism_keys' => array_keys($uploadMechanism),
+            ]);
+            return null;
+        }
 
         $imageContent = $this->downloadSafeMedia($imageUrl);
         if ($imageContent === null) {
