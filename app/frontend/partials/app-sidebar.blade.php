@@ -88,7 +88,7 @@
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-settings' ? 'nav-link--active' : '' }}" href="{{ route('admin.settings') }}"><i class="fa-solid fa-sliders fa-fw" aria-hidden="true"></i>Site settings</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-migrations' ? 'nav-link--active' : '' }}" href="{{ route('admin.migrations') }}"><i class="fa-solid fa-database fa-fw" aria-hidden="true"></i>Migrations</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-operations' ? 'nav-link--active' : '' }}" href="{{ route('admin.operations') }}"><i class="fa-solid fa-shield-halved fa-fw" aria-hidden="true"></i>Operations</a>
-      <a class="nav-link nav-link--sub {{ $activePage === 'admin-cron-jobs' ? 'nav-link--active' : '' }}" href="{{ route('admin.cron-jobs') }}"><i class="fa-solid fa-clock fa-fw" aria-hidden="true"></i>Cron jobs</a>
+      <a class="nav-link nav-link--sub {{ $activePage === 'admin-cron-jobs' ? 'nav-link--active' : '' }}" href="{{ url('/admin/cron-jobs') }}"><i class="fa-solid fa-clock fa-fw" aria-hidden="true"></i>Cron jobs</a>
     </div>
     @endif
   </nav>

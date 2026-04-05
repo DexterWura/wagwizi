@@ -45,7 +45,7 @@
           <div class="card">
             <div class="card__head">
               <span>Scheduled tasks</span>
-              <form method="POST" action="{{ route('admin.cron-jobs.run-due') }}" class="inline-form">
+              <form method="POST" action="{{ url('/admin/cron-jobs/run-due') }}" class="inline-form">
                 @csrf
                 <button class="btn btn--outline btn--compact" type="submit">Run due tasks now</button>
               </form>
@@ -74,7 +74,7 @@
                       <td>{{ $task->last_ran_at ? $task->last_ran_at->diffForHumans() : 'Never' }}</td>
                       <td>{{ $task->last_duration_ms !== null ? $task->last_duration_ms . ' ms' : '—' }}</td>
                       <td>
-                        <form method="POST" action="{{ route('admin.cron-jobs.update', $task->id) }}" class="inline-form" style="display:flex; gap:8px; align-items:center;">
+                        <form method="POST" action="{{ url('/admin/cron-jobs/'.$task->id) }}" class="inline-form" style="display:flex; gap:8px; align-items:center;">
                           @csrf
                           <label class="check-line" style="margin:0;">
                             <input type="hidden" name="enabled" value="0" />
@@ -86,7 +86,7 @@
                         </form>
                       </td>
                       <td>
-                        <form method="POST" action="{{ route('admin.cron-jobs.run', $task->id) }}" class="inline-form">
+                        <form method="POST" action="{{ url('/admin/cron-jobs/'.$task->id.'/run') }}" class="inline-form">
                           @csrf
                           <button class="btn btn--outline btn--compact" type="submit">Run now</button>
                         </form>

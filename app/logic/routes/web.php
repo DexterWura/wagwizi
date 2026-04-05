@@ -198,6 +198,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/operations/retry-comment', [AdminController::class, 'retryComment'])->name('operations.retry-comment');
         Route::post('/operations/settings',      [AdminController::class, 'updateOperationsSettings'])->name('operations.settings');
 
+        Route::get('/cron-jobs',           [AdminController::class, 'cronJobs'])->name('cron-jobs');
+        Route::post('/cron-jobs/run-due',  [AdminController::class, 'runDueCronTasksNow'])->name('cron-jobs.run-due');
+        Route::post('/cron-jobs/{id}/run', [AdminController::class, 'runCronTaskNow'])->name('cron-jobs.run');
+        Route::post('/cron-jobs/{id}',     [AdminController::class, 'updateCronJob'])->name('cron-jobs.update');
+
         Route::get('/notifications/settings', [AdminNotificationController::class, 'notificationSettings'])->name('notifications.settings');
         Route::post('/notifications/settings', [AdminNotificationController::class, 'updateNotificationSettings'])->name('notifications.settings.update');
         Route::post('/notifications/test-email', [AdminNotificationController::class, 'sendTestEmail'])->name('notifications.test-email');
@@ -217,12 +222,5 @@ Route::middleware('auth')->group(function () {
         Route::delete('/marketing-campaigns/{id}', [AdminMarketingController::class, 'destroy'])->name('marketing-campaigns.destroy');
         Route::post('/marketing-campaigns/{id}/test', [AdminMarketingController::class, 'sendTest'])->name('marketing-campaigns.test');
         Route::post('/marketing-campaigns/{id}/send', [AdminMarketingController::class, 'startSend'])->name('marketing-campaigns.send');
-    });
-
-    Route::middleware('super_admin')->prefix('admin')->group(function () {
-        Route::get('/cron-jobs',           [AdminController::class, 'cronJobs'])->name('admin.cron-jobs');
-        Route::post('/cron-jobs/run-due',  [AdminController::class, 'runDueCronTasksNow'])->name('admin.cron-jobs.run-due');
-        Route::post('/cron-jobs/{id}/run', [AdminController::class, 'runCronTaskNow'])->name('admin.cron-jobs.run');
-        Route::post('/cron-jobs/{id}',     [AdminController::class, 'updateCronJob'])->name('admin.cron-jobs.update');
     });
 });
