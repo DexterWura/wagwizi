@@ -45,7 +45,12 @@ class FacebookAdapter extends AbstractPlatformAdapter
         }
 
         if (!empty($mediaUrls)) {
-            return $this->publishWithPhoto($account, $pageId, $text, $mediaUrls[0]);
+            $firstMedia = $mediaUrls[0];
+            if ($this->isVideoUrl($firstMedia)) {
+                return $this->publishWithVideo($account, $pageId, $text, $firstMedia);
+            }
+
+            return $this->publishWithPhoto($account, $pageId, $text, $firstMedia);
         }
 
         $response = $this->httpClient($account)
@@ -95,6 +100,31 @@ class FacebookAdapter extends AbstractPlatformAdapter
         return PublishResult::ok(
             $postId,
             "https://facebook.com/{$postId}",
+        );
+    }
+
+    private function publishWithVideo(SocialAccount $account, string $pageId, string $text, string $videoUrl): PublishResult
+    {
+        $response = $this->httpClient($account)
+            ->post("/{$pageId}/videos", [
+                'file_url'    => $videoUrl,
+                'description' => $text,
+            ]);
+
+        if (!$response->successful()) {
+            return $this->failFromResponse($response);
+        }
+
+        $videoId = $response->json('id');
+        if (!is_string($videoId) || $videoId === '') {
+            return PublishResult::fail('Facebook returned no video id for the uploaded media.');
+        }
+
+        $this->logPublishSuccess($videoId);
+
+        return PublishResult::ok(
+            $videoId,
+            "https://facebook.com/{$videoId}",
         );
     }
 
@@ -180,5 +210,11 @@ class FacebookAdapter extends AbstractPlatformAdapter
         }
 
         return $value;
+    }
+
+    private function isVideoUrl(string $url): bool
+    {
+        $ext = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
+        return in_array($ext, ['mp4', 'mov', 'avi', 'wmv', 'webm', 'mkv'], true);
     }
 }

@@ -75,7 +75,7 @@ return [
         'redirect_uri'  => env('YOUTUBE_REDIRECT_URI'),
         'scopes'        => ['https://www.googleapis.com/auth/youtube', 'https://www.googleapis.com/auth/youtube.upload'],
         'max_content_length' => 5000,
-        'supports_images'    => true,
+        'supports_images'    => false,
         'supports_video'     => true,
         'supports_carousel'  => false,
         'rate_limit'         => 60,

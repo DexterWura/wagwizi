@@ -52,9 +52,10 @@ class TwitterAdapter extends AbstractPlatformAdapter
         try {
             if (!empty($mediaUrls)) {
                 $mediaIds = $this->uploadMedia($account, $mediaUrls);
-                if (!empty($mediaIds)) {
-                    $payload['media'] = ['media_ids' => $mediaIds];
+                if (count($mediaIds) !== count($mediaUrls)) {
+                    return PublishResult::fail('Twitter media upload failed for one or more files. Tweet was not published as text-only.');
                 }
+                $payload['media'] = ['media_ids' => $mediaIds];
             }
 
             $response = $this->httpClient($account)

@@ -77,9 +77,10 @@ class WordPressAdapter extends AbstractPlatformAdapter
         $featuredMediaId = null;
         if (!empty($mediaUrls)) {
             $featuredMediaId = $this->uploadFeaturedImage($account, $mediaUrls[0]);
-            if ($featuredMediaId !== null) {
-                $payload['featured_media'] = $featuredMediaId;
+            if ($featuredMediaId === null) {
+                return PublishResult::fail('WordPress media upload failed. Post was not published without the selected media.');
             }
+            $payload['featured_media'] = $featuredMediaId;
         }
 
         $response = $this->wpClient($account)->post('/posts', $payload);

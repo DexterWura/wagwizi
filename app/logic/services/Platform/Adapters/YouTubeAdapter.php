@@ -49,6 +49,8 @@ class YouTubeAdapter extends AbstractPlatformAdapter
             if ($this->isVideoUrl($mediaUrls[0])) {
                 return $this->uploadVideo($account, $text, $mediaUrls[0]);
             }
+
+            return PublishResult::fail('YouTube publishing currently supports video uploads only.');
         }
 
         return $this->postBulletin($account, $text);
