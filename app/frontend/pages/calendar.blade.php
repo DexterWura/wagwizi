@@ -155,5 +155,9 @@
 @endpush
 
 @push('scripts')
-    <script src="{{ asset('assets/js/social-app.js') }}"></script>
+    @php
+      $socialAppAsset = 'assets/js/social-app.js';
+      $socialAppVersion = file_exists(public_path($socialAppAsset)) ? filemtime(public_path($socialAppAsset)) : time();
+    @endphp
+    <script src="{{ asset($socialAppAsset) }}?v={{ $socialAppVersion }}"></script>
 @endpush

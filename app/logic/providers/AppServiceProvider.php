@@ -98,6 +98,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->ensureLogFilesExist();
+
         if (filter_var(config('app.force_https', true), FILTER_VALIDATE_BOOLEAN)
             && ! $this->app->environment('local', 'testing')) {
             URL::forceScheme('https');
@@ -281,5 +283,34 @@ class AppServiceProvider extends ServiceProvider
 
             return null;
         });
+    }
+
+    /**
+     * Keep file logs available even if they were manually deleted.
+     */
+    private function ensureLogFilesExist(): void
+    {
+        try {
+            $logDir = storage_path('logs');
+            if (!is_dir($logDir)) {
+                @mkdir($logDir, 0775, true);
+            }
+
+            if (!is_dir($logDir)) {
+                return;
+            }
+
+            $single = $logDir . DIRECTORY_SEPARATOR . 'laravel.log';
+            if (!file_exists($single)) {
+                @touch($single);
+            }
+
+            $weekly = $logDir . DIRECTORY_SEPARATOR . 'laravel-' . date('o-\WW') . '.log';
+            if (!file_exists($weekly)) {
+                @touch($weekly);
+            }
+        } catch (\Throwable) {
+            // Never block app boot if filesystem permissions are restricted.
+        }
     }
 }

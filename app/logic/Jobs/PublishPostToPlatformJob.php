@@ -133,6 +133,19 @@ class PublishPostToPlatformJob implements ShouldQueue
             'media_urls'       => array_slice($mediaUrls, 0, 3),
         ]);
 
+        if ($platform === Platform::LinkedIn) {
+            $postMediaCount = (int) $post->mediaFiles()->count();
+            $fallbackMediaCount = is_array($post->media_paths) ? count($post->media_paths) : 0;
+            if (($postMediaCount > 0 || $fallbackMediaCount > 0) && count($mediaUrls) === 0) {
+                $this->markFailed(
+                    $postPlatform,
+                    'LinkedIn media was attached but could not be resolved for upload. Posting was blocked to avoid text-only publish.'
+                );
+                $postPublishingService->finalizePostStatus($post);
+                return;
+            }
+        }
+
         try {
             $result = $adapter->publish(
                 account:         $account,

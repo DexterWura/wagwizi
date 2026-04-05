@@ -476,6 +476,10 @@ class PostSchedulingService
         if ($ids === [] && $paths === []) {
             $post->mediaFiles()->sync([]);
             $post->update(['media_paths' => []]);
+            Log::info('Post media cleared', [
+                'post_id' => $post->id,
+                'user_id' => $userId,
+            ]);
             return;
         }
 
@@ -513,6 +517,12 @@ class PostSchedulingService
         if ($selected === []) {
             $post->mediaFiles()->sync([]);
             $post->update(['media_paths' => []]);
+            Log::warning('Post media payload provided but nothing resolved', [
+                'post_id' => $post->id,
+                'user_id' => $userId,
+                'incoming_media_file_ids' => $ids,
+                'incoming_media_paths' => $paths,
+            ]);
             return;
         }
 
@@ -528,5 +538,12 @@ class PostSchedulingService
 
         $post->mediaFiles()->sync($payload);
         $post->update(['media_paths' => array_values(array_unique($resolvedPaths))]);
+        Log::info('Post media synced', [
+            'post_id' => $post->id,
+            'user_id' => $userId,
+            'resolved_media_count' => count($payload),
+            'resolved_media_ids' => array_keys($payload),
+            'resolved_media_paths' => array_values(array_unique($resolvedPaths)),
+        ]);
     }
 }

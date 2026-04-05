@@ -1771,9 +1771,9 @@
 
     var done = {};
     var timers = {};
-    var delayMs = 180;
+    var delayMs = 80;
 
-    document.querySelectorAll(".app-sidebar a[href]").forEach(function (a) {
+    document.querySelectorAll(".app-sidebar a[href], .app-topbar a[href], .app-shell-footer a[href]").forEach(function (a) {
       var href = a.getAttribute("href");
       if (!href || href.charAt(0) !== "/" || href.charAt(1) === "/") return;
 
@@ -1807,9 +1807,14 @@
   function initNavPreloader() {
     var preloader = document.getElementById("app-nav-preloader");
     var html = document.documentElement;
+    var NAV_PENDING_KEY = "appNavPending";
+    var NAV_PENDING_AT_KEY = "appNavPendingAt";
     /** Only show overlay if navigation takes longer than this (avoids flash on fast loads). */
     var NAV_LOAD_DELAY_MS = 160;
+    /** Hard UX cap from click to hide; do not keep overlay beyond 1s. */
+    var NAV_LOAD_MAX_VISIBLE_MS = 1000;
     var navLoadTimer = null;
+    var navForceHideTimer = null;
 
     function setPreloaderVisible(visible) {
       if (preloader) {
@@ -1822,6 +1827,10 @@
         global.clearTimeout(navLoadTimer);
         navLoadTimer = null;
       }
+      if (navForceHideTimer) {
+        global.clearTimeout(navForceHideTimer);
+        navForceHideTimer = null;
+      }
     }
 
     function hideNavLoading() {
@@ -1829,7 +1838,8 @@
       html.classList.remove("app-nav-loading");
       setPreloaderVisible(false);
       try {
-        global.sessionStorage.removeItem("appNavPending");
+        global.sessionStorage.removeItem(NAV_PENDING_KEY);
+        global.sessionStorage.removeItem(NAV_PENDING_AT_KEY);
       } catch (e) {}
     }
 
@@ -1837,8 +1847,13 @@
       html.classList.add("app-nav-loading");
       setPreloaderVisible(true);
       try {
-        global.sessionStorage.setItem("appNavPending", "1");
+        global.sessionStorage.setItem(NAV_PENDING_KEY, "1");
+        global.sessionStorage.setItem(NAV_PENDING_AT_KEY, String(Date.now()));
       } catch (e) {}
+
+      navForceHideTimer = global.setTimeout(function () {
+        hideNavLoading();
+      }, NAV_LOAD_MAX_VISIBLE_MS);
     }
 
     function armNavLoading() {
@@ -1851,11 +1866,21 @@
 
     var hadPending = false;
     try {
-      hadPending = !!global.sessionStorage.getItem("appNavPending");
+      var pending = global.sessionStorage.getItem(NAV_PENDING_KEY);
+      var rawAt = global.sessionStorage.getItem(NAV_PENDING_AT_KEY);
+      var pendingAt = rawAt ? parseInt(rawAt, 10) : NaN;
+      hadPending = !!pending && !isNaN(pendingAt) && (Date.now() - pendingAt) <= NAV_LOAD_MAX_VISIBLE_MS;
+      if (!hadPending) {
+        global.sessionStorage.removeItem(NAV_PENDING_KEY);
+        global.sessionStorage.removeItem(NAV_PENDING_AT_KEY);
+      }
     } catch (e) {}
 
     if (hadPending) {
       setPreloaderVisible(true);
+      navForceHideTimer = global.setTimeout(function () {
+        hideNavLoading();
+      }, NAV_LOAD_MAX_VISIBLE_MS);
     }
 
     global.addEventListener("pagehide", disarmNavLoading, false);

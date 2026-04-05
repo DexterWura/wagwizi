@@ -80,6 +80,6 @@
         if (icon) icon.className = t === "light" ? "fa-solid fa-sun" : "fa-solid fa-moon";
       })();
     </script>
-    <script src="{{ asset(config('app.debug') ? 'assets/js/app.js' : 'assets/js/app.min.js') }}"></script>
+    <script src="{{ asset($appJsAsset = (config('app.debug') ? 'assets/js/app.js' : 'assets/js/app.min.js')) }}?v={{ file_exists(public_path($appJsAsset)) ? filemtime(public_path($appJsAsset)) : time() }}"></script>
   </body>
 </html>

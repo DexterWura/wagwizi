@@ -1719,13 +1719,37 @@
         var kind = modal.getAttribute("data-feedback-kind");
         var publishPostId = modal.getAttribute("data-feedback-publish-post-id");
         if (kind === "publish" && publishPostId) {
-          global.location.href = "/composer?publish_post=" + encodeURIComponent(publishPostId);
+          try {
+            var target = new URL(global.location.href);
+            target.searchParams.set("publish_post", String(publishPostId));
+            var targetHref = target.pathname + target.search;
+            var currentHref = global.location.pathname + global.location.search;
+            if (targetHref === currentHref) {
+              if (global.App && typeof global.App.closeModal === "function") {
+                global.App.closeModal(modal);
+              }
+              if (typeof global.location.reload === "function") {
+                global.location.reload();
+              }
+              return;
+            }
+            global.location.href = targetHref;
+            return;
+          } catch (err) {
+            global.location.href = "/composer?publish_post=" + encodeURIComponent(publishPostId);
+          }
           return;
         }
 
         if (global.App && typeof global.App.closeModal === "function") {
           global.App.closeModal(modal);
+          return;
         }
+
+        // Last-resort fallback if App modal helpers are unavailable.
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+        document.body.style.overflow = "";
       });
     }
   }

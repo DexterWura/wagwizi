@@ -16,8 +16,16 @@
     <script>
       (function () {
         try {
-          if (sessionStorage.getItem("appNavPending")) {
+          var pending = sessionStorage.getItem("appNavPending");
+          var rawAt = sessionStorage.getItem("appNavPendingAt");
+          var pendingAt = rawAt ? parseInt(rawAt, 10) : NaN;
+          var fresh = pending && !isNaN(pendingAt) && (Date.now() - pendingAt) <= 1000;
+
+          if (fresh) {
             document.documentElement.classList.add("app-nav-loading");
+          } else {
+            sessionStorage.removeItem("appNavPending");
+            sessionStorage.removeItem("appNavPendingAt");
           }
         } catch (e) {}
       })();
@@ -92,7 +100,7 @@
       window.__appDisplayTimezones = @json($displayTimezonesMeta ?? []);
       window.__appDefaultDisplayTimezone = @json($defaultDisplayTimezoneIdentifier ?? 'UTC');
     </script>
-    <script src="{{ asset(config('app.debug') ? 'assets/js/app.js' : 'assets/js/app.min.js') }}"></script>
+    <script src="{{ asset($appJsAsset = (config('app.debug') ? 'assets/js/app.js' : 'assets/js/app.min.js')) }}?v={{ file_exists(public_path($appJsAsset)) ? filemtime(public_path($appJsAsset)) : time() }}"></script>
     @stack('scripts')
   </body>
 </html>

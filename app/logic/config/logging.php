@@ -6,7 +6,7 @@ use Monolog\Processor\PsrLogMessageProcessor;
 
 return [
 
-    'default' => env('LOG_CHANNEL', 'stack'),
+    'default' => 'stack',
 
     'deprecations' => [
         'channel' => env('LOG_DEPRECATIONS_CHANNEL', 'null'),

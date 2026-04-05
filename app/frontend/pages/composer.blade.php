@@ -421,7 +421,7 @@
         </div>
         <div class="app-modal__foot">
           <a class="btn btn--composer-schedule" href="{{ route('calendar') }}" data-feedback-calendar-link hidden>Open calendar</a>
-          <button type="button" class="btn btn--primary" data-feedback-got-it>Got it</button>
+          <button type="button" class="btn btn--primary" data-feedback-got-it data-app-modal-close>Got it</button>
         </div>
       </div>
     </div>
@@ -434,5 +434,9 @@
       window.__composerPlatformMediaRules = @json($composerPlatformMediaRules ?? []);
       window.__composerPlatformLabels = @json($composerPlatformLabels ?? []);
     </script>
-    <script src="{{ asset('assets/js/social-app.js') }}"></script>
+    @php
+      $socialAppAsset = 'assets/js/social-app.js';
+      $socialAppVersion = file_exists(public_path($socialAppAsset)) ? filemtime(public_path($socialAppAsset)) : time();
+    @endphp
+    <script src="{{ asset($socialAppAsset) }}?v={{ $socialAppVersion }}"></script>
 @endpush
