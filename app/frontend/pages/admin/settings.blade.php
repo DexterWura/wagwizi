@@ -24,11 +24,18 @@
             <div class="alert alert--danger">{{ session('error') }}</div>
           @endif
 
+          <div class="admin-settings-nav" data-admin-settings-nav role="tablist" aria-label="Settings sections">
+            <button type="button" class="admin-settings-nav__btn" data-admin-settings-target="general" role="tab" aria-selected="true">General</button>
+            <button type="button" class="admin-settings-nav__btn" data-admin-settings-target="seo" role="tab" aria-selected="false">SEO</button>
+            <button type="button" class="admin-settings-nav__btn" data-admin-settings-target="landing" role="tab" aria-selected="false">Landing page</button>
+            <button type="button" class="admin-settings-nav__btn" data-admin-settings-target="maintenance" role="tab" aria-selected="false">Maintenance</button>
+          </div>
+
           <form method="POST" action="{{ route('admin.settings.update') }}" enctype="multipart/form-data">
             @csrf
-            <div class="grid-balance">
-              <div>
-                <div class="card">
+            <div class="grid-balance" data-admin-settings-grid>
+              <div data-admin-settings-column>
+                <div class="card" data-admin-settings-pane="general">
                   <div class="card__head">Branding</div>
                   <div class="card__body">
                     <div class="field">
@@ -41,7 +48,7 @@
                     </div>
                   </div>
                 </div>
-                <div class="card">
+                <div class="card" data-admin-settings-pane="general">
                   <div class="card__head">Landing Page Hero</div>
                   <div class="card__body">
                     <div class="field">
@@ -59,7 +66,7 @@
                     </div>
                   </div>
                 </div>
-                <div class="card">
+                <div class="card" data-admin-settings-pane="seo">
                   <div class="card__head">SEO &amp; Social sharing</div>
                   <div class="card__body">
                     <div class="field">
@@ -136,8 +143,8 @@
                   </div>
                 </div>
               </div>
-              <div>
-                <div class="card">
+              <div data-admin-settings-column>
+                <div class="card" data-admin-settings-pane="general">
                   <div class="card__head">Access Control</div>
                   <div class="card__body">
                     <label class="check-line check-line--spaced">
@@ -155,7 +162,7 @@
                   </div>
                 </div>
                 @if($socialGoogleConfigured || $socialLinkedinConfigured)
-                <div class="card">
+                <div class="card" data-admin-settings-pane="general">
                   <div class="card__head">Social login</div>
                   <div class="card__body">
                     <p class="field__hint">OAuth keys come from your environment (<code>GOOGLE_*</code> and <code>LINKEDIN_*</code>). Only providers with credentials can be toggled.</p>
@@ -177,7 +184,7 @@
                 </div>
                 @endif
                 @if($timezonesForSelect->isNotEmpty())
-                <div class="card">
+                <div class="card" data-admin-settings-pane="general">
                   <div class="card__head">Schedules &amp; reports</div>
                   <div class="card__body">
                     <div class="field">
@@ -194,12 +201,12 @@
                 @endif
               </div>
             </div>
-            <div class="admin-form-footer">
+            <div class="admin-form-footer" data-admin-settings-pane="general seo">
               <button class="btn btn--primary" type="submit">Save settings</button>
             </div>
           </form>
 
-          <form method="POST" action="{{ route('admin.settings.landing-features-deep') }}" enctype="multipart/form-data" class="card admin-landing-features-form">
+          <form method="POST" action="{{ route('admin.settings.landing-features-deep') }}" enctype="multipart/form-data" class="card admin-landing-features-form" data-admin-settings-pane="landing">
             @csrf
             <div class="card__head">Landing page — Features deep</div>
             <div class="card__body">
@@ -271,7 +278,7 @@
             </div>
           </form>
 
-          <div class="card">
+          <div class="card" data-admin-settings-pane="seo">
             <div class="card__head">SEO files</div>
             <div class="card__body">
               <p class="field__hint">Writes static files to the site document root so crawlers can load <code>/sitemap.xml</code> and <code>/robots.txt</code> without hitting PHP. URLs use <code>APP_URL</code> from your environment.</p>
@@ -296,7 +303,7 @@
             </div>
           </div>
 
-          <div class="card admin-settings-cache-card">
+          <div class="card admin-settings-cache-card" data-admin-settings-pane="maintenance">
             <div class="card__head">Cache</div>
             <div class="card__body">
               <p class="field__hint">Runs <code>php artisan optimize:clear</code> — clears application cache, compiled views, route and config cache, and related caches. Use after deploys or if the app feels stale.</p>
@@ -313,6 +320,61 @@
 
 @push('scripts')
 <script>
+  (function () {
+    var nav = document.querySelector('[data-admin-settings-nav]');
+    if (!nav) return;
+
+    var paneEls = Array.prototype.slice.call(document.querySelectorAll('[data-admin-settings-pane]'));
+    var btns = Array.prototype.slice.call(nav.querySelectorAll('[data-admin-settings-target]'));
+    var columns = Array.prototype.slice.call(document.querySelectorAll('[data-admin-settings-column]'));
+    var grid = document.querySelector('[data-admin-settings-grid]');
+    var valid = ['general', 'seo', 'landing', 'maintenance'];
+
+    function paneMatch(el, pane) {
+      var raw = (el.getAttribute('data-admin-settings-pane') || '').trim();
+      if (!raw) return false;
+      return raw.split(/\s+/).indexOf(pane) !== -1;
+    }
+
+    function applyPane(pane) {
+      if (valid.indexOf(pane) === -1) pane = 'general';
+
+      btns.forEach(function (btn) {
+        var on = btn.getAttribute('data-admin-settings-target') === pane;
+        btn.classList.toggle('is-active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+
+      paneEls.forEach(function (el) {
+        el.hidden = !paneMatch(el, pane);
+      });
+
+      if (columns.length) {
+        columns.forEach(function (col) {
+          var cards = Array.prototype.slice.call(col.children).filter(function (child) {
+            return child.hasAttribute('data-admin-settings-pane');
+          });
+          var visible = cards.some(function (card) { return !card.hidden; });
+          col.hidden = !visible;
+        });
+      }
+
+      if (grid) {
+        var visibleCols = columns.filter(function (col) { return !col.hidden; }).length;
+        grid.setAttribute('data-admin-single-column', visibleCols <= 1 ? '1' : '0');
+      }
+    }
+
+    btns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var pane = btn.getAttribute('data-admin-settings-target') || 'general';
+        applyPane(pane);
+      });
+    });
+
+    applyPane('general');
+  })();
+
   (function () {
     var titleInput = document.querySelector('[data-seo-title-input]');
     var descInput = document.querySelector('[data-seo-description-input]');

@@ -7442,6 +7442,40 @@ button.link-create {
   margin-top: 1.5rem;
 }
 
+.admin-settings-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.admin-settings-nav__btn {
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 0.42rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.admin-settings-nav__btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.admin-settings-nav__btn.is-active {
+  border-color: rgba(99, 102, 241, 0.55);
+  background: rgba(99, 102, 241, 0.18);
+  color: var(--text);
+}
+
+[data-admin-settings-grid][data-admin-single-column="1"] {
+  grid-template-columns: 1fr;
+}
+
 .admin-settings-cache-card {
   margin-top: 1.25rem;
 }
