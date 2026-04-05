@@ -1154,14 +1154,26 @@ html.app-nav-loading .app-nav-preloader {
 
 @media (max-width: 640px) {
   .app-topbar--composer .app-topbar__cluster {
-    flex-basis: 100%;
-    justify-content: flex-start;
+    flex-basis: auto;
+    justify-content: flex-end;
+    padding-left: 0;
+    margin-left: auto;
+    gap: 0.35rem;
   }
 
+  .app-topbar--composer .btn--topbar-upgrade,
+  .app-topbar--composer .app-theme-toggle,
+  .app-topbar--composer .app-topbar__account-wrap,
   .app-topbar--composer .app-topbar__date {
-    width: 100%;
-    flex-basis: 100%;
-    order: -1;
+    display: none;
+  }
+
+  .app-topbar--composer .app-topbar__lead {
+    font-size: 0.84rem;
+  }
+
+  .app-topbar--composer .app-topbar__name {
+    max-width: min(9.75rem, 42vw);
   }
 }
 
