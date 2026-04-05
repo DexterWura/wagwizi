@@ -257,9 +257,15 @@
       <section class="lp-section lp-trust" data-lp-reveal>
         <p class="lp-trust__line">Trusted by 500+ creators and brands.</p>
         <div class="lp-trust__badges">
-          <span class="lp-badge"><i class="fa-solid fa-trophy" aria-hidden="true"></i> Product of the Day</span>
-          <span class="lp-badge"><i class="fa-solid fa-star" aria-hidden="true"></i> Top rated</span>
-          <span class="lp-badge"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Editor's choice</span>
+          <a class="lp-badge" href="https://eden.co.zw/startup/wagwizi" target="_blank" rel="noopener noreferrer">
+            <i class="fa-solid fa-trophy" aria-hidden="true"></i> Eden Product of the Day
+          </a>
+          <a class="lp-badge" href="https://eden.co.zw/startup/wagwizi" target="_blank" rel="noopener noreferrer">
+            <i class="fa-solid fa-star" aria-hidden="true"></i> Top rated
+          </a>
+          <a class="lp-badge" href="https://eden.co.zw/startup/wagwizi" target="_blank" rel="noopener noreferrer">
+            <i class="fa-solid fa-bolt" aria-hidden="true"></i> Editor's choice
+          </a>
         </div>
       </section>
 
