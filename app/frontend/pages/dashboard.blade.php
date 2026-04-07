@@ -66,8 +66,8 @@
                 Engagement rate
                 <span class="metric-card__icons"><i class="fa-solid fa-heart" aria-hidden="true"></i></span>
               </div>
-              <div class="metric-card__value">—</div>
-              <div class="metric-card__sub">Connect accounts for analytics</div>
+              <div class="metric-card__value">{{ $engagementRateDisplay ?? '—' }}</div>
+              <div class="metric-card__sub">{{ $engagementRateSubLabel ?? 'Connect accounts for analytics' }}</div>
             </div>
             <div class="metric-card">
               <div class="metric-card__label">

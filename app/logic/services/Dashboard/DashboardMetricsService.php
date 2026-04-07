@@ -47,6 +47,8 @@ final class DashboardMetricsService
      *   recentPosts: \Illuminate\Support\Collection,
      *   nextUp: \Illuminate\Support\Collection,
      *   totalAudienceCount: int|null,
+     *   engagementRateDisplay: string|null,
+     *   engagementRateSubLabel: string,
      *   activityChart: array{labels: list<string>, labelsIso: list<string>, series: list<array{id: string, label: string, values: list<int>}>},
      *   platformMix: list<array{slug:string,label:string,pct:float}>,
      * }
@@ -119,6 +121,16 @@ final class DashboardMetricsService
             : $user->socialAccounts()->active()->count();
         $totalAudience = $this->computeAudienceTotal($user, $scope, $platformSlug);
 
+        [$engagementRateDisplay, $engagementRateSubLabel] = $this->computeEngagementRateCard(
+            $user,
+            $pubStart,
+            $pubEnd,
+            $emptyPlatformScope,
+            $platformSlug,
+            $connectedCount,
+            $range
+        );
+
         $activityChart = $this->buildActivityChartSeries(
             $user,
             $range,
@@ -181,10 +193,99 @@ final class DashboardMetricsService
             'recentPosts'             => $recentPosts,
             'nextUp'                  => $nextUp,
             'totalAudienceCount'      => $totalAudience,
+            'engagementRateDisplay'   => $engagementRateDisplay,
+            'engagementRateSubLabel'  => $engagementRateSubLabel,
             'activityChart'           => $activityChart,
             'platformMix'             => $platformMix,
         ];
         });
+    }
+
+    /**
+     * Engagement rate = (likes + comments + reposts) / impressions on published posts in the dashboard window.
+     *
+     * @return array{0: string|null, 1: string}
+     */
+    private function computeEngagementRateCard(
+        User $user,
+        Carbon $pubStart,
+        Carbon $pubEnd,
+        bool $emptyPlatformScope,
+        ?string $platformSlug,
+        int $connectedCount,
+        string $range,
+    ): array {
+        if ($connectedCount === 0) {
+            return [null, 'Connect accounts for analytics'];
+        }
+
+        if ($emptyPlatformScope) {
+            return [null, 'Choose a network under “Per platform” to see engagement rate'];
+        }
+
+        $startUtc = $pubStart->copy()->utc();
+        $endUtc = $pubEnd->copy()->utc();
+
+        $q = DB::table('post_platforms')
+            ->join('posts', 'posts.id', '=', 'post_platforms.post_id')
+            ->where('posts.user_id', $user->id)
+            ->where('posts.status', 'published')
+            ->whereNotNull('posts.published_at')
+            ->where('posts.published_at', '>=', $startUtc)
+            ->where('posts.published_at', '<=', $endUtc);
+
+        if ($platformSlug !== null) {
+            $q->where('post_platforms.platform', $platformSlug);
+        }
+
+        $row = $q->selectRaw(
+            'SUM(COALESCE(post_platforms.impressions_count, 0)) as imp, '
+            . 'SUM(COALESCE(post_platforms.likes_count, 0) + COALESCE(post_platforms.comments_count, 0) + COALESCE(post_platforms.reposts_count, 0)) as eng'
+        )->first();
+
+        $impressions = (int) ($row->imp ?? 0);
+        $engagement = (int) ($row->eng ?? 0);
+
+        $periodHint = $this->engagementRatePeriodHint($range);
+
+        if ($impressions <= 0 && $engagement <= 0) {
+            return [null, 'No analytics yet for published posts '.$periodHint];
+        }
+
+        if ($impressions <= 0) {
+            return [null, 'Engagement recorded; impression counts needed for a rate '.$periodHint];
+        }
+
+        $pct = round(($engagement / $impressions) * 100, 1);
+        $display = $this->formatEngagementRatePercent($pct);
+
+        return [
+            $display,
+            'Reactions ÷ impressions on published posts '.$periodHint,
+        ];
+    }
+
+    private function engagementRatePeriodHint(string $range): string
+    {
+        return match ($range) {
+            self::RANGE_TODAY => '(today)',
+            self::RANGE_WEEK => '(this week)',
+            self::RANGE_30D => '(last 30 days)',
+            self::RANGE_90D => '(last 90 days)',
+            default => '(this period)',
+        };
+    }
+
+    private function formatEngagementRatePercent(float $pct): string
+    {
+        if (! is_finite($pct)) {
+            return '0%';
+        }
+        if (abs($pct - round($pct)) < 0.05) {
+            return ((int) round($pct)).'%';
+        }
+
+        return rtrim(rtrim(number_format($pct, 1, '.', ''), '0'), '.').'%';
     }
 
     /**
