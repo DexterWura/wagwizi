@@ -3656,12 +3656,21 @@ button.link-create {
 }
 
 .login-page__brand {
+  align-self: stretch;
+  width: 100%;
+  max-width: none;
   margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
+  box-sizing: border-box;
 }
 
 .login-page__brand .brand-logo-svg {
   display: block;
+  flex-shrink: 0;
   margin: 0 auto 0.5rem;
   filter: none;
   color: var(--text);

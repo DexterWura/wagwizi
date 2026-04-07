@@ -50,8 +50,8 @@
         <input type="hidden" name="referral_code" value="{{ old('referral_code', $referralCode ?? '') }}" />
         <input type="hidden" name="redirect" value="{{ old('redirect', $redirectTarget ?? '') }}" />
         <div class="field">
-          <label class="field__label" for="signup-name">Display name</label>
-          <input class="input" id="signup-name" type="text" name="name" value="{{ old('name') }}" autocomplete="name" placeholder="Your name" required />
+          <label class="field__label" for="signup-name">Full Name</label>
+          <input class="input" id="signup-name" type="text" name="name" value="{{ old('name') }}" autocomplete="name" placeholder="Your Full Name" required />
         </div>
         <div class="field">
           <label class="field__label" for="signup-email">Email</label>
