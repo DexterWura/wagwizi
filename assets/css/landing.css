@@ -1933,9 +1933,15 @@ section#resources .lp-wrap {
   top: 50%;
   height: 2px;
   margin-top: -1px;
-  background: #4ade80;
   border-radius: 2px;
-  box-shadow: 0 0 12px rgba(74, 222, 128, 0.45);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--lp-purple) 20%,
+    var(--lp-purple-deep) 80%,
+    transparent
+  );
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.45);
 }
 
 .lp-pricing-card__badge-most {
@@ -1946,9 +1952,9 @@ section#resources .lp-wrap {
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.02em;
-  color: #0b1220;
-  background: linear-gradient(95deg, #34d399 0%, #a7f3d0 38%, #fef9c3 72%, #facc15 100%);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  color: #fff;
+  background: linear-gradient(135deg, var(--lp-purple) 0%, var(--lp-purple-deep) 100%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 4px 20px rgba(168, 85, 247, 0.35);
 }
 
 .lp-pricing-card__name {
