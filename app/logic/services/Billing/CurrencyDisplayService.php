@@ -156,7 +156,7 @@ final class CurrencyDisplayService
             : 0.0;
         $yearlyTotal = $plan->yearly_price_cents !== null
             ? $this->convertBaseMinorToDefaultMajor((int) $plan->yearly_price_cents)
-            : $monthly * 12;
+            : ($plan->is_lifetime ? $monthly : $monthly * 12);
 
         return [
             'monthly'       => $monthly,

@@ -423,19 +423,29 @@
             @php
               $isFeatured = strtolower($plan->slug) === 'growth' || strtolower($plan->name) === 'growth';
               $lp = $currencyDisplay->landingPricingMajors($plan);
-              $monthly = (int) round($lp['monthly']);
-              $yearlyTotal = (int) round($lp['yearly_total']);
+              $isLifetime = $plan->is_lifetime;
+              if ($isLifetime) {
+                  $hasYearlyCents = $plan->yearly_price_cents !== null && (int) $plan->yearly_price_cents > 0;
+                  $oneTimeAmount = $hasYearlyCents
+                      ? (int) round($lp['yearly_total'])
+                      : (int) round($lp['monthly']);
+                  $monthly = $oneTimeAmount;
+                  $yearlyTotal = $oneTimeAmount;
+              } else {
+                  $monthly = (int) round($lp['monthly']);
+                  $yearlyTotal = (int) round($lp['yearly_total']);
+              }
             @endphp
-            <article class="lp-pricing-card{{ $isFeatured ? ' lp-pricing-card--featured' : '' }}" data-lp-pricing-card data-monthly="{{ $monthly }}" data-yearly-total="{{ $yearlyTotal }}" data-lp-reveal>
+            <article class="lp-pricing-card{{ $isFeatured ? ' lp-pricing-card--featured' : '' }}" data-lp-pricing-card data-monthly="{{ $monthly }}" data-yearly-total="{{ $yearlyTotal }}" @if($isLifetime) data-lp-lifetime="1" data-lp-onetime="{{ $oneTimeAmount }}" @endif data-lp-reveal>
               @if($isFeatured)
               <span class="lp-pricing-card__badge">Popular</span>
               @endif
               <h3 class="lp-pricing-card__name">{{ $plan->name }}</h3>
               <p class="lp-pricing-card__price">
                 <span class="lp-pricing-card__amount">
-                  <span class="lp-pricing-card__currency">{{ $currencyDisplay->symbol($currencyDisplay->defaultCurrency()) }}</span><span data-lp-price-amount>{{ $monthly }}</span>
+                  <span class="lp-pricing-card__currency">{{ $currencyDisplay->symbol($currencyDisplay->defaultCurrency()) }}</span><span data-lp-price-amount>{{ $isLifetime ? $oneTimeAmount : $monthly }}</span>
                 </span>
-                <span class="lp-pricing-card__suffix" data-lp-price-suffix>/ month</span>
+                <span class="lp-pricing-card__suffix" data-lp-price-suffix>@if($isLifetime)&nbsp;one time payment @else / month @endif</span>
               </p>
               <p class="lp-pricing-card__billing" data-lp-price-billing hidden></p>
               @if($plan->freeTrialSummary())

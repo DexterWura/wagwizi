@@ -23,6 +23,12 @@ final class PlanAdminValidationService
             ]);
         }
 
+        if ($request->boolean('is_lifetime') && $request->boolean('has_free_trial')) {
+            throw ValidationException::withMessages([
+                'has_free_trial' => ['Lifetime plans cannot include a free trial.'],
+            ]);
+        }
+
         if ($isFree) {
             $q = Plan::query()->where('is_free', true);
             if ($excludePlanId !== null) {

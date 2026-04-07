@@ -84,7 +84,7 @@
                 @endif
               </div>
               <div class="card__body">
-                <form method="POST" action="{{ route('admin.plans.update', $plan->id) }}">
+                <form method="POST" action="{{ route('admin.plans.update', $plan->id) }}" data-admin-plan-form>
                   @csrf
                   @method('PUT')
                   <input type="hidden" name="tools_present" value="1" />
@@ -98,13 +98,14 @@
                       <input class="input input--sm" name="name" value="{{ $plan->name }}" required />
                     </div>
                     <div class="field">
-                      <label class="field__label">Monthly price (minor units)</label>
-                      <input class="input input--sm" name="monthly_price_cents" type="number" value="{{ $plan->monthly_price_cents }}" />
-                      <p class="field__hint">Smallest units of <strong>{{ $pricingBaseCurrency ?? 'USD' }}</strong> (e.g. cents). Set base currency under Admin → Payment gateways.</p>
+                      <label class="field__label" data-admin-monthly-price-label>{{ $plan->is_lifetime ? 'One-time price (minor units)' : 'Monthly price (minor units)' }}</label>
+                      <input class="input input--sm" name="monthly_price_cents" type="number" value="{{ $plan->monthly_price_cents }}" data-admin-monthly-price-input />
+                      <p class="field__hint" data-admin-monthly-price-hint>@if($plan->is_lifetime)Single lifetime payment in the smallest units of <strong>{{ $pricingBaseCurrency ?? 'USD' }}</strong> (e.g. cents).@else Smallest units of <strong>{{ $pricingBaseCurrency ?? 'USD' }}</strong> (e.g. cents). Set base currency under Admin → Payment gateways.@endif</p>
                     </div>
-                    <div class="field">
+                    <div class="field" data-admin-yearly-price-row style="{{ $plan->is_lifetime ? 'display:none' : '' }}">
                       <label class="field__label">Yearly price (minor units)</label>
-                      <input class="input input--sm" name="yearly_price_cents" type="number" value="{{ $plan->yearly_price_cents }}" />
+                      <input class="input input--sm" name="yearly_price_cents" type="number" value="{{ $plan->yearly_price_cents }}" data-admin-yearly-price-input />
+                      <p class="field__hint">Optional. If empty, the app may derive an annual total from the monthly price for display.</p>
                     </div>
                     <div class="field">
                       <label class="field__label">Max profiles</label>
@@ -190,8 +191,8 @@
                     <div class="field">
                       <label class="check-line">
                         <input type="hidden" name="is_lifetime" value="0" />
-                        <input type="checkbox" name="is_lifetime" value="1" {{ $plan->is_lifetime ? 'checked' : '' }} />
-                        <span>Lifetime deal</span>
+                        <input type="checkbox" name="is_lifetime" value="1" data-admin-lifetime-toggle {{ $plan->is_lifetime ? 'checked' : '' }} />
+                        <span>Lifetime deal (one-time payment; yearly price is ignored)</span>
                       </label>
                     </div>
                     @if($plan->is_lifetime)
@@ -229,7 +230,7 @@
             <button type="button" class="app-modal__close" data-app-modal-close aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
           </div>
         </div>
-        <form id="add-plan-form" class="app-modal__form" method="POST" action="{{ route('admin.plans.store') }}">
+        <form id="add-plan-form" class="app-modal__form" method="POST" action="{{ route('admin.plans.store') }}" data-admin-plan-form>
           @csrf
           <input type="hidden" name="tools_present" value="1" />
           <div class="app-modal__body">
@@ -243,12 +244,25 @@
                 <input class="input" name="name" required placeholder="e.g. Pro" />
               </div>
               <div class="field">
-                <label class="field__label">Monthly price (minor units, {{ $pricingBaseCurrency ?? 'USD' }})</label>
-                <input class="input" name="monthly_price_cents" type="number" placeholder="990" />
+                <label class="check-line">
+                  <input type="hidden" name="is_lifetime" value="0" />
+                  <input type="checkbox" name="is_lifetime" value="1" data-admin-lifetime-toggle />
+                  <span>Lifetime deal (one-time payment only)</span>
+                </label>
               </div>
               <div class="field">
+                <label class="field__label">Max lifetime subscribers</label>
+                <input class="input" name="lifetime_max_subscribers" type="number" placeholder="Leave empty for unlimited" />
+              </div>
+              <div class="field">
+                <label class="field__label" data-admin-monthly-price-label>Monthly price (minor units, {{ $pricingBaseCurrency ?? 'USD' }})</label>
+                <input class="input" name="monthly_price_cents" type="number" placeholder="990" data-admin-monthly-price-input />
+                <p class="field__hint" data-admin-monthly-price-hint>Smallest units of <strong>{{ $pricingBaseCurrency ?? 'USD' }}</strong> (e.g. cents). Set base currency under Admin → Payment gateways.</p>
+              </div>
+              <div class="field" data-admin-yearly-price-row>
                 <label class="field__label">Yearly price (minor units)</label>
-                <input class="input" name="yearly_price_cents" type="number" placeholder="9900" />
+                <input class="input" name="yearly_price_cents" type="number" placeholder="9900" data-admin-yearly-price-input />
+                <p class="field__hint">Optional. Leave empty to derive from monthly for annual billing display.</p>
               </div>
               <div class="field">
                 <label class="field__label">Max profiles</label>
@@ -330,17 +344,6 @@
                 <label class="field__label" for="modal-free-trial-days">Trial length (days)</label>
                 <input class="input" id="modal-free-trial-days" name="free_trial_days" type="number" min="1" max="366" placeholder="e.g. 14" />
               </div>
-              <div class="field">
-                <label class="check-line">
-                  <input type="hidden" name="is_lifetime" value="0" />
-                  <input type="checkbox" name="is_lifetime" value="1" />
-                  <span>Lifetime deal</span>
-                </label>
-              </div>
-              <div class="field">
-                <label class="field__label">Max lifetime subscribers</label>
-                <input class="input" name="lifetime_max_subscribers" type="number" placeholder="Leave empty if not lifetime" />
-              </div>
             </div>
           </div>
           <div class="app-modal__foot">
@@ -350,4 +353,60 @@
         </form>
       </div>
     </div>
+@endpush
+
+@push('scripts')
+<script>
+(function () {
+  var cur = @json($pricingBaseCurrency ?? 'USD');
+  function syncPlanPricingForm(form) {
+    var life = form.querySelector('[name="is_lifetime"]');
+    var free = form.querySelector('[name="is_free"]');
+    var yearlyRow = form.querySelector('[data-admin-yearly-price-row]');
+    var lbl = form.querySelector('[data-admin-monthly-price-label]');
+    var hint = form.querySelector('[data-admin-monthly-price-hint]');
+    var trialCb = form.querySelector('[name="has_free_trial"]');
+    var lifeOn = life && life.checked;
+    var freeOn = free && free.checked;
+
+    if (yearlyRow) {
+      yearlyRow.style.display = lifeOn || freeOn ? 'none' : '';
+    }
+    if (lbl) {
+      if (freeOn) {
+        lbl.textContent = 'Price (not used for free tier)';
+      } else if (lifeOn) {
+        lbl.textContent = 'One-time price (minor units)';
+      } else {
+        lbl.textContent = 'Monthly price (minor units)';
+      }
+    }
+    if (hint) {
+      if (freeOn) {
+        hint.textContent = 'Free plans ignore price fields; both are cleared when you save.';
+      } else if (lifeOn) {
+        hint.textContent = 'Single lifetime payment in the smallest units of ' + cur + ' (e.g. cents). Yearly is not used.';
+      } else {
+        hint.textContent = 'Smallest units of ' + cur + ' (e.g. cents). Set base currency under Admin → Payment gateways.';
+      }
+    }
+    if (trialCb) {
+      if (lifeOn) {
+        trialCb.checked = false;
+        trialCb.disabled = true;
+      } else {
+        trialCb.disabled = false;
+      }
+    }
+  }
+  document.querySelectorAll('[data-admin-plan-form]').forEach(function (form) {
+    form.querySelectorAll('[name="is_lifetime"], [name="is_free"]').forEach(function (el) {
+      el.addEventListener('change', function () {
+        syncPlanPricingForm(form);
+      });
+    });
+    syncPlanPricingForm(form);
+  });
+})();
+</script>
 @endpush

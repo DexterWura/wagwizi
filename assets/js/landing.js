@@ -385,6 +385,16 @@
         var billingEl = card.querySelector("[data-lp-price-billing]");
         if (!amountEl || !suffixEl || !billingEl) return;
 
+        if (card.getAttribute("data-lp-lifetime") === "1") {
+          var ot = parseFloat(card.getAttribute("data-lp-onetime"), 10);
+          if (!isFinite(ot)) ot = monthly;
+          amountEl.textContent = String(Math.round(ot));
+          suffixEl.textContent = " one time payment";
+          billingEl.hidden = true;
+          billingEl.textContent = "";
+          return;
+        }
+
         if (mode === "monthly") {
           amountEl.textContent = String(Math.round(monthly));
           suffixEl.textContent = "/ month";
@@ -413,6 +423,7 @@
       if (!saveBadge) return;
       var best = null;
       cards.forEach(function (card) {
+        if (card.getAttribute("data-lp-lifetime") === "1") return;
         var monthly = parseFloat(card.getAttribute("data-monthly"), 10);
         var yearlyTotal = parseFloat(card.getAttribute("data-yearly-total"), 10);
         var pct = savePercent(monthly, yearlyTotal);

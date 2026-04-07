@@ -287,7 +287,12 @@ class AdminController extends Controller
             'slug'                          => 'required|string|max:50|unique:plans,slug',
             'name'                          => 'required|string|max:100',
             'description'                   => 'nullable|string',
-            'monthly_price_cents'           => 'nullable|integer|min:0',
+            'monthly_price_cents'           => [
+                'nullable',
+                'integer',
+                'min:0',
+                Rule::requiredIf(fn () => $request->boolean('is_lifetime') && ! $request->boolean('is_free')),
+            ],
             'yearly_price_cents'            => 'nullable|integer|min:0',
             'max_social_profiles'           => 'nullable|integer|min:1',
             'max_scheduled_posts_per_month' => 'nullable|integer|min:1',
@@ -331,6 +336,8 @@ class AdminController extends Controller
             $validated['free_trial_days'] = null;
         }
 
+        $validated = $this->normalizedPlanPricingFromRequest($validated);
+
         $validated['platform_ai_tokens_per_period'] = (int) $validated['platform_ai_tokens_per_period'];
 
         Plan::create($validated);
@@ -348,7 +355,12 @@ class AdminController extends Controller
             'slug'                          => "required|string|max:50|unique:plans,slug,{$id}",
             'name'                          => 'required|string|max:100',
             'description'                   => 'nullable|string',
-            'monthly_price_cents'           => 'nullable|integer|min:0',
+            'monthly_price_cents'           => [
+                'nullable',
+                'integer',
+                'min:0',
+                Rule::requiredIf(fn () => $request->boolean('is_lifetime') && ! $request->boolean('is_free')),
+            ],
             'yearly_price_cents'            => 'nullable|integer|min:0',
             'max_social_profiles'           => 'nullable|integer|min:1',
             'max_scheduled_posts_per_month' => 'nullable|integer|min:1',
@@ -389,6 +401,8 @@ class AdminController extends Controller
             $validated['has_free_trial'] = false;
             $validated['free_trial_days'] = null;
         }
+
+        $validated = $this->normalizedPlanPricingFromRequest($validated);
 
         if (! $request->has('allowed_platforms')) {
             $validated['allowed_platforms'] = null;
@@ -442,6 +456,29 @@ class AdminController extends Controller
     {
         if ($raw === null || trim($raw) === '') return null;
         return array_values(array_filter(array_map('trim', explode("\n", $raw))));
+    }
+
+    /**
+     * Lifetime plans use a single amount in {@see Plan::$monthly_price_cents}; yearly is always cleared.
+     * Free plans clear both prices.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function normalizedPlanPricingFromRequest(array $validated): array
+    {
+        if (! empty($validated['is_free'])) {
+            $validated['monthly_price_cents'] = null;
+            $validated['yearly_price_cents'] = null;
+
+            return $validated;
+        }
+
+        if (! empty($validated['is_lifetime'])) {
+            $validated['yearly_price_cents'] = null;
+        }
+
+        return $validated;
     }
 
     /**
