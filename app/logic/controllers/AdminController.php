@@ -303,6 +303,7 @@ class AdminController extends Controller
             'allowed_tools.*'               => 'string',
             'tools_present'                 => 'nullable|boolean',
             'is_active'                     => 'boolean',
+            'is_most_popular'               => 'boolean',
             'is_free'                       => 'boolean',
             'is_lifetime'                   => 'boolean',
             'lifetime_max_subscribers'      => 'nullable|integer|min:1',
@@ -314,6 +315,7 @@ class AdminController extends Controller
 
         $validated['features'] = $this->parseFeaturesList($validated['features'] ?? null);
         $validated['is_active'] = $request->boolean('is_active');
+        $validated['is_most_popular'] = $request->boolean('is_most_popular');
         $validated['is_free'] = $request->boolean('is_free');
         $validated['is_lifetime'] = $request->boolean('is_lifetime');
         $validated['has_free_trial'] = $request->boolean('has_free_trial');
@@ -334,11 +336,16 @@ class AdminController extends Controller
         if ($validated['is_free']) {
             $validated['has_free_trial'] = false;
             $validated['free_trial_days'] = null;
+            $validated['is_most_popular'] = false;
         }
 
         $validated = $this->normalizedPlanPricingFromRequest($validated);
 
         $validated['platform_ai_tokens_per_period'] = (int) $validated['platform_ai_tokens_per_period'];
+
+        if ($validated['is_most_popular']) {
+            Plan::query()->update(['is_most_popular' => false]);
+        }
 
         Plan::create($validated);
         PublicCatalogCache::forgetPlans();
@@ -371,6 +378,7 @@ class AdminController extends Controller
             'allowed_tools.*'               => 'string',
             'tools_present'                 => 'nullable|boolean',
             'is_active'                     => 'boolean',
+            'is_most_popular'               => 'boolean',
             'is_free'                       => 'boolean',
             'is_lifetime'                   => 'boolean',
             'lifetime_max_subscribers'      => 'nullable|integer|min:1',
@@ -382,6 +390,7 @@ class AdminController extends Controller
 
         $validated['features'] = $this->parseFeaturesList($validated['features'] ?? null);
         $validated['is_active'] = $request->boolean('is_active');
+        $validated['is_most_popular'] = $request->boolean('is_most_popular');
         $validated['is_free'] = $request->boolean('is_free');
         $validated['is_lifetime'] = $request->boolean('is_lifetime');
         $validated['has_free_trial'] = $request->boolean('has_free_trial');
@@ -400,6 +409,7 @@ class AdminController extends Controller
         if ($validated['is_free']) {
             $validated['has_free_trial'] = false;
             $validated['free_trial_days'] = null;
+            $validated['is_most_popular'] = false;
         }
 
         $validated = $this->normalizedPlanPricingFromRequest($validated);
@@ -414,6 +424,10 @@ class AdminController extends Controller
         }
 
         $validated['platform_ai_tokens_per_period'] = (int) $validated['platform_ai_tokens_per_period'];
+
+        if ($validated['is_most_popular']) {
+            Plan::query()->where('id', '<>', $plan->id)->update(['is_most_popular' => false]);
+        }
 
         $plan->update($validated);
         $plan->refresh();

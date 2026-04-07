@@ -421,7 +421,7 @@
           <div class="lp-pricing__grid">
             @forelse($plans as $plan)
             @php
-              $isFeatured = strtolower($plan->slug) === 'growth' || strtolower($plan->name) === 'growth';
+              $isFeatured = $plan->is_most_popular;
               $lp = $currencyDisplay->landingPricingMajors($plan);
               $isLifetime = $plan->is_lifetime;
               if ($isLifetime) {
@@ -438,7 +438,10 @@
             @endphp
             <article class="lp-pricing-card{{ $isFeatured ? ' lp-pricing-card--featured' : '' }}" data-lp-pricing-card data-monthly="{{ $monthly }}" data-yearly-total="{{ $yearlyTotal }}" @if($isLifetime) data-lp-lifetime="1" data-lp-onetime="{{ $oneTimeAmount }}" @endif data-lp-reveal>
               @if($isFeatured)
-              <span class="lp-pricing-card__badge">Popular</span>
+              <div class="lp-pricing-card__popular-strip">
+                <span class="lp-pricing-card__popular-line" aria-hidden="true"></span>
+                <span class="lp-pricing-card__badge-most">Most Popular</span>
+              </div>
               @endif
               <h3 class="lp-pricing-card__name">{{ $plan->name }}</h3>
               <p class="lp-pricing-card__price">

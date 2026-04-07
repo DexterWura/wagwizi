@@ -18,7 +18,7 @@ final class PublicCatalogCache
 {
     public const TTL_SECONDS = 300;
 
-    private const K_PLANS = 'catalog:active_plans:v1';
+    private const K_PLANS = 'catalog:active_plans:v2';
 
     private const K_TESTIMONIALS = 'catalog:active_testimonials:v1';
 

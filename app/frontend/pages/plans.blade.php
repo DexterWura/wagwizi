@@ -96,9 +96,12 @@
                 $needsRenew = $subscriptionAccess->userMustRenewSamePlan($user, $plan);
                 $price = $currencyDisplay->formatBaseMinorForDisplay($plan->monthly_price_cents);
             @endphp
-            <article class="plan-card{{ $isCurrent ? ' plan-card--current' : '' }}{{ $plan->slug === 'growth' ? ' plan-card--featured' : '' }}" data-plan-id="{{ $plan->slug }}" data-plan-sort="{{ $plan->sort_order }}">
-              @if($plan->slug === 'growth')
-              <span class="plan-card__badge">Popular</span>
+            <article class="plan-card{{ $isCurrent ? ' plan-card--current' : '' }}{{ $plan->is_most_popular ? ' plan-card--featured' : '' }}" data-plan-id="{{ $plan->slug }}" data-plan-sort="{{ $plan->sort_order }}">
+              @if($plan->is_most_popular)
+              <div class="plan-card__popular-strip">
+                <span class="plan-card__popular-line" aria-hidden="true"></span>
+                <span class="plan-card__badge-most">Most Popular</span>
+              </div>
               @endif
               <h2 class="plan-card__name">{{ $plan->name }}</h2>
               <span class="plan-card__price">{{ $price }} @if($plan->monthly_price_cents !== null)<span class="plan-card__cycle">/ month</span>@endif</span>

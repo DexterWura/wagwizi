@@ -70,6 +70,9 @@
             <div class="card">
               <div class="card__head">
                 <span>{{ $plan->name }}</span>
+                @if($plan->is_most_popular)
+                  <span class="badge badge--success">Most popular</span>
+                @endif
                 @if($plan->is_lifetime)
                   <span class="badge badge--warning">Lifetime</span>
                 @endif
@@ -184,6 +187,14 @@
                         <input type="checkbox" name="is_active" value="1" {{ $plan->is_active ? 'checked' : '' }} />
                         <span>Active</span>
                       </label>
+                    </div>
+                    <div class="field">
+                      <label class="check-line">
+                        <input type="hidden" name="is_most_popular" value="0" />
+                        <input type="checkbox" name="is_most_popular" value="1" {{ $plan->is_most_popular ? 'checked' : '' }} />
+                        <span>Most popular (landing &amp; plans page highlight)</span>
+                      </label>
+                      <p class="field__hint">Only one plan should be marked; saving automatically clears this flag on all other plans.</p>
                     </div>
                     <div class="field">
                       <label class="check-line">
@@ -348,6 +359,14 @@
                   <input type="checkbox" name="is_active" value="1" checked />
                   <span>Active</span>
                 </label>
+              </div>
+              <div class="field">
+                <label class="check-line">
+                  <input type="hidden" name="is_most_popular" value="0" />
+                  <input type="checkbox" name="is_most_popular" value="1" />
+                  <span>Most popular (landing &amp; plans page highlight)</span>
+                </label>
+                <p class="field__hint">Only one plan should be marked; saving clears this flag on all other plans.</p>
               </div>
               <div class="field">
                 <label class="check-line">
