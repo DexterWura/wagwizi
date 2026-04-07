@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Services\Ai\AiOutboundUrlValidator;
+use App\Services\Ai\PlatformAiQuotaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -108,6 +109,7 @@ class SettingsController extends Controller
 
         $user->update($attrs);
         $user->refresh();
+        app(PlatformAiQuotaService::class)->invalidateLayoutSummaryCache((int) $user->id);
 
         return response()->json([
             'success'     => true,

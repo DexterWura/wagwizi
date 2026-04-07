@@ -7,6 +7,7 @@ namespace App\Services\Ai;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -23,12 +24,14 @@ final class PlatformAiQuotaService
         $plan ??= $subscription->planModel;
         if ($plan === null) {
             $subscription->forceFill(['platform_ai_tokens_remaining' => 0])->save();
+            $this->invalidateLayoutSummaryCache((int) $subscription->user_id);
 
             return;
         }
 
         $budget = max(0, (int) $plan->platform_ai_tokens_per_period);
         $subscription->forceFill(['platform_ai_tokens_remaining' => $budget])->save();
+        $this->invalidateLayoutSummaryCache((int) $subscription->user_id);
     }
 
     /**
@@ -122,7 +125,7 @@ final class PlatformAiQuotaService
 
         $cap = max(1, (int) config('ai.platform.max_reserve_tokens_per_request', 16000));
 
-        return (int) DB::transaction(function () use ($user, $cap): int {
+        $reserved = (int) DB::transaction(function () use ($user, $cap): int {
             $sub = Subscription::query()
                 ->where('user_id', $user->id)
                 ->lockForUpdate()
@@ -146,13 +149,16 @@ final class PlatformAiQuotaService
                 );
             }
 
-            $reserved = min($remaining, $cap);
+            $toReserve = min($remaining, $cap);
             $sub->forceFill([
-                'platform_ai_tokens_remaining' => $remaining - $reserved,
+                'platform_ai_tokens_remaining' => $remaining - $toReserve,
             ])->save();
 
-            return $reserved;
+            return $toReserve;
         });
+        $this->invalidateLayoutSummaryCache((int) $user->id);
+
+        return $reserved;
     }
 
     /**
@@ -181,6 +187,12 @@ final class PlatformAiQuotaService
                 'platform_ai_tokens_remaining' => max(0, $current + $reserved - $actualTokensUsed),
             ])->save();
         });
+        $this->invalidateLayoutSummaryCache((int) $user->id);
+    }
+
+    public function invalidateLayoutSummaryCache(int $userId): void
+    {
+        Cache::forget('layout:ai_quota:v1:' . $userId);
     }
 
     /**
@@ -188,24 +200,28 @@ final class PlatformAiQuotaService
      */
     public function summaryForLayout(User $user): array
     {
-        $user->loadMissing('subscription.planModel');
-        $sub  = $user->subscription;
-        $plan = $sub?->planModel;
+        $cacheKey = 'layout:ai_quota:v1:' . $user->id;
 
-        $applies = ! $user->isSuperAdmin()
-            && ! $user->usesComposerAiByok()
-            && ($user->ai_source ?? 'platform') === 'platform'
-            && $user->hasPaidActiveSubscriptionForAi()
-            && app(PlatformAiConfigService::class)->isConfigured()
-            && $this->planIncludesPlatformAiTokens($plan);
+        return Cache::remember($cacheKey, 45, function () use ($user): array {
+            $user->loadMissing('subscription.planModel');
+            $sub  = $user->subscription;
+            $plan = $sub?->planModel;
 
-        $budget = $plan !== null ? max(0, (int) $plan->platform_ai_tokens_per_period) : 0;
-        $remaining = $sub !== null ? max(0, (int) $sub->platform_ai_tokens_remaining) : 0;
+            $applies = ! $user->isSuperAdmin()
+                && ! $user->usesComposerAiByok()
+                && ($user->ai_source ?? 'platform') === 'platform'
+                && $user->hasPaidActiveSubscriptionForAi()
+                && app(PlatformAiConfigService::class)->isConfigured()
+                && $this->planIncludesPlatformAiTokens($plan);
 
-        return [
-            'remaining' => $remaining,
-            'budget'    => $budget,
-            'applies'   => $applies,
-        ];
+            $budget = $plan !== null ? max(0, (int) $plan->platform_ai_tokens_per_period) : 0;
+            $remaining = $sub !== null ? max(0, (int) $sub->platform_ai_tokens_remaining) : 0;
+
+            return [
+                'remaining' => $remaining,
+                'budget'    => $budget,
+                'applies'   => $applies,
+            ];
+        });
     }
 }

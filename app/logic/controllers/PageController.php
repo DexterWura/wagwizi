@@ -7,11 +7,10 @@ use App\Models\Plan;
 use App\Models\PlanChange;
 use App\Models\SiteSetting;
 use App\Models\Subscription;
-use App\Models\Faq;
-use App\Models\Testimonial;
 use App\Services\Billing\CurrencyDisplayService;
 use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Billing\SubscriptionFulfillmentService;
+use App\Services\Cache\PublicCatalogCache;
 use App\Services\Cache\UserCacheVersionService;
 use App\Services\Dashboard\DashboardMetricsService;
 use App\Services\Subscription\SubscriptionAccessService;
@@ -39,9 +38,9 @@ class PageController extends Controller
     {
         $registry = app(PlatformRegistry::class);
         $enabledPlatforms = $registry->enabledPlatforms();
-        $testimonials = Testimonial::active()->ordered()->get();
-        $plans = Plan::active()->get();
-        $faqs = Faq::active()->ordered()->get();
+        $testimonials = PublicCatalogCache::activeTestimonials();
+        $plans        = PublicCatalogCache::activePlans();
+        $faqs         = PublicCatalogCache::activeFaqs();
 
         $heroEyebrow = trim((string) SiteSetting::get('hero_eyebrow', ''));
         if ($heroEyebrow === '') {
@@ -289,9 +288,10 @@ class PageController extends Controller
 
     public function plans(): View
     {
-        $user         = Auth::user();
+        $user = Auth::user();
+        $user->loadMissing('subscription.planModel');
         $subscription = $user->subscription;
-        $plans        = Plan::active()->get();
+        $plans        = PublicCatalogCache::activePlans();
         $gatewayCfg   = app(PaymentGatewayConfigService::class);
         $fulfillment  = app(SubscriptionFulfillmentService::class);
 

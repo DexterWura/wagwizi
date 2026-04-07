@@ -35,6 +35,7 @@ use App\Services\Platform\Platform;
 use App\Services\Landing\LandingFeaturesDeepService;
 use App\Services\Notifications\InAppNotificationService;
 use App\Services\Seo\PublicSeoFilesService;
+use App\Services\Cache\PublicCatalogCache;
 use App\Services\Tools\ToolAccessService;
 use App\Utils\FileUploadUtil;
 use Illuminate\Support\Str;
@@ -333,6 +334,7 @@ class AdminController extends Controller
         $validated['platform_ai_tokens_per_period'] = (int) $validated['platform_ai_tokens_per_period'];
 
         Plan::create($validated);
+        PublicCatalogCache::forgetPlans();
 
         return back()->with('success', "Plan \"{$validated['name']}\" created.");
     }
@@ -403,11 +405,21 @@ class AdminController extends Controller
         $plan->refresh();
 
         if ($previousPlatformAiBudget !== (int) $plan->platform_ai_tokens_per_period) {
+            $affectedUserIds = Subscription::query()
+                ->where('plan_id', $plan->id)
+                ->whereIn('status', ['active', 'trialing'])
+                ->pluck('user_id');
             Subscription::query()
                 ->where('plan_id', $plan->id)
                 ->whereIn('status', ['active', 'trialing'])
                 ->update(['platform_ai_tokens_remaining' => (int) $plan->platform_ai_tokens_per_period]);
+            $quota = app(PlatformAiQuotaService::class);
+            foreach ($affectedUserIds as $uid) {
+                $quota->invalidateLayoutSummaryCache((int) $uid);
+            }
         }
+
+        PublicCatalogCache::forgetPlans();
 
         return back()->with('success', "Plan \"{$plan->name}\" updated.");
     }
@@ -421,6 +433,7 @@ class AdminController extends Controller
         }
 
         $plan->delete();
+        PublicCatalogCache::forgetPlans();
 
         return back()->with('success', "Plan \"{$plan->name}\" deleted.");
     }
@@ -506,6 +519,7 @@ class AdminController extends Controller
         $validated['is_active'] = $request->boolean('is_active');
 
         Testimonial::create($validated);
+        PublicCatalogCache::forgetTestimonials();
 
         return back()->with('success', 'Testimonial added.');
     }
@@ -527,6 +541,7 @@ class AdminController extends Controller
         $validated['is_active'] = $request->boolean('is_active');
 
         $testimonial->update($validated);
+        PublicCatalogCache::forgetTestimonials();
 
         return back()->with('success', 'Testimonial updated.');
     }
@@ -534,6 +549,8 @@ class AdminController extends Controller
     public function destroyTestimonial(int $id): RedirectResponse
     {
         Testimonial::findOrFail($id)->delete();
+        PublicCatalogCache::forgetTestimonials();
+
         return back()->with('success', 'Testimonial deleted.');
     }
 
@@ -558,6 +575,7 @@ class AdminController extends Controller
         $validated['is_active'] = $request->boolean('is_active');
 
         Faq::create($validated);
+        PublicCatalogCache::forgetFaqs();
 
         return back()->with('success', 'FAQ added.');
     }
@@ -576,6 +594,7 @@ class AdminController extends Controller
         $validated['is_active'] = $request->boolean('is_active');
 
         $faq->update($validated);
+        PublicCatalogCache::forgetFaqs();
 
         return back()->with('success', 'FAQ updated.');
     }
@@ -583,6 +602,7 @@ class AdminController extends Controller
     public function destroyFaq(int $id): RedirectResponse
     {
         Faq::findOrFail($id)->delete();
+        PublicCatalogCache::forgetFaqs();
 
         return back()->with('success', 'FAQ deleted.');
     }

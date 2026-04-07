@@ -50,8 +50,9 @@ class ProfileController extends Controller
 
         $user = Auth::user();
 
-        if ($user->avatar_path && file_exists(PROJECT_ROOT . '/' . $user->avatar_path)) {
-            @unlink(PROJECT_ROOT . '/' . $user->avatar_path);
+        $old = $user->avatar_path;
+        if (is_string($old) && trim($old) !== '' && ! preg_match('#^https?://#i', trim($old))) {
+            FileUploadUtil::delete($old);
         }
 
         $path = FileUploadUtil::store($request->file('avatar'), 'avatars');
@@ -61,7 +62,7 @@ class ProfileController extends Controller
         return response()->json([
             'success'    => true,
             'message'    => 'Avatar updated.',
-            'avatar_url' => '/' . $path,
+            'avatar_url' => asset($path),
         ]);
     }
 

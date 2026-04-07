@@ -19,6 +19,7 @@ class FileUploadUtil
 
     public static function delete(string $path): bool
     {
+        $path = ltrim(str_replace('\\', '/', $path), '/');
         $fullPath = public_path($path);
 
         if (file_exists($fullPath)) {

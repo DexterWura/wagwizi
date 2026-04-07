@@ -36,7 +36,7 @@
                 <div class="profile-card__body">
                   <div class="profile-avatar-row">
                     <div class="profile-avatar-lg" aria-hidden="true">
-                      <i class="fa-solid fa-user"></i>
+                      @include('user-avatar-img', ['user' => $currentUser, 'size' => 'lg'])
                     </div>
                     <div class="profile-avatar-actions">
                       <button type="button" class="btn btn--outline btn--compact">Change photo</button>

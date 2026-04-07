@@ -8,10 +8,19 @@
       'seoTypeOverride' => 'website',
       'seoRobotsOverride' => 'index,follow',
     ])
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    @php
+      $lpFontCss = 'https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap';
+      $lpFaCss = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css';
+    @endphp
+    <link rel="preload" href="{{ $lpFontCss }}" as="style" />
+    <link href="{{ $lpFontCss }}" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript><link href="{{ $lpFontCss }}" rel="stylesheet" /></noscript>
+    <link rel="preload" href="{{ $lpFaCss }}" as="style" crossorigin="anonymous" />
+    <link href="{{ $lpFaCss }}" rel="stylesheet" media="print" onload="this.media='all'" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <noscript><link href="{{ $lpFaCss }}" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer" /></noscript>
     <link rel="stylesheet" href="{{ asset('assets/css/landing.css') }}" />
   </head>
   <body class="lp">

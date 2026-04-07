@@ -16,14 +16,14 @@
               <a href="{{ $dashUrl(['scope' => 'all']) }}" class="filter-scope__link @if($scope === 'all') filter-scope__link--active @endif" @if($scope === 'all') aria-current="page" @endif><span class="filter-scope__dot filter-scope__dot--primary"></span> All accounts</a>
               <a href="{{ $dashUrl(['scope' => 'platform']) }}" class="filter-scope__link @if($scope === 'platform') filter-scope__link--active @endif" @if($scope === 'platform') aria-current="page" @endif><span class="filter-scope__dot filter-scope__dot--muted"></span> Per platform</a>
             </div>
-            @if($scope === 'platform' && count($platformOptions) > 0)
+            @if($scope === 'platform' && count($platformFilterOptions ?? []) > 0)
             <form method="get" action="{{ route('dashboard') }}" class="filter-platform-form">
               <input type="hidden" name="range" value="{{ $range }}" />
               <input type="hidden" name="scope" value="platform" />
               <label class="filter-platform-form__label" for="dashboard-platform">Platform</label>
-              <select class="select select--sm" id="dashboard-platform" name="platform" onchange="this.form.submit()">
-                @foreach($platformOptions as $p)
-                  <option value="{{ $p }}" {{ $platform === $p ? 'selected' : '' }}>{{ ucfirst($p) }}</option>
+              <select class="select select--sm" id="dashboard-platform" name="platform" onchange="this.form.submit()" aria-label="Network for per-platform metrics">
+                @foreach($platformFilterOptions as $opt)
+                  <option value="{{ $opt['slug'] }}" {{ ($platform ?? '') === $opt['slug'] ? 'selected' : '' }}>{{ $opt['label'] }}</option>
                 @endforeach
               </select>
             </form>
@@ -116,12 +116,38 @@
             <div class="card">
               <div class="card__head">
                 <span><i class="fa-solid fa-chart-pie" aria-hidden="true"></i> Platform mix</span>
+                <a class="card__head-link" href="{{ route('insights') }}">Insights <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
               </div>
+              @if(count($platformMix ?? []) > 0)
+                @php
+                  $mix = $platformMix;
+                  $donutColors = ['#6366f1','#0a66c2','#e4405f','#f97316','#22c55e','#ec4899','#14b8a6','#a855f7'];
+                  $deg = 0;
+                  $conicParts = [];
+                  foreach ($mix as $i => $row) {
+                    $slice = 3.6 * $row['pct'];
+                    $c = $donutColors[$i % count($donutColors)];
+                    $conicParts[] = "{$c} {$deg}deg " . ($deg + $slice) . 'deg';
+                    $deg += $slice;
+                  }
+                  $conicCss = count($conicParts) ? implode(',', $conicParts) : '#475569 0deg 360deg';
+                @endphp
+                <div class="insights-donut-block dashboard-platform-mix">
+                  <div class="insights-donut insights-donut--dynamic" data-insights-conic="{{ $conicCss }}" role="img" aria-label="Platform mix for the selected range"></div>
+                  <ul class="insights-donut-legend">
+                    @foreach($mix as $i => $row)
+                    <li><span class="insights-donut-legend__swatch" data-insights-swatch="{{ $donutColors[$i % count($donutColors)] }}"></span> {{ $row['label'] }} · {{ $row['pct'] }}%</li>
+                    @endforeach
+                  </ul>
+                </div>
+                <p class="dashboard-platform-mix__note">Weighted by engagement when synced; otherwise by posts published in this range.</p>
+              @else
               <div class="empty-lg">
-                <i class="fa-brands fa-x-twitter" aria-hidden="true"></i>
-                <strong>Breakdown by network</strong>
-                <span>See share of reach and engagement per channel on Insights.</span>
+                <i class="fa-solid fa-chart-pie" aria-hidden="true"></i>
+                <strong>No platform data yet</strong>
+                <span>Publish to this window or open <a href="{{ route('insights') }}">Insights</a> for the full report.</span>
               </div>
+              @endif
             </div>
           </div>
 

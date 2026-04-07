@@ -3,6 +3,8 @@
 namespace App\Services\Dashboard;
 
 use App\Models\SocialAccount;
+use App\Services\Insights\AudienceInsightsService;
+use App\Services\Platform\Platform;
 use App\Services\SocialAccount\TokenRefreshService;
 use App\Services\Cache\UserCacheVersionService;
 use App\Models\User;
@@ -36,6 +38,7 @@ final class DashboardMetricsService
      *   scope: string,
      *   platform: string|null,
      *   platformOptions: string[],
+     *   platformFilterOptions: list<array{slug:string,label:string}>,
      *   connectedAccountsCount: int,
      *   publishedPostsCount: int,
      *   scheduledPostsCount: int,
@@ -45,6 +48,7 @@ final class DashboardMetricsService
      *   nextUp: \Illuminate\Support\Collection,
      *   totalAudienceCount: int|null,
      *   activityChart: array{labels: list<string>, labelsIso: list<string>, series: list<array{id: string, label: string, values: list<int>}>},
+     *   platformMix: list<array{slug:string,label:string,pct:float}>,
      * }
      */
     public function build(User $user, Request $request): array
@@ -73,9 +77,12 @@ final class DashboardMetricsService
             ->values()
             ->all();
 
+        $filterSlugs = $this->dashboardPlatformFilterSlugs();
+        $platformFilterOptions = $this->dashboardPlatformFilterOptions($filterSlugs);
+
         $platformSlug = null;
         if ($scope === self::SCOPE_PLATFORM) {
-            $platformSlug = $this->resolvePlatformSlug((string) $platformReq, $platformOptions);
+            $platformSlug = $this->resolvePlatformSlug((string) $platformReq, $platformOptions, $filterSlugs);
         }
 
         $emptyPlatformScope = $scope === self::SCOPE_PLATFORM && $platformSlug === null;
@@ -121,6 +128,17 @@ final class DashboardMetricsService
             $tz
         );
 
+        $platformMix = [];
+        if (! $emptyPlatformScope) {
+            $mixFilter = $scope === self::SCOPE_PLATFORM && $platformSlug !== null ? $platformSlug : null;
+            $platformMix = app(AudienceInsightsService::class)->platformMixForWindow(
+                $user,
+                $pubStart,
+                $pubEnd,
+                $mixFilter
+            );
+        }
+
         $recentPosts = $user->posts()
             ->whereIn('status', ['published', 'scheduled', 'draft'])
             ->where('updated_at', '>=', $pubStart)
@@ -154,6 +172,7 @@ final class DashboardMetricsService
             'scope'                   => $scope,
             'platform'                => $platformSlug,
             'platformOptions'         => $platformOptions,
+            'platformFilterOptions'   => $platformFilterOptions,
             'connectedAccountsCount'  => $connectedCount,
             'publishedPostsCount'     => $publishedCount,
             'scheduledPostsCount'     => $scheduledCount,
@@ -163,6 +182,7 @@ final class DashboardMetricsService
             'nextUp'                  => $nextUp,
             'totalAudienceCount'      => $totalAudience,
             'activityChart'           => $activityChart,
+            'platformMix'             => $platformMix,
         ];
         });
     }
@@ -562,19 +582,70 @@ final class DashboardMetricsService
     }
 
     /**
-     * @param  list<string>  $allowed
+     * Platforms available in the dashboard filter: keys present in config/platforms.php and defined on {@see Platform}.
+     *
+     * @return list<string>
      */
-    private function resolvePlatformSlug(string $requested, array $allowed): ?string
+    private function dashboardPlatformFilterSlugs(): array
     {
-        if ($allowed === []) {
+        $cfg = config('platforms', []);
+        $slugs = [];
+        if (is_array($cfg)) {
+            foreach (Platform::cases() as $case) {
+                if (array_key_exists($case->value, $cfg)) {
+                    $slugs[] = $case->value;
+                }
+            }
+        }
+        if ($slugs === []) {
+            foreach (Platform::cases() as $case) {
+                $slugs[] = $case->value;
+            }
+        }
+        sort($slugs);
+
+        return $slugs;
+    }
+
+    /**
+     * @param  list<string>  $filterSlugs
+     * @return list<array{slug:string,label:string}>
+     */
+    private function dashboardPlatformFilterOptions(array $filterSlugs): array
+    {
+        $out = [];
+        foreach ($filterSlugs as $slug) {
+            $enum = Platform::tryFrom($slug);
+            $out[] = [
+                'slug'  => $slug,
+                'label' => $enum?->label() ?? ucfirst(str_replace('_', ' ', $slug)),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  list<string>  $connectedSlugs  Platforms the user has active accounts for
+     * @param  list<string>  $filterSlugs     Valid dashboard filter values
+     */
+    private function resolvePlatformSlug(string $requested, array $connectedSlugs, array $filterSlugs): ?string
+    {
+        if ($filterSlugs === []) {
             return null;
         }
 
-        if ($requested !== '' && in_array($requested, $allowed, true)) {
+        if ($requested !== '' && in_array($requested, $filterSlugs, true)) {
             return $requested;
         }
 
-        return $allowed[0];
+        foreach ($connectedSlugs as $c) {
+            if (in_array($c, $filterSlugs, true)) {
+                return $c;
+            }
+        }
+
+        return $filterSlugs[0];
     }
 
     /**

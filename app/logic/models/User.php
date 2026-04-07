@@ -161,6 +161,35 @@ class User extends Authenticatable
     }
 
     /**
+     * Absolute URL for the user's avatar: remote OAuth URL, uploaded file under public/, or Gravatar.
+     */
+    public function avatarUrl(int $displaySize = 128): string
+    {
+        $raw = $this->avatar_path;
+        if (is_string($raw)) {
+            $trim = trim($raw);
+            if ($trim !== '') {
+                if (preg_match('#^https?://#i', $trim)) {
+                    return $trim;
+                }
+                $path = ltrim(str_replace('\\', '/', $trim), '/');
+                if ($path !== '' && is_file(public_path($path))) {
+                    return asset($path);
+                }
+            }
+        }
+
+        return $this->gravatarUrl($displaySize);
+    }
+
+    private function gravatarUrl(int $size): string
+    {
+        $hash = md5(strtolower(trim((string) $this->email)));
+
+        return 'https://www.gravatar.com/avatar/' . $hash . '?d=mp&s=' . $size;
+    }
+
+    /**
      * Paid (non-free) plan with an active or trialing subscription — used for platform-billed AI only.
      */
     public function hasPaidActiveSubscriptionForAi(): bool

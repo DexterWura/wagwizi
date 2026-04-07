@@ -94,7 +94,7 @@
   </nav>
   <div class="app-sidebar__footer">
     <div class="user-chip">
-      <span class="user-chip__avatar" aria-hidden="true"></span>
+      <span class="user-chip__avatar" aria-hidden="true">@include('user-avatar-img', ['user' => $currentUser, 'size' => 'sm'])</span>
       <div class="user-chip__meta">
         <strong title="{{ $currentUser->name ?? 'User' }}">{{ $currentUser->name ?? 'User' }}</strong>
         <span title="{{ $currentUser->email ?? '' }}">{{ $currentUser->email ?? '' }}</span>

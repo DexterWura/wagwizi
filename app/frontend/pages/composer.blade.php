@@ -30,7 +30,7 @@
             </button>
             <div class="app-topbar__account-wrap" data-app-account-wrap>
               <div class="app-topbar__account">
-                <span class="app-topbar__avatar" aria-hidden="true"></span>
+                <span class="app-topbar__avatar" aria-hidden="true">@include('user-avatar-img', ['user' => $currentUser, 'size' => 'sm'])</span>
                 <button type="button" class="app-topbar__account-toggle" data-app-account-trigger id="app-topbar-account-trigger" aria-label="Account menu" aria-haspopup="menu" aria-expanded="false" aria-controls="app-topbar-account-menu">
                   <i class="fa-solid fa-chevron-down fa-xs app-topbar__account-chev" aria-hidden="true"></i>
                 </button>
@@ -326,7 +326,7 @@
                 <div class="composer-feed-preview">
                   <div class="composer-feed-preview__post">
                     <div class="composer-feed-preview__head">
-                      <span class="composer-feed-preview__avatar" aria-hidden="true"></span>
+                      <span class="composer-feed-preview__avatar" aria-hidden="true">@include('user-avatar-img', ['user' => $currentUser, 'size' => 'md'])</span>
                       <div class="composer-feed-preview__meta">
                         <strong>{{ $currentUser->name ?? 'User' }}</strong>
                         <span class="composer-feed-preview__when">Just now</span>

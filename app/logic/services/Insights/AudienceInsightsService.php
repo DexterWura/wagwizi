@@ -134,6 +134,43 @@ class AudienceInsightsService
         });
     }
 
+    /**
+     * Share of activity by network for the same date window as the dashboard filters.
+     * Weights match the full insights model (engagement when synced, else post volume).
+     *
+     * @return list<array{slug:string,label:string,pct:float}>
+     */
+    public function platformMixForWindow(User $user, Carbon $from, Carbon $to, ?string $platformSlug = null): array
+    {
+        $tz = $this->resolveTimezone($user);
+        $from = $from->copy()->timezone($tz);
+        $to = $to->copy()->timezone($tz);
+
+        $rows = $this->loadPublishedRows($user->id, $from, $to, $platformSlug);
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        $hasMetrics = $rows->contains(fn (PostPlatform $pp) => $this->rowHasMetrics($pp));
+        $platformTotals = [];
+
+        foreach ($rows as $pp) {
+            $at = $this->effectivePublishedAt($pp, $tz);
+            if ($at === null) {
+                continue;
+            }
+
+            $w = $this->rowWeight($pp, $hasMetrics);
+            $platformTotals[$pp->platform] = ($platformTotals[$pp->platform] ?? 0) + $w;
+        }
+
+        if ($platformTotals === []) {
+            return [];
+        }
+
+        return $this->platformMixPercents($platformTotals);
+    }
+
     private function resolveTimezone(User $user): string
     {
         $name = $user->timezone;
@@ -151,13 +188,16 @@ class AudienceInsightsService
     /**
      * @return Collection<int, PostPlatform>
      */
-    private function loadPublishedRows(int $userId, Carbon $from, Carbon $to): Collection
+    private function loadPublishedRows(int $userId, Carbon $from, Carbon $to, ?string $platformSlug = null): Collection
     {
         $fromUtc = $from->copy()->utc();
         $toUtc   = $to->copy()->utc();
 
         return PostPlatform::query()
             ->where('status', 'published')
+            ->when($platformSlug !== null, static function ($q) use ($platformSlug): void {
+                $q->where('platform', $platformSlug);
+            })
             ->whereHas('post', function ($q) use ($userId) {
                 $q->where('user_id', $userId);
             })

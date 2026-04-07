@@ -821,6 +821,10 @@ html.app-nav-loading .app-nav-preloader {
   flex-shrink: 0;
   border-radius: 50%;
   background: linear-gradient(135deg, #6366f1, #ec4899);
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .user-chip > button {
@@ -1090,6 +1094,41 @@ button.app-topbar-account-menu__link {
   background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
   border: 2px solid var(--border);
   flex-shrink: 0;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+.app-user-avatar {
+  display: block;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.app-topbar__avatar .app-user-avatar,
+.user-chip__avatar .app-user-avatar,
+.composer-feed-preview__avatar .app-user-avatar {
+  width: 100%;
+  height: 100%;
+}
+
+.app-user-avatar--sm {
+  width: 32px;
+  height: 32px;
+}
+
+.app-user-avatar--md {
+  width: 40px;
+  height: 40px;
+}
+
+.app-user-avatar--lg {
+  width: 5.5rem;
+  height: 5.5rem;
+  max-width: 100%;
 }
 
 @media (max-width: 900px) {
@@ -1850,6 +1889,13 @@ a.pill {
   color: var(--text-muted);
 }
 
+@media (min-width: 769px) {
+  .filter-row > .filter-platform-form {
+    width: auto;
+    flex: 0 1 15rem;
+  }
+}
+
 .filter-scope__dot {
   width: 6px;
   height: 6px;
@@ -2261,6 +2307,14 @@ a.pill {
 
 .insights-donut-legend__swatch--ot {
   background: #f97316;
+}
+
+.dashboard-platform-mix__note {
+  margin: 0;
+  padding: 0 1rem 0.9rem;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  line-height: 1.45;
 }
 
 .insights-week-bars {
@@ -5187,6 +5241,10 @@ button.link-create {
   border-radius: 50%;
   background: linear-gradient(135deg, #94a3b8, #64748b);
   flex-shrink: 0;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .composer-feed-preview__meta {
@@ -6742,6 +6800,12 @@ button.link-create {
   font-size: 2.25rem;
   color: var(--text-muted);
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.profile-avatar-lg .app-user-avatar {
+  width: 100%;
+  height: 100%;
 }
 
 .profile-avatar-actions {

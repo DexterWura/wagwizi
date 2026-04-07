@@ -4,15 +4,30 @@ namespace App\Services\Billing;
 
 use App\Models\BillingCurrencySetting;
 use App\Models\SiteSetting;
+use Illuminate\Support\Facades\Cache;
 
 final class PaymentGatewayConfigService
 {
     private const KEY = 'payment_gateways';
 
+    private const MERGED_CONFIG_CACHE_KEY = 'billing:merged_gateway_config:v1';
+
+    private const MERGED_CONFIG_TTL_SECONDS = 120;
+
     /**
      * @return array<string, mixed>
      */
     public function all(): array
+    {
+        return Cache::remember(self::MERGED_CONFIG_CACHE_KEY, self::MERGED_CONFIG_TTL_SECONDS, function (): array {
+            return $this->buildMergedConfig();
+        });
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildMergedConfig(): array
     {
         $raw = SiteSetting::getJson(self::KEY, []);
 
@@ -80,6 +95,7 @@ final class PaymentGatewayConfigService
         $merged = array_replace_recursive($this->defaults(), $gateways);
         unset($merged['pricing']);
         SiteSetting::setJson(self::KEY, $merged);
+        Cache::forget(self::MERGED_CONFIG_CACHE_KEY);
     }
 
     public function paynowIsReady(): bool

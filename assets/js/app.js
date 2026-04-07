@@ -983,6 +983,20 @@
   }
 
   function initInsightsDynamicCharts() {
+    document.querySelectorAll("[data-insights-conic]").forEach(function (el) {
+      var g = el.getAttribute("data-insights-conic");
+      if (g) {
+        el.style.background = "conic-gradient(" + g + ")";
+      }
+    });
+
+    document.querySelectorAll("[data-insights-swatch]").forEach(function (el) {
+      var c = el.getAttribute("data-insights-swatch");
+      if (c) {
+        el.style.background = c;
+      }
+    });
+
     if (!document.body || document.body.getAttribute("data-app-page") !== "insights") {
       return;
     }
@@ -998,20 +1012,6 @@
       var pct = parseFloat(el.getAttribute("data-insights-heat-pct"), 10);
       if (!isNaN(pct)) {
         el.style.height = Math.max(3, pct * 0.72) + "px";
-      }
-    });
-
-    document.querySelectorAll("[data-insights-conic]").forEach(function (el) {
-      var g = el.getAttribute("data-insights-conic");
-      if (g) {
-        el.style.background = "conic-gradient(" + g + ")";
-      }
-    });
-
-    document.querySelectorAll("[data-insights-swatch]").forEach(function (el) {
-      var c = el.getAttribute("data-insights-swatch");
-      if (c) {
-        el.style.background = c;
       }
     });
 
@@ -1693,10 +1693,12 @@
             if (res._ok) {
               showFlash("Photo updated.");
               if (res.avatar_url) {
-                var avatarEl = document.querySelector(".profile-avatar-lg");
-                if (avatarEl) {
-                  avatarEl.innerHTML = '<img src="' + res.avatar_url + '" alt="Avatar" />';
-                }
+                var bust =
+                  res.avatar_url.indexOf("?") === -1 ? "?" : "&";
+                bust += "t=" + Date.now();
+                document.querySelectorAll("[data-app-user-avatar]").forEach(function (el) {
+                  el.src = res.avatar_url + bust;
+                });
               }
             } else {
               showFlash(res.message || "Upload failed.", "error");
