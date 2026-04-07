@@ -11,6 +11,9 @@ use App\Models\Subscription;
 use App\Models\SupportTicket;
 use App\Models\User;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 final class InAppNotificationService
 {
@@ -57,10 +60,91 @@ final class InAppNotificationService
             $this->create(
                 $adminId,
                 'admin_new_subscription',
-                'New subscription',
+                'Ka-ching! New subscription',
                 "{$subscriber->name} subscribed to {$plan->name}.",
                 ['action_url' => $url]
             );
+        }
+    }
+
+    public function notifySuperAdminsSubscriptionRenewal(User $subscriber, Plan $plan): void
+    {
+        $url = route('admin.subscriptions');
+        foreach ($this->superAdminRecipientIds() as $adminId) {
+            $this->create(
+                $adminId,
+                'admin_subscription_renewal',
+                'Ka-ching! Subscription renewed',
+                "{$subscriber->name} renewed {$plan->name} — hear that? That’s the sound of recurring revenue.",
+                ['action_url' => $url]
+            );
+        }
+    }
+
+    /**
+     * Sends a transactional email to every active super admin (SMTP from notification settings).
+     */
+    public function emailSuperAdminsNewUser(User $newUser): void
+    {
+        $adminUrl = route('admin.users', ['search' => $newUser->email]);
+        $subject = 'New user: ' . $newUser->name;
+        $inner = '<p><strong>Someone new just walked in.</strong></p>'
+            . '<p>' . e($newUser->name) . ' (' . e((string) $newUser->email) . ') created an account.</p>'
+            . '<p><a href="' . e($adminUrl) . '">Open in admin</a></p>';
+
+        $this->sendHtmlToSuperAdminEmails($subject, $this->simpleAdminEmailDocument($inner));
+    }
+
+    /**
+     * @param  bool  $isRenewal  Same paid plan, payment after at least one prior completed payment.
+     */
+    public function emailSuperAdminsPaidSubscription(User $subscriber, Plan $plan, bool $isRenewal): void
+    {
+        $adminUrl = route('admin.subscriptions');
+        if ($isRenewal) {
+            $subject = 'Ka-ching! Subscription renewed — ' . $plan->name;
+            $inner = '<p><strong>Ka-ching!</strong> Subscription renewal — the meter’s still running and the coffee’s still hot.</p>'
+                . '<p>' . e($subscriber->name) . ' (' . e((string) $subscriber->email) . ') renewed <strong>' . e($plan->name) . '</strong>.</p>'
+                . '<p><a href="' . e($adminUrl) . '">Subscriptions in admin</a></p>';
+        } else {
+            $subject = 'Ka-ching! New subscription — ' . $plan->name;
+            $inner = '<p><strong>Ka-ching!</strong> New subscription — someone just turned enthusiasm into revenue.</p>'
+                . '<p>' . e($subscriber->name) . ' (' . e((string) $subscriber->email) . ') subscribed to <strong>' . e($plan->name) . '</strong>.</p>'
+                . '<p><a href="' . e($adminUrl) . '">Subscriptions in admin</a></p>';
+        }
+
+        $this->sendHtmlToSuperAdminEmails($subject, $this->simpleAdminEmailDocument($inner));
+    }
+
+    /**
+     * Super-admin in-app alert when something breaks (email, publishing, queue, etc.).
+     * When $dedupeKey is non-empty, identical alerts are suppressed for $dedupeTtlSeconds to avoid floods.
+     *
+     * @param  array<string, mixed>  $extraData
+     */
+    public function notifySuperAdminsOperationalAlert(
+        string $inAppType,
+        string $title,
+        string $body,
+        ?string $actionUrl = null,
+        array $extraData = [],
+        string $dedupeKey = '',
+        int $dedupeTtlSeconds = 1800,
+    ): void {
+        if ($dedupeKey !== '') {
+            $cacheKey = 'op_alert:v1:' . hash('sha256', $dedupeKey);
+            if (! Cache::add($cacheKey, 1, max(60, $dedupeTtlSeconds))) {
+                return;
+            }
+        }
+
+        $data = $extraData;
+        if ($actionUrl !== null && $actionUrl !== '') {
+            $data['action_url'] = $actionUrl;
+        }
+
+        foreach ($this->superAdminRecipientIds() as $adminId) {
+            $this->create($adminId, $inAppType, $title, $body, $data);
         }
     }
 
@@ -245,6 +329,47 @@ final class InAppNotificationService
             ->where('status', 'active')
             ->pluck('id')
             ->all();
+    }
+
+    /** @return list<string> */
+    private function superAdminEmails(): array
+    {
+        $emails = User::query()
+            ->where('role', 'super_admin')
+            ->where('status', 'active')
+            ->whereNotNull('email')
+            ->pluck('email');
+
+        return Collection::make($emails)
+            ->filter(static fn (mixed $email): bool => is_string($email) && $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->values()
+            ->all();
+    }
+
+    private function simpleAdminEmailDocument(string $innerHtml): string
+    {
+        $app = e(config('app.name'));
+
+        return '<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;line-height:1.5;color:#111">'
+            . '<p style="color:#666;font-size:14px;margin:0 0 1em">' . $app . ' — admin alert</p>'
+            . $innerHtml
+            . '</body></html>';
+    }
+
+    private function sendHtmlToSuperAdminEmails(string $subject, string $html): void
+    {
+        $mail = app(NotificationChannelConfigService::class);
+        foreach ($this->superAdminEmails() as $to) {
+            try {
+                $mail->sendHtml($to, $subject, $html);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to send super-admin email', [
+                    'to' => $to,
+                    'subject' => $subject,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /** @return list<int> */

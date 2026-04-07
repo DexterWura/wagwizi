@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Services\Notifications\EmailTemplateRenderService;
 use App\Services\Notifications\EmailTemplateService;
 use App\Services\Notifications\NotificationChannelConfigService;
+use App\Services\Notifications\InAppNotificationService;
 use App\Services\Notifications\NotificationDeliveryLogService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -71,6 +72,19 @@ class AdminNotificationController extends Controller
                 'email' => $user->email,
                 'error' => $e->getMessage(),
             ]);
+
+            try {
+                app(InAppNotificationService::class)->notifySuperAdminsOperationalAlert(
+                    'admin_critical_smtp_test',
+                    'SMTP test failed',
+                    mb_substr($e->getMessage(), 0, 400),
+                    route('admin.notifications.settings'),
+                    [],
+                    'smtp_test_fail:' . md5($e->getMessage()),
+                    1800,
+                );
+            } catch (\Throwable) {
+            }
 
             return redirect()
                 ->route('admin.notifications.settings')

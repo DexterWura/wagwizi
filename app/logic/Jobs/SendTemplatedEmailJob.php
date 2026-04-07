@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\EmailTemplate;
 use App\Models\NotificationDelivery;
 use App\Services\Notifications\EmailTemplateRenderService;
+use App\Services\Notifications\InAppNotificationService;
 use App\Services\Notifications\NotificationChannelConfigService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -40,21 +41,14 @@ class SendTemplatedEmailJob implements ShouldQueue
         }
 
         if ($delivery->channel !== 'email' || $delivery->to_address === null || $delivery->to_address === '') {
-            $delivery->update([
-                'status'        => 'failed',
-                'error_message' => 'Missing email recipient.',
-                'sent_at'       => null,
-            ]);
+            $this->failDeliveryConfiguration($delivery, 'Missing email recipient.');
 
             return;
         }
 
         $templateKey = $delivery->template_key;
         if ($templateKey === null || $templateKey === '') {
-            $delivery->update([
-                'status'        => 'failed',
-                'error_message' => 'Missing template key.',
-            ]);
+            $this->failDeliveryConfiguration($delivery, 'Missing template key.');
 
             return;
         }
@@ -62,10 +56,7 @@ class SendTemplatedEmailJob implements ShouldQueue
         $template = EmailTemplate::query()->where('key', $templateKey)->first();
 
         if ($template === null) {
-            $delivery->update([
-                'status'        => 'failed',
-                'error_message' => "Unknown template key: {$templateKey}",
-            ]);
+            $this->failDeliveryConfiguration($delivery, "Unknown template key: {$templateKey}");
 
             return;
         }
@@ -90,6 +81,48 @@ class SendTemplatedEmailJob implements ShouldQueue
             ]);
 
             throw $e;
+        }
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        try {
+            $delivery = NotificationDelivery::query()->find($this->notificationDeliveryId);
+            $detail = $delivery !== null
+                ? "Delivery #{$delivery->id}, template " . ($delivery->template_key ?? '?') . ', to ' . ($delivery->to_address ?? '?')
+                : "Delivery #{$this->notificationDeliveryId} (record missing)";
+            app(InAppNotificationService::class)->notifySuperAdminsOperationalAlert(
+                'admin_critical_email_job_failed',
+                'Email job failed',
+                $detail . '. ' . mb_substr($exception->getMessage(), 0, 400),
+                route('admin.notification-deliveries'),
+                ['delivery_id' => $this->notificationDeliveryId],
+                'email_job_exhausted:' . $this->notificationDeliveryId,
+                7200,
+            );
+        } catch (Throwable) {
+        }
+    }
+
+    private function failDeliveryConfiguration(NotificationDelivery $delivery, string $errorMessage): void
+    {
+        $delivery->update([
+            'status'        => 'failed',
+            'error_message' => $errorMessage,
+            'sent_at'       => null,
+        ]);
+
+        try {
+            app(InAppNotificationService::class)->notifySuperAdminsOperationalAlert(
+                'admin_critical_email_delivery',
+                'Transactional email misconfigured',
+                $errorMessage . ($delivery->template_key ? ' (template: ' . $delivery->template_key . ')' : ''),
+                route('admin.notification-deliveries'),
+                ['delivery_id' => $delivery->id],
+                'email_delivery_cfg:' . $delivery->id . ':' . md5($errorMessage),
+                3600,
+            );
+        } catch (Throwable) {
         }
     }
 }

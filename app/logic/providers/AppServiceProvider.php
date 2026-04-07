@@ -24,9 +24,11 @@ use App\Services\Platform\Adapters\YouTubeAdapter;
 use App\Services\Platform\PlatformRegistry;
 use App\Services\Post\PostPublishingService;
 use App\Services\SocialAccount\TokenRefreshService;
+use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use App\Services\Ai\PlatformAiQuotaService;
 use App\Services\Notifications\InAppNotificationService;
@@ -99,6 +101,37 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->ensureLogFilesExist();
+
+        Event::listen(JobFailed::class, function (JobFailed $event): void {
+            try {
+                $name = (string) ($event->job->payload()['displayName'] ?? '');
+                if ($name === '' || ! str_starts_with($name, 'App\\Jobs\\')) {
+                    return;
+                }
+
+                $handledInDetail = [
+                    'App\\Jobs\\SendTemplatedEmailJob',
+                    'App\\Jobs\\PublishPostToPlatformJob',
+                    'App\\Jobs\\PublishPostCommentJob',
+                    'App\\Jobs\\SendMarketingCampaignBatchJob',
+                    'App\\Jobs\\RefreshExpiredTokensJob',
+                ];
+                if (in_array($name, $handledInDetail, true)) {
+                    return;
+                }
+
+                app(InAppNotificationService::class)->notifySuperAdminsOperationalAlert(
+                    'admin_critical_queue_job',
+                    'Background job failed',
+                    $name . ': ' . mb_substr($event->exception->getMessage(), 0, 500),
+                    route('admin.operations'),
+                    ['job' => $name],
+                    'queue_fail:' . $name . ':' . md5($event->exception->getMessage()),
+                    3600,
+                );
+            } catch (\Throwable) {
+            }
+        });
 
         if (filter_var(config('app.force_https', true), FILTER_VALIDATE_BOOLEAN)
             && ! $this->app->environment('local', 'testing')) {

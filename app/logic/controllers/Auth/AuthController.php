@@ -6,6 +6,7 @@ use App\Controllers\Controller;
 use App\Models\User;
 use App\Services\Auth\AuthService;
 use App\Services\Auth\SocialLoginAvailability;
+use App\Services\Notifications\InAppNotificationService;
 use App\Services\Notifications\NotificationChannelConfigService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -113,6 +114,18 @@ class AuthController extends Controller
                     'email' => $validated['email'],
                     'error' => $e->getMessage(),
                 ]);
+                try {
+                    app(InAppNotificationService::class)->notifySuperAdminsOperationalAlert(
+                        'admin_critical_password_reset_email',
+                        'Password reset email failed',
+                        'Could not send a reset link for ' . mb_substr($validated['email'], 0, 120) . ': ' . mb_substr($e->getMessage(), 0, 300),
+                        route('admin.notifications.settings'),
+                        [],
+                        'pw_reset_email_fail:' . md5($e->getMessage()),
+                        3600,
+                    );
+                } catch (\Throwable) {
+                }
             }
         }
 

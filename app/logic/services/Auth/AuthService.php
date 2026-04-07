@@ -67,7 +67,9 @@ class AuthService
 
             DB::afterCommit(function () use ($user): void {
                 try {
-                    app(InAppNotificationService::class)->notifySuperAdminsNewUser($user);
+                    $notify = app(InAppNotificationService::class);
+                    $notify->notifySuperAdminsNewUser($user);
+                    $notify->emailSuperAdminsNewUser($user);
                 } catch (\Throwable) {
                     // Avoid blocking registration if notifications are unavailable.
                 }
@@ -130,7 +132,9 @@ class AuthService
 
             DB::afterCommit(function () use ($user): void {
                 try {
-                    app(InAppNotificationService::class)->notifySuperAdminsNewUser($user);
+                    $notify = app(InAppNotificationService::class);
+                    $notify->notifySuperAdminsNewUser($user);
+                    $notify->emailSuperAdminsNewUser($user);
                 } catch (\Throwable) {
                 }
             });

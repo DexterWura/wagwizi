@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\MarketingCampaign;
 use App\Services\Marketing\AudienceQueryService;
 use App\Services\Marketing\MarketingMessageSendService;
+use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -40,6 +41,18 @@ class SendMarketingCampaignBatchJob implements ShouldQueue
 
         if ($templateKey === null || $templateKey === '') {
             $campaign->update(['status' => 'cancelled']);
+            try {
+                app(InAppNotificationService::class)->notifySuperAdminsOperationalAlert(
+                    'admin_critical_marketing_campaign',
+                    'Marketing campaign blocked',
+                    'Campaign "' . ($campaign->name ?? 'unknown') . '" has no email template key; sending was cancelled.',
+                    route('admin.marketing-campaigns.index'),
+                    ['campaign_id' => $campaign->id],
+                    'marketing_campaign_no_template:' . $campaign->id,
+                    86_400,
+                );
+            } catch (Throwable) {
+            }
 
             return;
         }
@@ -63,6 +76,22 @@ class SendMarketingCampaignBatchJob implements ShouldQueue
             $campaign->update(['status' => 'cancelled']);
 
             throw $e;
+        }
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        try {
+            app(InAppNotificationService::class)->notifySuperAdminsOperationalAlert(
+                'admin_critical_marketing_campaign',
+                'Marketing campaign aborted',
+                'Campaign #' . $this->marketingCampaignId . ' failed: ' . mb_substr($exception->getMessage(), 0, 400),
+                route('admin.marketing-campaigns.index'),
+                ['campaign_id' => $this->marketingCampaignId],
+                'marketing_campaign_abort:' . $this->marketingCampaignId,
+                3600,
+            );
+        } catch (Throwable) {
         }
     }
 }

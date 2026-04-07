@@ -9,6 +9,7 @@ use App\Models\SiteSetting;
 use App\Services\Cache\UserCacheVersionService;
 use App\Services\Platform\Platform;
 use App\Services\Platform\PlatformRegistry;
+use App\Services\Notifications\InAppNotificationService;
 use App\Services\Post\PostPublishingService;
 use App\Services\SocialAccount\TokenRefreshService;
 use Illuminate\Bus\Queueable;
@@ -252,6 +253,22 @@ class PublishPostToPlatformJob implements ShouldQueue
             'platform'         => $postPlatform->platform,
             'error'            => $errorMessage,
         ]);
+
+        try {
+            $post = $postPlatform->post;
+            $postRef = $post !== null ? "post #{$post->id} (user {$post->user_id})" : "post id {$postPlatform->post_id}";
+            app(InAppNotificationService::class)->notifySuperAdminsOperationalAlert(
+                'admin_critical_post_publish',
+                'Post failed to publish',
+                ucfirst((string) $postPlatform->platform) . ": {$postRef}. " . mb_substr($errorMessage, 0, 400),
+                route('admin.operations'),
+                ['post_platform_id' => $postPlatform->id],
+                'post_publish_fail:' . $postPlatform->id,
+                600,
+            );
+        } catch (\Throwable) {
+        }
+
         $this->bumpUserCacheVersion($postPlatform);
     }
 

@@ -5,6 +5,7 @@ namespace App\Services\Notifications;
 use App\Models\NotificationChannelSetting;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 class NotificationChannelConfigService
 {
@@ -86,8 +87,38 @@ class NotificationChannelConfigService
         ]);
     }
 
+    public function isSmtpConfigurationIncomplete(): bool
+    {
+        try {
+            $s = $this->getSettings();
+        } catch (Throwable) {
+            return false;
+        }
+
+        $host = trim((string) ($s->smtp_host ?? ''));
+        $user = trim((string) ($s->smtp_username ?? ''));
+        $port = (int) ($s->smtp_port ?? 0);
+
+        return $host === '' || $user === '' || $port <= 0;
+    }
+
     public function sendHtml(string $to, string $subject, string $html, ?string $textPlain = null): void
     {
+        if ($this->isSmtpConfigurationIncomplete()) {
+            try {
+                app(InAppNotificationService::class)->notifySuperAdminsOperationalAlert(
+                    'admin_critical_smtp_settings',
+                    'Email settings incomplete',
+                    'SMTP host, port, or username is missing. Outbound mail will not work until you update Admin → Notification settings.',
+                    route('admin.notifications.settings'),
+                    [],
+                    'smtp_settings_incomplete_global',
+                    86_400,
+                );
+            } catch (Throwable) {
+            }
+        }
+
         $this->applyDynamicMailerConfig();
         $settings = $this->getSettings();
 

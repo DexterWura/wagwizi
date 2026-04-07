@@ -6,6 +6,7 @@ use App\Jobs\PublishPostToPlatformJob;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Services\Cache\UserCacheVersionService;
+use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Support\Facades\Log;
 
 class PostPublishingService
@@ -60,6 +61,19 @@ class PostPublishingService
                         'post_platform_id' => $postPlatform->id,
                         'error'            => $syncException->getMessage(),
                     ]);
+
+                    try {
+                        app(InAppNotificationService::class)->notifySuperAdminsOperationalAlert(
+                            'admin_critical_post_queue',
+                            'Publish job could not run',
+                            "Post #{$post->id}, platform {$postPlatform->platform}: " . mb_substr($syncException->getMessage(), 0, 400),
+                            route('admin.operations'),
+                            ['post_id' => $post->id, 'post_platform_id' => $postPlatform->id],
+                            'post_queue_sync_fail:' . $postPlatform->id,
+                            1800,
+                        );
+                    } catch (\Throwable) {
+                    }
                 }
             }
         }

@@ -483,7 +483,9 @@ class PageController extends Controller
             if (! $newPlan->is_free) {
                 DB::afterCommit(function () use ($user, $newPlan): void {
                     try {
-                        app(InAppNotificationService::class)->notifySuperAdminsNewSubscription($user, $newPlan);
+                        $inApp = app(InAppNotificationService::class);
+                        $inApp->notifySuperAdminsNewSubscription($user, $newPlan);
+                        $inApp->emailSuperAdminsPaidSubscription($user, $newPlan, false);
                     } catch (\Throwable) {
                     }
                 });

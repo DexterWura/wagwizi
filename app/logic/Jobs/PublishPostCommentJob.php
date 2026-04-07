@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\PostPlatform;
+use App\Services\Notifications\InAppNotificationService;
 use App\Services\Platform\Platform;
 use App\Services\Platform\PlatformRegistry;
 use App\Services\SocialAccount\TokenRefreshService;
@@ -102,6 +103,35 @@ class PublishPostCommentJob implements ShouldQueue
                 'platform' => $postPlatform->platform,
                 'message' => $e->getMessage(),
             ]);
+
+            try {
+                app(InAppNotificationService::class)->notifySuperAdminsOperationalAlert(
+                    'admin_critical_post_comment',
+                    'First comment failed to publish',
+                    ucfirst((string) $postPlatform->platform) . ", post_platform #{$postPlatform->id}: " . mb_substr($e->getMessage(), 0, 400),
+                    route('admin.operations'),
+                    ['post_platform_id' => $postPlatform->id],
+                    'post_comment_fail:' . $postPlatform->id,
+                    900,
+                );
+            } catch (\Throwable) {
+            }
+        }
+    }
+
+    public function failed(\Throwable $exception): void
+    {
+        try {
+            app(InAppNotificationService::class)->notifySuperAdminsOperationalAlert(
+                'admin_critical_post_comment',
+                'Comment job crashed',
+                'post_platform #' . $this->postPlatformId . ': ' . mb_substr($exception->getMessage(), 0, 400),
+                route('admin.operations'),
+                ['post_platform_id' => $this->postPlatformId],
+                'post_comment_job_crash:' . $this->postPlatformId,
+                1800,
+            );
+        } catch (\Throwable) {
         }
     }
 }

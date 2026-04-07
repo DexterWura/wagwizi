@@ -98,15 +98,22 @@ final class SubscriptionFulfillmentService
                         'previousPlanName' => $oldPlan?->name ?? '',
                     ]);
                 });
+            }
 
-                if (! $newPlan->is_free) {
-                    DB::afterCommit(function () use ($user, $newPlan): void {
-                        try {
-                            app(InAppNotificationService::class)->notifySuperAdminsNewSubscription($user, $newPlan);
-                        } catch (\Throwable) {
+            if (! $newPlan->is_free) {
+                $isRenewal = ($oldPlanId === $newPlan->id) && $hasAnyCompletedPaymentsBefore;
+                DB::afterCommit(function () use ($user, $newPlan, $isRenewal, $oldPlanId): void {
+                    try {
+                        $inApp = app(InAppNotificationService::class);
+                        if ($isRenewal) {
+                            $inApp->notifySuperAdminsSubscriptionRenewal($user, $newPlan);
+                        } elseif ($oldPlanId !== $newPlan->id) {
+                            $inApp->notifySuperAdminsNewSubscription($user, $newPlan);
                         }
-                    });
-                }
+                        $inApp->emailSuperAdminsPaidSubscription($user, $newPlan, $isRenewal);
+                    } catch (\Throwable) {
+                    }
+                });
             }
 
             return $subscription;
