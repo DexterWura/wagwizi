@@ -112,7 +112,7 @@
                       </label>
                       @if(!empty($settings['seo_favicon_path']))
                       <div class="admin-seo-favicon-preview">
-                        <img src="{{ asset($settings['seo_favicon_path']) }}" alt="Current favicon preview" />
+                        <img src="{{ asset($settings['seo_favicon_path']) }}" alt="Current favicon preview" loading="lazy" decoding="async" width="32" height="32" />
                         <a href="{{ asset($settings['seo_favicon_path']) }}" target="_blank" rel="noopener noreferrer">{{ $settings['seo_favicon_path'] }}</a>
                       </div>
                       @endif
@@ -129,7 +129,7 @@
                       <div class="admin-seo-preview__social">
                         <div class="admin-seo-preview__thumb" data-seo-preview-image-wrap>
                           @if(!empty($settings['seo_image_path']))
-                          <img src="{{ asset($settings['seo_image_path']) }}" alt="SEO preview image" data-seo-preview-image />
+                          <img src="{{ asset($settings['seo_image_path']) }}" alt="SEO preview image" data-seo-preview-image loading="lazy" decoding="async" width="1200" height="630" />
                           @else
                           <span data-seo-preview-image-placeholder>No image set</span>
                           @endif

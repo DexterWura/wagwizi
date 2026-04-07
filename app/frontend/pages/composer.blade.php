@@ -341,6 +341,7 @@
                           alt=""
                           width="40"
                           height="40"
+                          loading="lazy"
                           decoding="async"
                           referrerpolicy="no-referrer"
                         />

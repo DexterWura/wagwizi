@@ -1521,6 +1521,109 @@
     return meta ? meta.getAttribute("content") : "";
   }
 
+  var uploadProgressRoot = null;
+  var uploadProgressActive = false;
+
+  function ensureUploadProgressEl() {
+    if (uploadProgressRoot) return uploadProgressRoot;
+    var root = document.createElement("div");
+    root.id = "app-upload-progress";
+    root.className = "app-upload-progress";
+    root.setAttribute("role", "status");
+    root.setAttribute("aria-live", "polite");
+    root.setAttribute("aria-hidden", "true");
+    root.hidden = true;
+    root.innerHTML =
+      '<div class="app-upload-progress__inner">' +
+      '<span class="app-upload-progress__label">Uploading…</span>' +
+      '<div class="app-upload-progress__track">' +
+      '<div class="app-upload-progress__fill"></div>' +
+      "</div>" +
+      '<span class="app-upload-progress__pct" aria-hidden="true"></span>' +
+      "</div>";
+    document.body.appendChild(root);
+    uploadProgressRoot = root;
+    return root;
+  }
+
+  function uploadProgressStart(label) {
+    var el = ensureUploadProgressEl();
+    var labelEl = el.querySelector(".app-upload-progress__label");
+    var fill = el.querySelector(".app-upload-progress__fill");
+    var pct = el.querySelector(".app-upload-progress__pct");
+    var track = el.querySelector(".app-upload-progress__track");
+    if (labelEl) labelEl.textContent = label || "Uploading…";
+    if (fill) fill.style.width = "0%";
+    if (pct) pct.textContent = "";
+    if (track) track.classList.remove("app-upload-progress__track--indeterminate");
+    el.hidden = false;
+    el.setAttribute("aria-hidden", "false");
+    uploadProgressActive = true;
+  }
+
+  function uploadProgressSetIndeterminate() {
+    var el = ensureUploadProgressEl();
+    var track = el.querySelector(".app-upload-progress__track");
+    if (track) track.classList.add("app-upload-progress__track--indeterminate");
+  }
+
+  function uploadProgressSetRatio(ratio) {
+    var el = ensureUploadProgressEl();
+    var track = el.querySelector(".app-upload-progress__track");
+    var fill = el.querySelector(".app-upload-progress__fill");
+    var pct = el.querySelector(".app-upload-progress__pct");
+    if (track) track.classList.remove("app-upload-progress__track--indeterminate");
+    if (ratio == null || typeof ratio !== "number" || isNaN(ratio)) {
+      uploadProgressSetIndeterminate();
+      return;
+    }
+    var p = Math.max(0, Math.min(100, Math.round(ratio * 100)));
+    if (fill) fill.style.width = p + "%";
+    if (pct) pct.textContent = p + "%";
+  }
+
+  function uploadProgressEnd(success) {
+    if (!uploadProgressRoot || !uploadProgressActive) return;
+    var el = uploadProgressRoot;
+    function hide() {
+      el.hidden = true;
+      el.setAttribute("aria-hidden", "true");
+      uploadProgressActive = false;
+      var fill = el.querySelector(".app-upload-progress__fill");
+      if (fill) fill.style.width = "0%";
+      var pct = el.querySelector(".app-upload-progress__pct");
+      if (pct) pct.textContent = "";
+      var track = el.querySelector(".app-upload-progress__track");
+      if (track) track.classList.remove("app-upload-progress__track--indeterminate");
+    }
+    if (success) {
+      uploadProgressSetRatio(1);
+      global.setTimeout(hide, 260);
+    } else {
+      hide();
+    }
+  }
+
+  function initMultipartFormUploadUi() {
+    document.querySelectorAll('form[enctype="multipart/form-data"]').forEach(function (form) {
+      if (form.getAttribute("data-app-multipart-upload-ui") === "1") return;
+      form.setAttribute("data-app-multipart-upload-ui", "1");
+      form.addEventListener("submit", function () {
+        var inputs = form.querySelectorAll('input[type="file"]');
+        var hasFiles = false;
+        for (var i = 0; i < inputs.length; i++) {
+          if (inputs[i].files && inputs[i].files.length) {
+            hasFiles = true;
+            break;
+          }
+        }
+        if (!hasFiles) return;
+        uploadProgressStart("Uploading…");
+        uploadProgressSetIndeterminate();
+      });
+    });
+  }
+
   function apiPost(url, data) {
     return fetch(url, {
       method: "POST",
@@ -1598,22 +1701,76 @@
     });
   }
 
-  function apiUpload(url, formData) {
-    return fetch(url, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "X-CSRF-TOKEN": getCsrfToken(),
-        "X-Requested-With": "XMLHttpRequest"
-      },
-      credentials: "same-origin",
-      body: formData
-    }).then(function (r) {
-      return r.json().then(function (json) {
-        json._status = r.status;
-        json._ok = r.ok;
-        return json;
+  /**
+   * Multipart upload with JSON response. Shows global progress unless options.silent.
+   * @param {string} url
+   * @param {FormData} formData
+   * @param {{ label?: string, silent?: boolean, onProgress?: (ratio: number|null, loaded: number, total: number) => void }} [options]
+   */
+  function apiUpload(url, formData, options) {
+    options = options || {};
+    var silent = options.silent === true;
+    var onProgress = options.onProgress;
+    var label = options.label || "Uploading…";
+
+    return new Promise(function (resolve, reject) {
+      if (!silent) {
+        uploadProgressStart(label);
+      }
+
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", url);
+      xhr.setRequestHeader("X-CSRF-TOKEN", getCsrfToken());
+      xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+      xhr.setRequestHeader("Accept", "application/json");
+
+      xhr.upload.addEventListener("progress", function (e) {
+        var ratio = null;
+        if (e.lengthComputable && e.total > 0) {
+          ratio = e.loaded / e.total;
+        }
+        if (typeof onProgress === "function") {
+          onProgress(ratio, e.loaded, e.total);
+        }
+        if (!silent) {
+          if (ratio != null) {
+            uploadProgressSetRatio(ratio);
+          } else {
+            uploadProgressSetIndeterminate();
+          }
+        }
       });
+
+      xhr.addEventListener("load", function () {
+        var json = {};
+        try {
+          json = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+        } catch (err) {
+          json = { message: "Unexpected response from server." };
+        }
+        json._status = xhr.status;
+        json._ok = xhr.status >= 200 && xhr.status < 300;
+        if (!silent) {
+          uploadProgressEnd(json._ok);
+        }
+        resolve(json);
+      });
+
+      xhr.addEventListener("error", function () {
+        if (!silent) {
+          uploadProgressEnd(false);
+        }
+        reject(new Error("Network error"));
+      });
+
+      xhr.addEventListener("abort", function () {
+        if (!silent) {
+          uploadProgressEnd(false);
+        }
+        reject(new Error("Aborted"));
+      });
+
+      xhr.send(formData);
     });
   }
 
@@ -1687,7 +1844,7 @@
         var fd = new FormData();
         fd.append("avatar", fileInput.files[0]);
         avatarBtn.disabled = true;
-        apiUpload("/profile/avatar", fd)
+        apiUpload("/profile/avatar", fd, { label: "Uploading profile photo…" })
           .then(function (res) {
             avatarBtn.disabled = false;
             if (res._ok) {
@@ -2148,9 +2305,20 @@
       false
     );
 
-    global.addEventListener("load", function () {
-      hideNavLoading();
-    }, { once: true });
+    /** Hide as soon as DOM + next paint are ready — do not wait for window "load" (all images). */
+    function scheduleHideNavAfterDomPaint() {
+      function runHide() {
+        global.requestAnimationFrame(function () {
+          global.requestAnimationFrame(hideNavLoading);
+        });
+      }
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", runHide, { once: true });
+      } else {
+        runHide();
+      }
+    }
+    scheduleHideNavAfterDomPaint();
 
     document.addEventListener(
       "click",
@@ -2336,6 +2504,7 @@
       initHelpTicketSubmit();
       initNotificationsLoad();
       initPlansServerSync();
+      initMultipartFormUploadUi();
     },
     applyTheme: applyTheme,
     readStoredTheme: readStoredTheme,
@@ -2348,6 +2517,10 @@
     apiPatch: apiPatch,
     apiPut: apiPut,
     apiUpload: apiUpload,
+    uploadProgressStart: uploadProgressStart,
+    uploadProgressSetRatio: uploadProgressSetRatio,
+    uploadProgressSetIndeterminate: uploadProgressSetIndeterminate,
+    uploadProgressEnd: uploadProgressEnd,
     showFlash: showFlash,
     getCsrfToken: getCsrfToken,
     armNavLoading: function () {},

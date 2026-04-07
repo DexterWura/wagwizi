@@ -11,8 +11,8 @@
   alt=""
   width="{{ $wh }}"
   height="{{ $wh }}"
+  loading="lazy"
   decoding="async"
-  @if($avatarSize !== 'sm') loading="lazy" @endif
   data-app-user-avatar="1"
 />
 @endif

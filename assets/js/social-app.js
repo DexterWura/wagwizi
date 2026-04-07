@@ -188,6 +188,7 @@
         img.src = src;
         img.alt = "";
         img.loading = "lazy";
+        img.decoding = "async";
         thumb.appendChild(img);
       }
 
@@ -282,6 +283,7 @@
       img.alt = "";
       img.width = 40;
       img.height = 40;
+      img.loading = "lazy";
       img.decoding = "async";
       img.setAttribute("referrerpolicy", "no-referrer");
       wrap.innerHTML = "";
@@ -296,6 +298,7 @@
       img.alt = "";
       img.width = 40;
       img.height = 40;
+      img.loading = "lazy";
       img.decoding = "async";
       img.setAttribute("referrerpolicy", "no-referrer");
       wrap.innerHTML = "";
@@ -809,6 +812,7 @@
         img.src = firstUrl;
         img.alt = "";
         img.loading = "lazy";
+        img.decoding = "async";
         container.appendChild(img);
         return;
       }
@@ -823,6 +827,7 @@
       mainImg.src = firstUrl;
       mainImg.alt = "";
       mainImg.loading = "lazy";
+      mainImg.decoding = "async";
       mainWrap.appendChild(mainImg);
       gallery.appendChild(mainWrap);
 
@@ -841,6 +846,7 @@
         tImg.src = tUrl;
         tImg.alt = "";
         tImg.loading = "lazy";
+        tImg.decoding = "async";
         cell.appendChild(tImg);
 
         if (i === 3 && mediaItems.length > 4) {
@@ -1576,6 +1582,7 @@
         img.width = 120;
         img.height = 80;
         img.loading = "lazy";
+        img.decoding = "async";
         thumb.appendChild(img);
         if (item.type === "video") {
           var play = document.createElement("span");
@@ -1709,14 +1716,31 @@
       var files = Array.prototype.slice.call(fileInput.files);
       uploadBtn.classList.add("is-loading");
 
+      var batchLabel =
+        files.length > 1 ? "Uploading " + files.length + " files…" : "Uploading…";
+      if (global.App.uploadProgressStart) {
+        global.App.uploadProgressStart(batchLabel);
+      }
+
       var queue = Promise.resolve();
       var successCount = 0;
 
-      files.forEach(function (file) {
+      files.forEach(function (file, idx) {
         queue = queue.then(function () {
           var fd = new FormData();
           fd.append("file", file);
-          return global.App.apiUpload("/media", fd).then(function (res) {
+          return global.App.apiUpload("/media", fd, {
+            silent: true,
+            onProgress: function (ratio) {
+              if (!global.App.uploadProgressSetRatio || !global.App.uploadProgressSetIndeterminate) return;
+              if (ratio == null) {
+                global.App.uploadProgressSetIndeterminate();
+                return;
+              }
+              var base = idx / files.length;
+              global.App.uploadProgressSetRatio(base + ratio / files.length);
+            }
+          }).then(function (res) {
             if (!res._ok) {
               return;
             }
@@ -1737,15 +1761,25 @@
         });
       });
 
-      queue.then(function () {
-        uploadBtn.classList.remove("is-loading");
-        syncComposerPreviewMedia();
-        if (successCount > 0) {
-          global.App.showFlash(successCount + " media file" + (successCount === 1 ? "" : "s") + " uploaded and selected.");
-        } else {
-          global.App.showFlash("Upload failed.", "error");
-        }
-      });
+      queue
+        .then(function () {
+          uploadBtn.classList.remove("is-loading");
+          if (global.App.uploadProgressEnd) {
+            global.App.uploadProgressEnd(successCount > 0);
+          }
+          syncComposerPreviewMedia();
+          if (successCount > 0) {
+            global.App.showFlash(successCount + " media file" + (successCount === 1 ? "" : "s") + " uploaded and selected.");
+          } else {
+            global.App.showFlash("Upload failed.", "error");
+          }
+        })
+        .catch(function () {
+          uploadBtn.classList.remove("is-loading");
+          if (global.App.uploadProgressEnd) {
+            global.App.uploadProgressEnd(false);
+          }
+        });
 
       fileInput.value = "";
     });

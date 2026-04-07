@@ -495,7 +495,7 @@
           <article class="lp-tweet" data-lp-reveal>
             <div class="lp-tweet__head">
               @if($testimonial->author_avatar)
-              <img class="lp-tweet__avatar" src="{{ $testimonial->author_avatar }}" alt="{{ $testimonial->author_name }}" />
+              <img class="lp-tweet__avatar" src="{{ $testimonial->author_avatar }}" alt="{{ $testimonial->author_name }}" loading="lazy" decoding="async" width="48" height="48" />
               @else
               <div class="lp-tweet__avatar" aria-hidden="true"></div>
               @endif

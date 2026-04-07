@@ -48,9 +48,9 @@
               <article class="media-lib-card" data-media-type="{{ $file->type }}">
                 <div class="media-lib-card__thumb{{ $file->type === 'video' ? ' media-lib-card__thumb--video' : '' }}">
                   @if($file->type === 'image')
-                  <img src="/{{ $file->path }}" alt="{{ $file->alt_text ?? $file->original_name }}" width="480" height="320" loading="lazy" />
+                  <img src="/{{ $file->path }}" alt="{{ $file->alt_text ?? $file->original_name }}" width="480" height="320" loading="lazy" decoding="async" />
                   @else
-                  <img src="/assets/images/video-thumb.svg" alt="{{ $file->original_name }}" width="480" height="320" loading="lazy" />
+                  <img src="/assets/images/video-thumb.svg" alt="{{ $file->original_name }}" width="480" height="320" loading="lazy" decoding="async" />
                   <span class="media-lib-card__play" aria-hidden="true"><i class="fa-solid fa-play"></i></span>
                   @endif
                   <span class="media-lib-card__badge{{ $file->type === 'video' ? ' media-lib-card__badge--video' : '' }}">{{ ucfirst($file->type) }}</span>
@@ -123,7 +123,7 @@
             var fd = new FormData();
             fd.append("file", fileInput.files[0]);
             uploadBtn.disabled = true;
-            App.apiUpload("/media", fd).then(function (res) {
+            App.apiUpload("/media", fd, { label: "Uploading to library…" }).then(function (res) {
               uploadBtn.disabled = false;
               if (res._ok) {
                 App.showFlash("File uploaded. Refresh to see it.");

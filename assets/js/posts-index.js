@@ -63,7 +63,7 @@
     if (!src) return "";
     return (
       '<div class="posts-index-item__thumb-wrap">' +
-      '<img class="posts-index-item__thumb" src="' + src + '" alt="' + alt + '" loading="lazy" />' +
+      '<img class="posts-index-item__thumb" src="' + src + '" alt="' + alt + '" loading="lazy" decoding="async" />' +
       "</div>"
     );
   }
