@@ -775,33 +775,90 @@
       engagement: "#059669"
     };
 
-    function smoothPathFromPoints(pts) {
+    /**
+     * Fritsch–Carlson monotone cubic spline (SVG C commands). Avoids undershoot below flat
+     * plateaus (e.g. long zeros then a spike) unlike Catmull–Rom / uniform cubic splines.
+     * @param {number} yBandMin top of plot (smaller SVG y)
+     * @param {number} yBandMax baseline / bottom of plot (larger SVG y)
+     */
+    function monotonePathFromPoints(pts, yBandMin, yBandMax) {
+      function clampY(v) {
+        if (yBandMin <= yBandMax) {
+          return Math.max(yBandMin, Math.min(yBandMax, v));
+        }
+        return Math.max(yBandMax, Math.min(yBandMin, v));
+      }
+
       if (!pts || pts.length === 0) return "";
       if (pts.length === 1) {
-        return "M" + pts[0].x.toFixed(2) + " " + pts[0].y.toFixed(2);
+        return "M" + pts[0].x.toFixed(2) + " " + clampY(pts[0].y).toFixed(2);
       }
       if (pts.length === 2) {
         return (
           "M" +
           pts[0].x.toFixed(2) +
           " " +
-          pts[0].y.toFixed(2) +
+          clampY(pts[0].y).toFixed(2) +
           " L" +
           pts[1].x.toFixed(2) +
           " " +
-          pts[1].y.toFixed(2)
+          clampY(pts[1].y).toFixed(2)
         );
       }
-      var d = "M" + pts[0].x.toFixed(2) + " " + pts[0].y.toFixed(2);
-      for (var i = 0; i < pts.length - 1; i++) {
-        var p0 = pts[i === 0 ? 0 : i - 1];
-        var p1 = pts[i];
-        var p2 = pts[i + 1];
-        var p3 = pts[i + 2] || p2;
-        var cp1x = p1.x + (p2.x - p0.x) / 6;
-        var cp1y = p1.y + (p2.y - p0.y) / 6;
-        var cp2x = p2.x - (p3.x - p1.x) / 6;
-        var cp2y = p2.y - (p3.y - p1.y) / 6;
+
+      var n = pts.length;
+      var x = [];
+      var y = [];
+      for (var i = 0; i < n; i++) {
+        x[i] = pts[i].x;
+        y[i] = clampY(pts[i].y);
+      }
+
+      var dx = [];
+      var dy = [];
+      for (var j = 0; j < n - 1; j++) {
+        dx[j] = x[j + 1] - x[j];
+        if (dx[j] <= 0) dx[j] = 1e-6;
+        dy[j] = (y[j + 1] - y[j]) / dx[j];
+      }
+
+      var m = new Array(n);
+      m[0] = dy[0];
+      for (var k = 1; k < n - 1; k++) {
+        if (dy[k - 1] * dy[k] <= 0) {
+          m[k] = 0;
+        } else {
+          var w1 = 2 * dx[k] + dx[k - 1];
+          var w2 = dx[k] + 2 * dx[k - 1];
+          m[k] = w1 + w2 === 0 ? 0 : (w1 * dy[k - 1] + w2 * dy[k]) / (w1 + w2);
+        }
+      }
+      m[n - 1] = dy[n - 2];
+
+      for (var r = 0; r < n - 1; r++) {
+        if (dy[r] === 0) {
+          m[r] = 0;
+          m[r + 1] = 0;
+        } else {
+          var a = m[r] / dy[r];
+          var b = m[r + 1] / dy[r];
+          var h2 = a * a + b * b;
+          if (h2 > 9) {
+            var t3 = 3 / Math.sqrt(h2);
+            m[r] = t3 * a * dy[r];
+            m[r + 1] = t3 * b * dy[r];
+          }
+        }
+      }
+
+      var d = "M" + x[0].toFixed(2) + " " + y[0].toFixed(2);
+      for (var s = 0; s < n - 1; s++) {
+        var h = dx[s];
+        var t = h / 3;
+        var cp1x = x[s] + t;
+        var cp1y = clampY(y[s] + m[s] * t);
+        var cp2x = x[s + 1] - t;
+        var cp2y = clampY(y[s + 1] - m[s + 1] * t);
         d +=
           " C" +
           cp1x.toFixed(2) +
@@ -812,9 +869,9 @@
           " " +
           cp2y.toFixed(2) +
           " " +
-          p2.x.toFixed(2) +
+          x[s + 1].toFixed(2) +
           " " +
-          p2.y.toFixed(2);
+          y[s + 1].toFixed(2);
       }
       return d;
     }
@@ -893,6 +950,7 @@
       var padB = 40;
       var iw = W - padL - padR;
       var ih = H - padT - padB;
+      var bottomY = padT + ih;
 
       function xAt(i) {
         if (n <= 1) return padL + iw / 2;
@@ -928,7 +986,7 @@
           var s0 = active[a];
           var norm0 = normalize(s0.values);
           var pts0 = buildPoints(norm0, 1);
-          lineSpecs.push({ d: smoothPathFromPoints(pts0), id: s0.id, pts: pts0 });
+          lineSpecs.push({ d: monotonePathFromPoints(pts0, padT, bottomY), id: s0.id, pts: pts0 });
         }
       } else {
         if (scaleNote) scaleNote.hidden = true;
@@ -937,7 +995,7 @@
         maxTick = seriesPeak(vals);
         if (maxTick === 0) maxTick = 1;
         var pts1 = buildPoints(vals, maxTick);
-        lineSpecs.push({ d: smoothPathFromPoints(pts1), id: s1.id, pts: pts1 });
+        lineSpecs.push({ d: monotonePathFromPoints(pts1, padT, bottomY), id: s1.id, pts: pts1 });
       }
 
       var gridN = 4;
@@ -947,7 +1005,6 @@
       svg.setAttribute("class", "dashboard-chart__svg");
       svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
-      var bottomY = padT + ih;
       var gradUid = "dcf-" + (Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
 
       if (mode !== "all" && lineSpecs.length === 1) {
