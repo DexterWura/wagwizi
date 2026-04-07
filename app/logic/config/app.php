@@ -28,6 +28,7 @@ return [
 
     'key' => env('APP_KEY'),
 
+    // Used only when no cron token is stored in site_settings (see CronSecretResolver).
     'cron_secret' => env('CRON_SECRET'),
 
     'maintenance' => [

@@ -208,6 +208,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/operations/settings',      [AdminController::class, 'updateOperationsSettings'])->name('operations.settings');
 
         Route::get('/cron-jobs',           [AdminController::class, 'cronJobs'])->name('cron-jobs');
+        Route::post('/cron-jobs/secret',   [AdminController::class, 'updateCronSecret'])->name('cron-jobs.secret');
         Route::post('/cron-jobs/run-due',  [AdminController::class, 'runDueCronTasksNow'])->name('cron-jobs.run-due');
         Route::post('/cron-jobs/{id}/run', [AdminController::class, 'runCronTaskNow'])->name('cron-jobs.run');
         Route::post('/cron-jobs/{id}',     [AdminController::class, 'updateCronJob'])->name('cron-jobs.update');

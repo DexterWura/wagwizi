@@ -28,6 +28,7 @@ use App\Services\Admin\PaymentTransactionListService;
 use App\Services\Admin\SubscriptionInsightsService;
 use App\Services\Ai\PlatformAiQuotaService;
 use App\Services\Billing\CurrencyDisplayService;
+use App\Services\Cron\CronSecretResolver;
 use App\Services\Cron\CronService;
 use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Auth\SocialLoginAvailability;
@@ -1365,7 +1366,7 @@ class AdminController extends Controller
         return $this->clearApplicationCache($request);
     }
 
-    public function cronJobs(): View
+    public function cronJobs(CronSecretResolver $cronSecrets): View
     {
         $tasks = CronTask::query()
             ->orderBy('label')
@@ -1377,7 +1378,8 @@ class AdminController extends Controller
             ->limit(200)
             ->get();
 
-        $cronSecret = trim((string) config('app.cron_secret', ''));
+        $cronSecret = $cronSecrets->get();
+        $cronSecretFromDb = $cronSecrets->isStoredInDatabase();
         $cronTriggerUrl = $cronSecret !== ''
             ? url('/cron') . '?' . http_build_query(['token' => $cronSecret])
             : '';
@@ -1390,10 +1392,44 @@ class AdminController extends Controller
             'tasks',
             'runs',
             'cronSecret',
+            'cronSecretFromDb',
             'cronTriggerUrl',
             'cronApiUrl',
             'cpanelCommand'
         ));
+    }
+
+    public function updateCronSecret(Request $request, CronSecretResolver $cronSecrets): RedirectResponse
+    {
+        if ($request->boolean('clear_stored_cron_secret')) {
+            $cronSecrets->clearStored();
+
+            return back()->with('success', 'Stored cron secret removed. The app now uses CRON_SECRET from the server environment (if set).');
+        }
+
+        if ($request->boolean('generate_cron_secret')) {
+            $plain = Str::random(48);
+            $cronSecrets->store($plain);
+
+            return back()
+                ->with('success', 'A new random cron secret was saved. Copy the cPanel command below — it includes the new token.')
+                ->with('new_cron_secret_once', $plain);
+        }
+
+        $secret = trim((string) $request->input('cron_secret', ''));
+        if ($secret === '') {
+            return back()->with('info', 'No change — enter a new secret, use Generate, or clear the stored secret.');
+        }
+
+        $request->validate([
+            'cron_secret' => ['required', 'string', 'min:16', 'max:512', 'regex:/^\S+$/'],
+        ], [
+            'cron_secret.regex' => 'The secret must not contain spaces.',
+        ]);
+
+        $cronSecrets->store($secret);
+
+        return back()->with('success', 'Cron secret saved. Update your cPanel job if the token changed.');
     }
 
     public function updateCronJob(Request $request, int $id): RedirectResponse
