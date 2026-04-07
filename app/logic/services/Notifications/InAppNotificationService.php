@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Notifications;
 
 use App\Jobs\QueueTemplatedEmailForUserJob;
+use App\Services\Admin\MigrationService;
 use App\Models\Notification;
 use App\Models\Plan;
 use App\Models\Subscription;
@@ -122,6 +123,39 @@ final class InAppNotificationService
      *
      * @param  array<string, mixed>  $extraData
      */
+    /**
+     * Notifies super admins when migration files exist that are not recorded in the database.
+     * Dedupes by the set of pending migration names so a new migration file triggers a fresh alert.
+     */
+    public function notifySuperAdminsIfPendingMigrations(): void
+    {
+        try {
+            $summary = app(MigrationService::class)->getPendingMigrationsSummary();
+            if ($summary === null) {
+                return;
+            }
+
+            $count = $summary['count'];
+            $names = $summary['names'];
+            $previewList = array_slice($names, 0, 5);
+            $preview = implode(', ', $previewList);
+            if ($count > count($previewList)) {
+                $preview .= '…';
+            }
+
+            $this->notifySuperAdminsOperationalAlert(
+                'admin_pending_migrations',
+                'Database migrations pending',
+                "{$count} migration(s) have not been applied yet: {$preview}",
+                route('admin.migrations'),
+                ['pending_count' => $count],
+                'pending_migrations:' . hash('sha256', implode("\0", $names)),
+                86_400,
+            );
+        } catch (\Throwable) {
+        }
+    }
+
     public function notifySuperAdminsOperationalAlert(
         string $inAppType,
         string $title,

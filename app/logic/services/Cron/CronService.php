@@ -87,6 +87,13 @@ class CronService
                 'interval_minutes' => 1440,
                 'enabled'          => true,
             ],
+            [
+                'key'              => 'pending_migrations_alert',
+                'label'            => 'Pending migrations admin alert',
+                'description'      => 'Notifies super admins in-app when database migrations have not been applied.',
+                'interval_minutes' => 60,
+                'enabled'          => true,
+            ],
         ];
 
         foreach ($defaults as $data) {

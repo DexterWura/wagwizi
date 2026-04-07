@@ -4,6 +4,7 @@ namespace App\Services\Admin;
 
 use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class MigrationService
 {
@@ -41,6 +42,35 @@ class MigrationService
         }
 
         return $result;
+    }
+
+    /**
+     * @return array{count: int, names: list<string>}|null  Null when none pending or DB unavailable.
+     */
+    public function getPendingMigrationsSummary(): ?array
+    {
+        try {
+            if (! Schema::hasTable('migrations')) {
+                return null;
+            }
+
+            $all = $this->getAllMigrations();
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $pending = array_values(array_filter($all, static fn (array $m): bool => ! $m['ran']));
+        if ($pending === []) {
+            return null;
+        }
+
+        $names = array_values(array_column($pending, 'name'));
+        sort($names);
+
+        return [
+            'count' => count($names),
+            'names' => $names,
+        ];
     }
 
     public function runAll(): array

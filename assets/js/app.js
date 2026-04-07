@@ -769,6 +769,83 @@
       engagement: "dashboard-chart__line--engagement"
     };
 
+    var LINE_FILL_HEX = {
+      posts: "#2563eb",
+      impressions: "#7c3aed",
+      engagement: "#059669"
+    };
+
+    function smoothPathFromPoints(pts) {
+      if (!pts || pts.length === 0) return "";
+      if (pts.length === 1) {
+        return "M" + pts[0].x.toFixed(2) + " " + pts[0].y.toFixed(2);
+      }
+      if (pts.length === 2) {
+        return (
+          "M" +
+          pts[0].x.toFixed(2) +
+          " " +
+          pts[0].y.toFixed(2) +
+          " L" +
+          pts[1].x.toFixed(2) +
+          " " +
+          pts[1].y.toFixed(2)
+        );
+      }
+      var d = "M" + pts[0].x.toFixed(2) + " " + pts[0].y.toFixed(2);
+      for (var i = 0; i < pts.length - 1; i++) {
+        var p0 = pts[i === 0 ? 0 : i - 1];
+        var p1 = pts[i];
+        var p2 = pts[i + 1];
+        var p3 = pts[i + 2] || p2;
+        var cp1x = p1.x + (p2.x - p0.x) / 6;
+        var cp1y = p1.y + (p2.y - p0.y) / 6;
+        var cp2x = p2.x - (p3.x - p1.x) / 6;
+        var cp2y = p2.y - (p3.y - p1.y) / 6;
+        d +=
+          " C" +
+          cp1x.toFixed(2) +
+          " " +
+          cp1y.toFixed(2) +
+          " " +
+          cp2x.toFixed(2) +
+          " " +
+          cp2y.toFixed(2) +
+          " " +
+          p2.x.toFixed(2) +
+          " " +
+          p2.y.toFixed(2);
+      }
+      return d;
+    }
+
+    function appendLinearGradient(defs, id, colorHex, yTop, yBottom) {
+      var svgNs = "http://www.w3.org/2000/svg";
+      var lg = document.createElementNS(svgNs, "linearGradient");
+      lg.setAttribute("id", id);
+      lg.setAttribute("gradientUnits", "userSpaceOnUse");
+      lg.setAttribute("x1", "0");
+      lg.setAttribute("y1", String(yTop));
+      lg.setAttribute("x2", "0");
+      lg.setAttribute("y2", String(yBottom));
+      var s0 = document.createElementNS(svgNs, "stop");
+      s0.setAttribute("offset", "0%");
+      s0.setAttribute("stop-color", colorHex);
+      s0.setAttribute("stop-opacity", "0.38");
+      var s1 = document.createElementNS(svgNs, "stop");
+      s1.setAttribute("offset", "55%");
+      s1.setAttribute("stop-color", colorHex);
+      s1.setAttribute("stop-opacity", "0.08");
+      var s2 = document.createElementNS(svgNs, "stop");
+      s2.setAttribute("offset", "100%");
+      s2.setAttribute("stop-color", colorHex);
+      s2.setAttribute("stop-opacity", "0");
+      lg.appendChild(s0);
+      lg.appendChild(s1);
+      lg.appendChild(s2);
+      defs.appendChild(lg);
+    }
+
     function fmtNum(n) {
       var x = Number(n);
       if (!isFinite(x)) return "0";
@@ -851,11 +928,7 @@
           var s0 = active[a];
           var norm0 = normalize(s0.values);
           var pts0 = buildPoints(norm0, 1);
-          var d0 = "";
-          for (var p = 0; p < pts0.length; p++) {
-            d0 += (p === 0 ? "M" : "L") + pts0[p].x.toFixed(1) + " " + pts0[p].y.toFixed(1);
-          }
-          lineSpecs.push({ d: d0, id: s0.id, pts: pts0 });
+          lineSpecs.push({ d: smoothPathFromPoints(pts0), id: s0.id, pts: pts0 });
         }
       } else {
         if (scaleNote) scaleNote.hidden = true;
@@ -864,11 +937,7 @@
         maxTick = seriesPeak(vals);
         if (maxTick === 0) maxTick = 1;
         var pts1 = buildPoints(vals, maxTick);
-        var d1 = "";
-        for (var q = 0; q < pts1.length; q++) {
-          d1 += (q === 0 ? "M" : "L") + pts1[q].x.toFixed(1) + " " + pts1[q].y.toFixed(1);
-        }
-        lineSpecs.push({ d: d1, id: s1.id, pts: pts1 });
+        lineSpecs.push({ d: smoothPathFromPoints(pts1), id: s1.id, pts: pts1 });
       }
 
       var gridN = 4;
@@ -877,6 +946,16 @@
       svg.setAttribute("viewBox", "0 0 " + W + " " + H);
       svg.setAttribute("class", "dashboard-chart__svg");
       svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+      var bottomY = padT + ih;
+      var gradUid = "dcf-" + (Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
+
+      if (mode !== "all" && lineSpecs.length === 1) {
+        var defs = document.createElementNS(svgNs, "defs");
+        var fillHex = LINE_FILL_HEX[lineSpecs[0].id] || "#2563eb";
+        appendLinearGradient(defs, gradUid, fillHex, padT, bottomY);
+        svg.appendChild(defs);
+      }
 
       for (var g = 0; g <= gridN; g++) {
         var gy = padT + (g / gridN) * ih;
@@ -929,23 +1008,50 @@
 
       for (var li = 0; li < lineSpecs.length; li++) {
         var spec = lineSpecs[li];
+        if (mode !== "all" && lineSpecs.length === 1 && spec.pts && spec.pts.length > 0) {
+          var firstPt = spec.pts[0];
+          var lastPt = spec.pts[spec.pts.length - 1];
+          var areaD =
+            spec.d +
+            " L" +
+            lastPt.x.toFixed(2) +
+            " " +
+            bottomY.toFixed(2) +
+            " L" +
+            firstPt.x.toFixed(2) +
+            " " +
+            bottomY.toFixed(2) +
+            " Z";
+          var areaEl = document.createElementNS(svgNs, "path");
+          areaEl.setAttribute("d", areaD);
+          areaEl.setAttribute("class", "dashboard-chart__area");
+          areaEl.setAttribute("fill", "url(#" + gradUid + ")");
+          areaEl.setAttribute("stroke", "none");
+          svg.appendChild(areaEl);
+        }
+      }
+
+      if (mode !== "all" && lineSpecs.length === 1) {
+        var zeroLine = document.createElementNS(svgNs, "path");
+        zeroLine.setAttribute(
+          "d",
+          "M" + padL.toFixed(1) + " " + bottomY.toFixed(1) + " L" + (W - padR).toFixed(1) + " " + bottomY.toFixed(1)
+        );
+        zeroLine.setAttribute("class", "dashboard-chart__baseline");
+        zeroLine.setAttribute("fill", "none");
+        svg.appendChild(zeroLine);
+      }
+
+      for (var lj = 0; lj < lineSpecs.length; lj++) {
+        var specL = lineSpecs[lj];
         var pathEl = document.createElementNS(svgNs, "path");
-        pathEl.setAttribute("d", spec.d);
+        pathEl.setAttribute("d", specL.d);
         pathEl.setAttribute("fill", "none");
-        pathEl.setAttribute("stroke-width", "2.25");
+        pathEl.setAttribute("stroke-width", mode === "all" ? "2" : "2.5");
         pathEl.setAttribute("stroke-linejoin", "round");
         pathEl.setAttribute("stroke-linecap", "round");
-        pathEl.setAttribute("class", "dashboard-chart__line " + (LINE_CLASS[spec.id] || ""));
+        pathEl.setAttribute("class", "dashboard-chart__line " + (LINE_CLASS[specL.id] || ""));
         svg.appendChild(pathEl);
-
-        if (n === 1 && spec.pts && spec.pts[0]) {
-          var c = document.createElementNS(svgNs, "circle");
-          c.setAttribute("cx", spec.pts[0].x.toFixed(1));
-          c.setAttribute("cy", spec.pts[0].y.toFixed(1));
-          c.setAttribute("r", "5");
-          c.setAttribute("class", "dashboard-chart__dot " + (LINE_CLASS[spec.id] || ""));
-          svg.appendChild(c);
-        }
       }
 
       plot.innerHTML = "";

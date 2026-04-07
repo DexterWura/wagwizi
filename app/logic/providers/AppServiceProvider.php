@@ -94,6 +94,12 @@ class AppServiceProvider extends ServiceProvider
                 return 'In-app expiry reminders processed.';
             });
 
+            $cron->register('pending_migrations_alert', function () use ($app) {
+                $app->make(InAppNotificationService::class)->notifySuperAdminsIfPendingMigrations();
+
+                return 'Pending migrations in-app check done.';
+            });
+
             return $cron;
         });
     }
@@ -148,6 +154,22 @@ class AppServiceProvider extends ServiceProvider
                 }
             } catch (\Throwable) {
                 // Installer, missing DB, or migrations not run yet.
+            }
+        });
+
+        $installedMarker = dirname(base_path(), 2) . DIRECTORY_SEPARATOR . 'secrets' . DIRECTORY_SEPARATOR . 'installed';
+        $this->app->booted(function () use ($installedMarker): void {
+            if ($this->app->runningInConsole() || ! is_file($installedMarker)) {
+                return;
+            }
+
+            try {
+                Cache::remember('global:pending_migrations_inapp_check', 3600, function (): true {
+                    app(InAppNotificationService::class)->notifySuperAdminsIfPendingMigrations();
+
+                    return true;
+                });
+            } catch (\Throwable) {
             }
         });
 

@@ -2640,6 +2640,7 @@ a.pill {
 .dashboard-chart__plot {
   width: 100%;
   overflow: hidden;
+  border-radius: 0.5rem;
 }
 
 .dashboard-chart__svg {
@@ -2652,7 +2653,16 @@ a.pill {
 .dashboard-chart__grid {
   stroke: var(--border);
   stroke-width: 1;
-  opacity: 0.9;
+  opacity: 0.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.dashboard-chart__baseline {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 5 7;
+  opacity: 0.45;
+  vector-effect: non-scaling-stroke;
 }
 
 .dashboard-chart__axis-text {
@@ -2665,20 +2675,25 @@ a.pill {
   font-size: 9px;
 }
 
+.dashboard-chart__area {
+  pointer-events: none;
+}
+
 .dashboard-chart__line {
   stroke: currentColor;
+  vector-effect: non-scaling-stroke;
 }
 
 .dashboard-chart__line--posts {
-  color: var(--accent-blue, #60a5fa);
+  color: #2563eb;
 }
 
 .dashboard-chart__line--impressions {
-  color: var(--accent-purple, #a78bfa);
+  color: #7c3aed;
 }
 
 .dashboard-chart__line--engagement {
-  color: var(--accent-green, #34d399);
+  color: #059669;
 }
 
 .dashboard-chart__dot {
@@ -2712,15 +2727,15 @@ a.pill {
 }
 
 .dashboard-chart__legend-item .dashboard-chart__swatch.dashboard-chart__line--posts {
-  background: var(--accent-blue, #60a5fa);
+  background: #2563eb;
 }
 
 .dashboard-chart__legend-item .dashboard-chart__swatch.dashboard-chart__line--impressions {
-  background: var(--accent-purple, #a78bfa);
+  background: #7c3aed;
 }
 
 .dashboard-chart__legend-item .dashboard-chart__swatch.dashboard-chart__line--engagement {
-  background: var(--accent-green, #34d399);
+  background: #059669;
 }
 
 .dashboard-chart__note {
