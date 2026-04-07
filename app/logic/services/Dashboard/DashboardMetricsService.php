@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Log;
 
 final class DashboardMetricsService
 {
+    /** Seconds. Full dashboard metrics bundle (charts, counts, engagement rate, etc.). */
     private const DASHBOARD_CACHE_TTL = 120;
 
     public const RANGE_TODAY = 'today';
@@ -427,7 +428,8 @@ final class DashboardMetricsService
         return $any ? $total : null;
     }
 
-    private const AUDIENCE_CACHE_TTL = 86400;
+    /** Seconds. Per-account follower counts used for “Total audience” on the dashboard. */
+    private const AUDIENCE_CACHE_TTL = 3600;
 
     private function audienceForAccount(SocialAccount $account): ?int
     {
