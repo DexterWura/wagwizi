@@ -912,7 +912,16 @@
     });
   }
 
+  function composerPageRepliesAllowed() {
+    var main = document.querySelector("main.app-content--composer");
+    if (!main) return true;
+    return main.getAttribute("data-app-composer-replies-allowed") !== "0";
+  }
+
   function buildCommentDelayMinutesPayload() {
+    if (!composerPageRepliesAllowed()) {
+      return {};
+    }
     var firstCommentEl = document.getElementById("composer-first-comment");
     var firstComment = firstCommentEl ? (firstCommentEl.value || "").trim() : "";
 
@@ -1167,6 +1176,9 @@
   }
 
   function initComposerOptionalSections() {
+    if (!composerPageRepliesAllowed()) {
+      return;
+    }
     var commentWrap = document.querySelector("[data-app-composer-comment-settings]");
     var commentToggle = document.querySelector("[data-app-composer-toggle-comment]");
     var firstComment = document.getElementById("composer-first-comment");
@@ -2475,39 +2487,48 @@
         }
       });
 
-      var fcEl = document.getElementById("composer-first-comment");
-      var rows = post.post_platforms || [];
-      var firstCommentVal = null;
-      var cd = null;
-      rows.forEach(function (pp) {
-        if (firstCommentVal == null && pp.first_comment) firstCommentVal = pp.first_comment;
-        if (cd == null && pp.comment_delay_minutes != null && pp.comment_delay_minutes > 0) {
-          cd = pp.comment_delay_minutes;
-        }
-      });
-      if (fcEl && firstCommentVal) fcEl.value = firstCommentVal;
+      if (composerPageRepliesAllowed()) {
+        var fcEl = document.getElementById("composer-first-comment");
+        var rows = post.post_platforms || [];
+        var firstCommentVal = null;
+        var cd = null;
+        rows.forEach(function (pp) {
+          if (firstCommentVal == null && pp.first_comment) firstCommentVal = pp.first_comment;
+          if (cd == null && pp.comment_delay_minutes != null && pp.comment_delay_minutes > 0) {
+            cd = pp.comment_delay_minutes;
+          }
+        });
+        if (fcEl && firstCommentVal) fcEl.value = firstCommentVal;
 
-      if (cd != null && cd > 0) {
-        var cval = document.getElementById("composer-comment-delay-value");
-        var cunit = document.getElementById("composer-comment-delay-unit");
-        if (cval && cunit) {
-          if (cd % 60 === 0 && cd >= 60) {
-            cval.value = String(cd / 60);
-            cunit.value = "hours";
-          } else {
-            cval.value = String(cd);
-            cunit.value = "minutes";
+        if (cd != null && cd > 0) {
+          var cval = document.getElementById("composer-comment-delay-value");
+          var cunit = document.getElementById("composer-comment-delay-unit");
+          if (cval && cunit) {
+            if (cd % 60 === 0 && cd >= 60) {
+              cval.value = String(cd / 60);
+              cunit.value = "hours";
+            } else {
+              cval.value = String(cd);
+              cunit.value = "minutes";
+            }
           }
         }
-      }
 
-      var commentWrap = document.querySelector("[data-app-composer-comment-settings]");
-      var commentToggle = document.querySelector("[data-app-composer-toggle-comment]");
-      if (commentWrap && ((firstCommentVal && String(firstCommentVal).trim() !== "") || (cd != null && cd > 0))) {
-        commentWrap.hidden = false;
-        if (commentToggle) {
-          commentToggle.setAttribute("aria-expanded", "true");
-          commentToggle.textContent = "Hide first comment";
+        var commentWrap = document.querySelector("[data-app-composer-comment-settings]");
+        var commentToggle = document.querySelector("[data-app-composer-toggle-comment]");
+        if (commentWrap && ((firstCommentVal && String(firstCommentVal).trim() !== "") || (cd != null && cd > 0))) {
+          commentWrap.hidden = false;
+          if (commentToggle) {
+            commentToggle.setAttribute("aria-expanded", "true");
+            commentToggle.textContent = "Hide first comment";
+          }
+        }
+      } else if (global.App && global.App.showFlash) {
+        var hasFc = (post.post_platforms || []).some(function (pp) {
+          return pp.first_comment && String(pp.first_comment).trim() !== "";
+        });
+        if (hasFc) {
+          global.App.showFlash("This draft includes a first comment, but your plan does not include replies. Remove it or upgrade to edit.", "info");
         }
       }
 

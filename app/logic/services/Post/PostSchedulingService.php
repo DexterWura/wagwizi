@@ -8,6 +8,7 @@ use App\Models\PostPlatform;
 use App\Models\MediaFile;
 use App\Services\Cache\UserCacheVersionService;
 use App\Services\Platform\PlatformRegistry;
+use App\Services\Subscription\PlanReplyFeatureService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -16,6 +17,10 @@ class PostSchedulingService
 {
     private const MAX_SCHEDULE_DAYS_AHEAD = 90;
     private const MIN_SCHEDULE_MINUTES_AHEAD = 5;
+
+    public function __construct(
+        private readonly PlanReplyFeatureService $replyFeature,
+    ) {}
 
     public function createDraft(int $userId, array $data): Post
     {
@@ -30,6 +35,7 @@ class PostSchedulingService
             ]);
 
             if (!empty($data['platform_accounts']) && is_array($data['platform_accounts'])) {
+                $this->replyFeature->assertUserMayUseReplies($userId, $data);
                 $this->validatePlatformAccountsOwnership($userId, $data['platform_accounts']);
                 $this->syncPlatformAccounts(
                     $post,
@@ -93,6 +99,7 @@ class PostSchedulingService
                 $post->postPlatforms()->delete();
                 $post->update(['platforms' => []]);
             } else {
+                $this->replyFeature->assertUserMayUseReplies($userId, $data);
                 $this->syncPlatformAccounts(
                     $post,
                     $userId,
@@ -133,6 +140,7 @@ class PostSchedulingService
         }
 
         $this->validatePlatformAccountsOwnership($userId, $data['platform_accounts']);
+        $this->replyFeature->assertUserMayUseReplies($userId, $data);
 
         $post = DB::transaction(function () use ($userId, $data, $scheduledAt): Post {
             $post = Post::create([
@@ -181,6 +189,7 @@ class PostSchedulingService
         }
 
         $this->validatePlatformAccountsOwnership($userId, $data['platform_accounts']);
+        $this->replyFeature->assertUserMayUseReplies($userId, $data);
 
         $post = DB::transaction(function () use ($userId, $data): Post {
             $post = Post::create([
@@ -281,6 +290,7 @@ class PostSchedulingService
         }
 
         $this->validatePlatformAccountsOwnership($userId, $data['platform_accounts']);
+        $this->replyFeature->assertUserMayUseReplies($userId, $data);
 
         $scheduledAt = $this->resolveScheduleFromInput($data);
 

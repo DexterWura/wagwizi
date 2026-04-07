@@ -225,8 +225,19 @@
                 </div>
                 @endif
               </div>
+              <div class="card" data-admin-settings-pane="maintenance">
+                <div class="card__head">Under construction mode</div>
+                <div class="card__body">
+                  <label class="check-line check-line--spaced">
+                    <input type="hidden" name="under_construction" value="0" />
+                    <input type="checkbox" name="under_construction" value="1" {{ ($settings['under_construction'] ?? '0') === '1' ? 'checked' : '' }} />
+                    <span>Enable under construction mode</span>
+                  </label>
+                  <p class="field__hint">When enabled, only active super administrators can use the app. Other visitors and signed-in users see a maintenance page. Email login, password reset, logout, leaving &ldquo;login as user&rdquo;, payment webhooks, <code>/cron</code>, and <code>/status</code> still work. Social sign-in is disabled until this is turned off.</p>
+                </div>
+              </div>
             </div>
-            <div class="admin-form-footer" data-admin-settings-pane="general seo">
+            <div class="admin-form-footer" data-admin-settings-pane="general seo maintenance">
               <button class="btn btn--primary" type="submit">Save settings</button>
             </div>
           </form>

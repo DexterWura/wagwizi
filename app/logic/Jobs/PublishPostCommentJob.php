@@ -7,6 +7,7 @@ use App\Services\Notifications\InAppNotificationService;
 use App\Services\Platform\Platform;
 use App\Services\Platform\PlatformRegistry;
 use App\Services\SocialAccount\TokenRefreshService;
+use App\Services\Subscription\PlanReplyFeatureService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -27,10 +28,21 @@ class PublishPostCommentJob implements ShouldQueue
     public function handle(
         PlatformRegistry $registry,
         TokenRefreshService $tokenRefreshService,
+        PlanReplyFeatureService $planReplyFeature,
     ): void {
-        $postPlatform = PostPlatform::with('socialAccount')->find($this->postPlatformId);
+        $postPlatform = PostPlatform::with(['socialAccount', 'post.user'])->find($this->postPlatformId);
 
         if ($postPlatform === null || $postPlatform->status !== 'published') {
+            return;
+        }
+
+        $owner = $postPlatform->post?->user;
+        if ($owner === null || ! $planReplyFeature->userMayUseFirstCommentReplies($owner->id)) {
+            $postPlatform->update([
+                'comment_status'        => 'failed',
+                'comment_error_message' => 'First-comment publishing is not included in your current plan.',
+            ]);
+
             return;
         }
 

@@ -182,6 +182,7 @@ class PageController extends Controller
             'composerAiLocked'             => ! $user->canAccessComposerAi(),
             'composerAiQuotaExhausted'     => $quota->isPlatformAiQuotaExhausted($user),
             'composerAiPlanNoPlatformAi'   => $quota->isPlatformAiDisabledOnPlan($user),
+            'composerRepliesAllowed'       => $user->canUseFirstCommentReplies(),
             'composerMediaCounts'          => $composerMediaCounts,
             'composerPlatformMediaCaps'    => $composerPlatformMediaCaps,
             'composerPlatformMediaRules'   => config('platform_media_constraints'),

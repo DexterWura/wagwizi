@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\Ai\PlatformAiConfigService;
 use App\Services\Ai\PlatformAiQuotaService;
+use App\Services\Subscription\PlanReplyFeatureService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -259,5 +260,14 @@ class User extends Authenticatable
         $plan = $sub->planModel;
 
         return $plan !== null && ! $plan->is_free;
+    }
+
+    /**
+     * First-comment / reply publishing after the main post (plan-gated).
+     */
+    public function canUseFirstCommentReplies(): bool
+    {
+        return app(PlanReplyFeatureService::class)
+            ->userMayUseFirstCommentReplies($this->id);
     }
 }

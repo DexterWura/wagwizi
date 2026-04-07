@@ -198,6 +198,14 @@
                     </div>
                     <div class="field">
                       <label class="check-line">
+                        <input type="hidden" name="includes_replies" value="0" />
+                        <input type="checkbox" name="includes_replies" value="1" {{ ($plan->includes_replies ?? true) ? 'checked' : '' }} />
+                        <span>Includes first-comment / reply publishing (composer)</span>
+                      </label>
+                      <p class="field__hint">If unchecked, subscribers on this plan cannot add scheduled first comments on posts.</p>
+                    </div>
+                    <div class="field">
+                      <label class="check-line">
                         <input type="hidden" name="is_free" value="0" />
                         <input type="checkbox" name="is_free" value="1" {{ $plan->is_free ? 'checked' : '' }} />
                         <span>Free tier (only one free plan; no trial on free)</span>
@@ -367,6 +375,14 @@
                   <span>Most popular (landing &amp; plans page highlight)</span>
                 </label>
                 <p class="field__hint">Only one plan should be marked; saving clears this flag on all other plans.</p>
+              </div>
+              <div class="field">
+                <label class="check-line">
+                  <input type="hidden" name="includes_replies" value="0" />
+                  <input type="checkbox" name="includes_replies" value="1" checked />
+                  <span>Includes first-comment / reply publishing (composer)</span>
+                </label>
+                <p class="field__hint">Uncheck for entry tiers that should not use first comments on posts.</p>
               </div>
               <div class="field">
                 <label class="check-line">

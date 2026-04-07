@@ -27,6 +27,7 @@ use App\Services\Admin\PlanAdminValidationService;
 use App\Services\Admin\PaymentTransactionListService;
 use App\Services\Admin\SubscriptionInsightsService;
 use App\Services\Ai\PlatformAiQuotaService;
+use App\Services\Subscription\PlanSubscriberReconciliationService;
 use App\Services\Billing\CurrencyDisplayService;
 use App\Services\Cron\CronSecretResolver;
 use App\Services\Cron\CronService;
@@ -305,6 +306,7 @@ class AdminController extends Controller
             'tools_present'                 => 'nullable|boolean',
             'is_active'                     => 'boolean',
             'is_most_popular'               => 'boolean',
+            'includes_replies'              => 'boolean',
             'is_free'                       => 'boolean',
             'is_lifetime'                   => 'boolean',
             'lifetime_max_subscribers'      => 'nullable|integer|min:1',
@@ -317,6 +319,7 @@ class AdminController extends Controller
         $validated['features'] = $this->parseFeaturesList($validated['features'] ?? null);
         $validated['is_active'] = $request->boolean('is_active');
         $validated['is_most_popular'] = $request->boolean('is_most_popular');
+        $validated['includes_replies'] = $request->boolean('includes_replies');
         $validated['is_free'] = $request->boolean('is_free');
         $validated['is_lifetime'] = $request->boolean('is_lifetime');
         $validated['has_free_trial'] = $request->boolean('has_free_trial');
@@ -380,6 +383,7 @@ class AdminController extends Controller
             'tools_present'                 => 'nullable|boolean',
             'is_active'                     => 'boolean',
             'is_most_popular'               => 'boolean',
+            'includes_replies'              => 'boolean',
             'is_free'                       => 'boolean',
             'is_lifetime'                   => 'boolean',
             'lifetime_max_subscribers'      => 'nullable|integer|min:1',
@@ -392,6 +396,7 @@ class AdminController extends Controller
         $validated['features'] = $this->parseFeaturesList($validated['features'] ?? null);
         $validated['is_active'] = $request->boolean('is_active');
         $validated['is_most_popular'] = $request->boolean('is_most_popular');
+        $validated['includes_replies'] = $request->boolean('includes_replies');
         $validated['is_free'] = $request->boolean('is_free');
         $validated['is_lifetime'] = $request->boolean('is_lifetime');
         $validated['has_free_trial'] = $request->boolean('has_free_trial');
@@ -426,27 +431,34 @@ class AdminController extends Controller
 
         $validated['platform_ai_tokens_per_period'] = (int) $validated['platform_ai_tokens_per_period'];
 
-        if ($validated['is_most_popular']) {
-            Plan::query()->where('id', '<>', $plan->id)->update(['is_most_popular' => false]);
-        }
-
-        $plan->update($validated);
-        $plan->refresh();
-
-        if ($previousPlatformAiBudget !== (int) $plan->platform_ai_tokens_per_period) {
-            $affectedUserIds = Subscription::query()
-                ->where('plan_id', $plan->id)
-                ->whereIn('status', ['active', 'trialing'])
-                ->pluck('user_id');
-            Subscription::query()
-                ->where('plan_id', $plan->id)
-                ->whereIn('status', ['active', 'trialing'])
-                ->update(['platform_ai_tokens_remaining' => (int) $plan->platform_ai_tokens_per_period]);
-            $quota = app(PlatformAiQuotaService::class);
-            foreach ($affectedUserIds as $uid) {
-                $quota->invalidateLayoutSummaryCache((int) $uid);
+        DB::transaction(function () use ($plan, $validated, $previousPlatformAiBudget): void {
+            if ($validated['is_most_popular']) {
+                Plan::query()->where('id', '<>', $plan->id)->update(['is_most_popular' => false]);
             }
-        }
+
+            $plan->update($validated);
+            $plan->refresh();
+
+            app(PlanSubscriberReconciliationService::class)->reconcileSubscribersForPlan($plan);
+
+            if ($previousPlatformAiBudget !== (int) $plan->platform_ai_tokens_per_period) {
+                $subscriberStatuses = PlanSubscriberReconciliationService::SUBSCRIBER_STATUSES;
+                $affectedUserIds = Subscription::query()
+                    ->where('plan_id', $plan->id)
+                    ->whereIn('status', $subscriberStatuses)
+                    ->pluck('user_id')
+                    ->unique()
+                    ->values();
+                Subscription::query()
+                    ->where('plan_id', $plan->id)
+                    ->whereIn('status', $subscriberStatuses)
+                    ->update(['platform_ai_tokens_remaining' => (int) $plan->platform_ai_tokens_per_period]);
+                $quota = app(PlatformAiQuotaService::class);
+                foreach ($affectedUserIds as $uid) {
+                    $quota->invalidateLayoutSummaryCache((int) $uid);
+                }
+            }
+        });
 
         PublicCatalogCache::forgetPlans();
 
@@ -751,6 +763,7 @@ class AdminController extends Controller
             'social_login_google'        => SiteSetting::get('social_login_google', '1'),
             'social_login_linkedin'      => SiteSetting::get('social_login_linkedin', '1'),
             'default_display_timezone'   => SiteSetting::get('default_display_timezone', 'UTC'),
+            'under_construction'         => SiteSetting::get('under_construction', '0'),
         ];
 
         $timezonesForSelect = Schema::hasTable('timezones')
@@ -878,6 +891,7 @@ class AdminController extends Controller
     public function updateSettings(Request $request): RedirectResponse
     {
         $request->validate([
+            'under_construction' => 'nullable|boolean',
             'seo_meta_title' => 'nullable|string|max:120',
             'seo_meta_description' => 'nullable|string|max:320',
             'seo_social_description' => 'nullable|string|max:320',
@@ -900,6 +914,8 @@ class AdminController extends Controller
                 SiteSetting::set($field, $request->input($field, ''));
             }
         }
+
+        SiteSetting::set('under_construction', $request->boolean('under_construction') ? '1' : '0');
 
         SiteSetting::set('seo_meta_title', Str::limit(trim(strip_tags((string) $request->input('seo_meta_title', ''))), 120));
         SiteSetting::set('seo_meta_description', Str::limit(trim(strip_tags((string) $request->input('seo_meta_description', ''))), 320));

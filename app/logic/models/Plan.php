@@ -23,6 +23,7 @@ class Plan extends Model
         'allowed_tools',
         'is_active',
         'is_most_popular',
+        'includes_replies',
         'is_lifetime',
         'lifetime_max_subscribers',
         'lifetime_current_count',
@@ -41,6 +42,7 @@ class Plan extends Model
             'allowed_tools'      => 'array',
             'is_active'          => 'boolean',
             'is_most_popular'    => 'boolean',
+            'includes_replies'   => 'boolean',
             'is_lifetime'        => 'boolean',
             'is_free'            => 'boolean',
             'has_free_trial'     => 'boolean',
@@ -83,8 +85,13 @@ class Plan extends Model
         return $this->max_scheduled_posts_per_month === null;
     }
 
-    public function allowsPlatform(string $slug): bool
+    public function allowsPlatform(?string $slug): bool
     {
+        $slug = $slug === null ? '' : trim($slug);
+        if ($slug === '') {
+            return false;
+        }
+
         if ($this->allowed_platforms === null) {
             return true;
         }

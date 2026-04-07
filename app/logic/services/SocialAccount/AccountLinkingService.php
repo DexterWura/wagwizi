@@ -2,10 +2,12 @@
 
 namespace App\Services\SocialAccount;
 
+use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Services\Platform\Platform;
 use App\Services\Cache\UserCacheVersionService;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -309,21 +311,92 @@ class AccountLinkingService
             );
         }
 
+        $this->finalizeDisconnect($user, $account, 'Social account disconnected');
+
+        return true;
+    }
+
+    private const PLAN_ENFORCEMENT_FAIL_MESSAGE = 'This connection was removed because your subscription plan no longer allows it.';
+
+    /**
+     * Disconnect when the user's plan no longer allows this platform or profile cap was reduced.
+     * Pending/publishing rows for this account are marked failed so disconnect is never blocked.
+     */
+    public function disconnectForPlanEnforcement(User $user, SocialAccount $account): void
+    {
+        if ($account->user_id !== $user->id) {
+            throw new InvalidArgumentException('Account does not belong to this user.');
+        }
+
+        $this->disconnectAccountsForPlanEnforcement([$account]);
+    }
+
+    /**
+     * Batch disconnect for plan reconciliation. Uses per-model {@see SocialAccount::update} so encrypted
+     * token columns are written correctly (query-builder mass update would bypass casts).
+     *
+     * @param  iterable<SocialAccount>|Collection<int, SocialAccount>  $accounts
+     * @return list<int> User IDs that had at least one account disconnected (for cache invalidation)
+     */
+    public function disconnectAccountsForPlanEnforcement(iterable $accounts): array
+    {
+        $collection = Collection::wrap($accounts)
+            ->filter(static fn ($a): bool => $a instanceof SocialAccount && $a->status !== 'disconnected')
+            ->unique('id')
+            ->values();
+
+        if ($collection->isEmpty()) {
+            return [];
+        }
+
+        $ids = $collection->pluck('id')->all();
+
+        PostPlatform::query()
+            ->whereIn('social_account_id', $ids)
+            ->whereIn('status', ['pending', 'publishing'])
+            ->update([
+                'status'        => 'failed',
+                'error_message' => self::PLAN_ENFORCEMENT_FAIL_MESSAGE,
+            ]);
+
+        foreach ($collection as $account) {
+            $account->update([
+                'status'        => 'disconnected',
+                'access_token'  => '',
+                'refresh_token' => null,
+            ]);
+        }
+
+        $affectedUserIds = [];
+        foreach ($collection->groupBy(static fn (SocialAccount $a): int => (int) $a->user_id) as $userId => $group) {
+            $uid = (int) $userId;
+            $affectedUserIds[] = $uid;
+            Log::info('Social accounts disconnected (plan enforcement)', [
+                'user_id'     => $uid,
+                'account_ids' => $group->pluck('id')->values()->all(),
+                'platforms'   => $group->pluck('platform')->values()->all(),
+            ]);
+            app(UserCacheVersionService::class)->bump($uid);
+        }
+
+        return array_values(array_unique($affectedUserIds));
+    }
+
+    private function finalizeDisconnect(User $user, SocialAccount $account, string $logMessage): void
+    {
         $account->update([
             'status'        => 'disconnected',
             'access_token'  => '',
             'refresh_token' => null,
         ]);
 
-        Log::info('Social account disconnected', [
+        Log::info($logMessage, [
             'user_id'    => $user->id,
-            'account_id' => $accountId,
+            'account_id' => $account->id,
             'platform'   => $account->platform,
         ]);
 
         app(UserCacheVersionService::class)->bump($user->id);
-
-        return true;
     }
 
     /**

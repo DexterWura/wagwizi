@@ -55,7 +55,7 @@
 @endsection
 
 @section('content')
-        <main class="app-content app-content--composer">
+        <main class="app-content app-content--composer" data-app-composer-replies-allowed="{{ $composerRepliesAllowed ? '1' : '0' }}">
           <div class="page-head page-head--composer">
             <div class="page-head__row">
               <div class="page-head__title">
@@ -213,6 +213,7 @@
                 </div>
 
                 <div class="composer-form-card__section composer-form-card__section--tight">
+                  @if($composerRepliesAllowed)
                   <button type="button" class="btn btn--ghost btn--sm" data-app-composer-toggle-comment aria-expanded="false" aria-controls="composer-comment-settings">
                     Add first comment
                   </button>
@@ -233,6 +234,16 @@
                       </div>
                     </div>
                   </div>
+                  @else
+                  <p class="field__hint" data-app-composer-replies-locked>
+                    <strong>First comments / replies</strong> are not included in your current plan.
+                    @if($currentUser && $currentUser->shouldShowUpgradePlan())
+                    <a href="{{ route('plans') }}">Upgrade</a> to unlock.
+                    @else
+                    Choose a plan that includes replies to use this feature.
+                    @endif
+                  </p>
+                  @endif
                 </div>
 
                 <div class="composer-form-card__row">
