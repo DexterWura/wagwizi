@@ -5247,6 +5247,25 @@ button.link-create {
   justify-content: center;
 }
 
+.composer-feed-preview__avatar-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.composer-feed-preview__avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1, #ec4899);
+}
+
 .composer-feed-preview__meta {
   display: flex;
   flex-direction: column;
@@ -5425,6 +5444,34 @@ button.link-create {
   font-weight: 600;
   border-bottom: 1px solid var(--border);
   background: var(--bg-hover);
+}
+
+.preview-card__bar-avatar--photo {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.preview-card__bar-avatar--fallback {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #6366f1, #ec4899);
+  color: #fff;
+  font-size: 0.6rem;
+}
+
+.preview-card__bar-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .preview-card__body {

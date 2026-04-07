@@ -234,6 +234,103 @@
     return active ? (active.getAttribute("data-app-platform-tab") || "master") : "master";
   }
 
+  function getComposerPlatformProfiles() {
+    if (global.__composerPlatformProfilesParsed) {
+      return global.__composerPlatformProfilesParsed;
+    }
+    var el = document.getElementById("composer-platform-profiles");
+    if (!el || !(el.textContent || "").trim()) {
+      global.__composerPlatformProfilesParsed = {};
+      return global.__composerPlatformProfilesParsed;
+    }
+    try {
+      global.__composerPlatformProfilesParsed = JSON.parse(el.textContent);
+    } catch (e) {
+      global.__composerPlatformProfilesParsed = {};
+    }
+    if (!global.__composerPlatformProfilesParsed || typeof global.__composerPlatformProfilesParsed !== "object") {
+      global.__composerPlatformProfilesParsed = {};
+    }
+    return global.__composerPlatformProfilesParsed;
+  }
+
+  function sanitizePreviewIconClass(raw) {
+    var s = String(raw || "fa-solid fa-globe").trim();
+    s = s.replace(/[^\w\-\s]/g, " ").replace(/\s+/g, " ").trim();
+    return s !== "" ? s : "fa-solid fa-globe";
+  }
+
+  function syncComposerFeedPreviewIdentity() {
+    var head = document.querySelector("[data-app-composer-feed-head]");
+    var wrap = head ? head.querySelector(".composer-feed-preview__avatar") : null;
+    var nameEl = document.querySelector("[data-app-composer-feed-display-name]");
+    if (!head || !wrap || !nameEl) return;
+
+    var defName = head.getAttribute("data-feed-user-name") || "User";
+    var defAvatar = head.getAttribute("data-feed-user-avatar") || "";
+
+    var tab = composerActiveTabKey();
+    var profiles = getComposerPlatformProfiles();
+    var p = profiles[tab];
+
+    function setUserAvatarImg() {
+      var img = document.createElement("img");
+      img.className = "composer-feed-preview__avatar-img app-user-avatar app-user-avatar--md";
+      img.setAttribute("data-app-composer-feed-avatar", "");
+      img.setAttribute("data-app-user-avatar", "1");
+      img.src = defAvatar;
+      img.alt = "";
+      img.width = 40;
+      img.height = 40;
+      img.decoding = "async";
+      img.setAttribute("referrerpolicy", "no-referrer");
+      wrap.innerHTML = "";
+      wrap.appendChild(img);
+    }
+
+    function setPlatformImg(src) {
+      var img = document.createElement("img");
+      img.className = "composer-feed-preview__avatar-img app-user-avatar app-user-avatar--md";
+      img.setAttribute("data-app-composer-feed-avatar", "");
+      img.src = src;
+      img.alt = "";
+      img.width = 40;
+      img.height = 40;
+      img.decoding = "async";
+      img.setAttribute("referrerpolicy", "no-referrer");
+      wrap.innerHTML = "";
+      wrap.appendChild(img);
+    }
+
+    function setPlatformFallback(iconClass) {
+      var shell = document.createElement("span");
+      shell.className = "composer-feed-preview__avatar-fallback";
+      shell.setAttribute("aria-hidden", "true");
+      var i = document.createElement("i");
+      i.className = sanitizePreviewIconClass(iconClass);
+      shell.appendChild(i);
+      wrap.innerHTML = "";
+      wrap.appendChild(shell);
+    }
+
+    if (tab === "master" || !p) {
+      nameEl.textContent = defName;
+      if (wrap.querySelector("img[data-app-user-avatar]")) {
+        return;
+      }
+      setUserAvatarImg();
+      return;
+    }
+
+    nameEl.textContent = typeof p.name === "string" && p.name.trim() !== "" ? p.name.trim() : defName;
+    var url = typeof p.avatar === "string" ? p.avatar.trim() : "";
+    if (url !== "") {
+      setPlatformImg(url);
+    } else {
+      setPlatformFallback(p.iconClass);
+    }
+  }
+
   function composerTextForPlatform(platform, masterValue) {
     var overrides = global.__composerPlatformOverrides || {};
     if (!platform || platform === "master") return masterValue;
@@ -849,6 +946,7 @@
     function flush() {
       raf = null;
       clearFeedDiff();
+      syncComposerFeedPreviewIdentity();
       var masterText = (master.value || "").trim();
       if (!masterText) masterText = fallback;
 

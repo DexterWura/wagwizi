@@ -152,11 +152,32 @@ class PageController extends Controller
         $socialAccounts = Cache::remember(
             "composer_social_accounts:v1:{$cacheVersion}:{$user->id}",
             60,
-            fn () => $user->socialAccounts()->active()->get(['id', 'platform', 'username', 'display_name'])
+            fn () => $user->socialAccounts()->active()->get(['id', 'platform', 'username', 'display_name', 'avatar_url'])
         );
+
+        $composerPlatformProfiles = $socialAccounts->unique('platform')->mapWithKeys(function ($account) {
+            $plat = Platform::tryFrom($account->platform);
+            $label = $plat?->label() ?? ucfirst((string) $account->platform);
+            $name  = trim((string) ($account->display_name ?? ''));
+            if ($name === '') {
+                $name = trim((string) ($account->username ?? ''));
+            }
+            if ($name === '') {
+                $name = $label;
+            }
+
+            return [
+                $account->platform => [
+                    'avatar'    => $account->composerPreviewAvatarUrl(),
+                    'name'      => $name,
+                    'iconClass' => $plat?->icon() ?? 'fa-solid fa-globe',
+                ],
+            ];
+        })->all();
 
         return view('composer', [
             'socialAccounts'               => $socialAccounts,
+            'composerPlatformProfiles'     => $composerPlatformProfiles,
             'audienceInsights'             => $audienceInsights,
             'composerAiLocked'             => ! $user->canAccessComposerAi(),
             'composerAiQuotaExhausted'     => $quota->isPlatformAiQuotaExhausted($user),

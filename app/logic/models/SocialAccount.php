@@ -64,4 +64,26 @@ class SocialAccount extends Model
     {
         return $query->where('status', 'active');
     }
+
+    /**
+     * Remote profile image URL from the platform (OAuth / API), for composer previews only.
+     */
+    public function composerPreviewAvatarUrl(): ?string
+    {
+        $url = trim((string) ($this->avatar_url ?? ''));
+        if ($url === '') {
+            return null;
+        }
+        if (str_starts_with($url, '//')) {
+            $url = 'https:' . $url;
+        }
+        if (! filter_var($url, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+        if (! preg_match('#^https?://#i', $url)) {
+            return null;
+        }
+
+        return $url;
+    }
 }

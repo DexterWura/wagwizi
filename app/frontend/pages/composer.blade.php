@@ -76,6 +76,7 @@
           </div>
 
           <div class="composer-create">
+            <script type="application/json" id="composer-platform-profiles">@json($composerPlatformProfiles ?? [])</script>
             <div class="composer-create__main">
               <div class="card card--composer composer-form-card">
                 <div class="composer-form-card__section">
@@ -325,10 +326,27 @@
                 <div class="composer-feed-card__label">Feed preview</div>
                 <div class="composer-feed-preview">
                   <div class="composer-feed-preview__post">
-                    <div class="composer-feed-preview__head">
-                      <span class="composer-feed-preview__avatar" aria-hidden="true">@include('user-avatar-img', ['user' => $currentUser, 'size' => 'md'])</span>
+                    <div
+                      class="composer-feed-preview__head"
+                      data-app-composer-feed-head
+                      data-feed-user-name="{{ e($currentUser->name ?? 'User') }}"
+                      data-feed-user-avatar="{{ e($currentUser->avatarUrl(80)) }}"
+                    >
+                      <span class="composer-feed-preview__avatar" aria-hidden="true">
+                        <img
+                          class="composer-feed-preview__avatar-img app-user-avatar app-user-avatar--md"
+                          data-app-composer-feed-avatar
+                          data-app-user-avatar="1"
+                          src="{{ $currentUser->avatarUrl(80) }}"
+                          alt=""
+                          width="40"
+                          height="40"
+                          decoding="async"
+                          referrerpolicy="no-referrer"
+                        />
+                      </span>
                       <div class="composer-feed-preview__meta">
-                        <strong>{{ $currentUser->name ?? 'User' }}</strong>
+                        <strong data-app-composer-feed-display-name>{{ $currentUser->name ?? 'User' }}</strong>
                         <span class="composer-feed-preview__when">Just now</span>
                       </div>
                     </div>
@@ -365,7 +383,25 @@
                   @foreach($socialAccounts->unique('platform') as $account)
                   @php $plat = Platform::tryFrom($account->platform); @endphp
                   <div class="preview-card">
-                    <div class="preview-card__bar"><i class="{{ $plat?->icon() ?? 'fa-solid fa-globe' }}" aria-hidden="true"></i> {{ $plat?->label() ?? ucfirst($account->platform) }}</div>
+                    <div class="preview-card__bar">
+                      @if($url = $account->composerPreviewAvatarUrl())
+                      <img
+                        class="preview-card__bar-avatar preview-card__bar-avatar--photo"
+                        src="{{ $url }}"
+                        alt=""
+                        width="22"
+                        height="22"
+                        loading="lazy"
+                        decoding="async"
+                        referrerpolicy="no-referrer"
+                      />
+                      @else
+                      <span class="preview-card__bar-avatar preview-card__bar-avatar--fallback" aria-hidden="true">
+                        <i class="{{ $plat?->icon() ?? 'fa-solid fa-globe' }}"></i>
+                      </span>
+                      @endif
+                      <span class="preview-card__bar-label">{{ $plat?->label() ?? ucfirst($account->platform) }}</span>
+                    </div>
                     <div class="preview-card__body" data-app-composer-preview data-platform="{{ $account->platform }}">
                       <div class="composer-preview-card__media" data-app-composer-preview-media hidden></div>
                       <div class="composer-preview-card__text" data-app-composer-preview-text>Your post will appear here.</div>
