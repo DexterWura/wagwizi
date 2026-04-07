@@ -126,6 +126,17 @@ final class SubscriptionFulfillmentService
             return null;
         }
 
+        if ($plan->isOneTimePurchase()) {
+            if ($plan->monthly_price_cents !== null && $plan->monthly_price_cents > 0) {
+                return (int) $plan->monthly_price_cents;
+            }
+            if ($plan->yearly_price_cents !== null && $plan->yearly_price_cents > 0) {
+                return (int) $plan->yearly_price_cents;
+            }
+
+            return null;
+        }
+
         if ($plan->monthly_price_cents !== null && $plan->monthly_price_cents > 0) {
             return (int) $plan->monthly_price_cents;
         }
@@ -135,6 +146,21 @@ final class SubscriptionFulfillmentService
         }
 
         return null;
+    }
+
+    /**
+     * Line item title for hosted checkouts (Stripe, PayPal, Paynow, etc.).
+     */
+    public function planCheckoutProductTitle(Plan $plan): string
+    {
+        if ($plan->is_free) {
+            return $plan->name;
+        }
+        if ($plan->isOneTimePurchase()) {
+            return $plan->name . ' (lifetime — one-time payment)';
+        }
+
+        return $plan->name . ' subscription';
     }
 
     public function requiresOnlinePayment(Plan $plan): bool

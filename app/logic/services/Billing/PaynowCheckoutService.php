@@ -54,7 +54,7 @@ final class PaynowCheckoutService
         if (config('services.paynow.send_currency_field', true)) {
             $payment->setCurrency($checkoutCurrency);
         }
-        $payment->add($plan->name . ' subscription', $amountFloat);
+        $payment->add($this->fulfillment->planCheckoutProductTitle($plan), $amountFloat);
 
         $response = $paynow->send($payment);
 

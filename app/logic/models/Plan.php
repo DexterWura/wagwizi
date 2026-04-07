@@ -108,6 +108,14 @@ class Plan extends Model
         return $this->lifetime_current_count >= $this->lifetime_max_subscribers;
     }
 
+    /**
+     * Paid lifetime plans are purchased once (no recurring period); amount is stored in monthly_price_cents.
+     */
+    public function isOneTimePurchase(): bool
+    {
+        return $this->is_lifetime && ! $this->is_free;
+    }
+
     public function freeTrialSummary(): ?string
     {
         if ($this->is_free) {

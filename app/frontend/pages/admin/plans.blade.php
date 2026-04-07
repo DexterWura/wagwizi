@@ -97,15 +97,31 @@
                       <label class="field__label">Name</label>
                       <input class="input input--sm" name="name" value="{{ $plan->name }}" required />
                     </div>
-                    <div class="field">
-                      <label class="field__label" data-admin-monthly-price-label>{{ $plan->is_lifetime ? 'One-time price (minor units)' : 'Monthly price (minor units)' }}</label>
-                      <input class="input input--sm" name="monthly_price_cents" type="number" value="{{ $plan->monthly_price_cents }}" data-admin-monthly-price-input />
-                      <p class="field__hint" data-admin-monthly-price-hint>@if($plan->is_lifetime)Single lifetime payment in the smallest units of <strong>{{ $pricingBaseCurrency ?? 'USD' }}</strong> (e.g. cents).@else Smallest units of <strong>{{ $pricingBaseCurrency ?? 'USD' }}</strong> (e.g. cents). Set base currency under Admin → Payment gateways.@endif</p>
+                    @php
+                      $showLifetimePriceRow = $plan->is_lifetime && ! $plan->is_free;
+                    @endphp
+                    <div class="field" data-admin-monthly-price-row style="{{ $showLifetimePriceRow ? 'display:none' : '' }}">
+                      <label class="field__label" data-admin-monthly-price-label>{{ $plan->is_free ? 'Price (not used for free tier)' : 'Monthly price (minor units)' }}</label>
+                      <span data-admin-monthly-price-mount>
+                        @if(! $showLifetimePriceRow)
+                          <input class="input input--sm" name="monthly_price_cents" type="number" value="{{ $plan->monthly_price_cents }}" data-admin-monthly-price-input />
+                        @endif
+                      </span>
+                      <p class="field__hint" data-admin-monthly-price-hint>@if($plan->is_free)Free plans ignore price fields; both are cleared when you save.@else Smallest units of <strong>{{ $pricingBaseCurrency ?? 'USD' }}</strong> (e.g. cents). Set base currency under Admin → Payment gateways.@endif</p>
                     </div>
-                    <div class="field" data-admin-yearly-price-row style="{{ $plan->is_lifetime ? 'display:none' : '' }}">
+                    <div class="field" data-admin-yearly-price-row style="{{ $plan->is_lifetime || $plan->is_free ? 'display:none' : '' }}">
                       <label class="field__label">Yearly price (minor units)</label>
                       <input class="input input--sm" name="yearly_price_cents" type="number" value="{{ $plan->yearly_price_cents }}" data-admin-yearly-price-input />
                       <p class="field__hint">Optional. If empty, the app may derive an annual total from the monthly price for display.</p>
+                    </div>
+                    <div class="field" data-admin-lifetime-price-row style="{{ $showLifetimePriceRow ? '' : 'display:none' }}">
+                      <label class="field__label">Lifetime price (minor units)</label>
+                      <span data-admin-lifetime-price-mount>
+                        @if($showLifetimePriceRow)
+                          <input class="input input--sm" name="monthly_price_cents" type="number" value="{{ $plan->monthly_price_cents }}" data-admin-monthly-price-input />
+                        @endif
+                      </span>
+                      <p class="field__hint">One-time lifetime payment in the smallest units of <strong>{{ $pricingBaseCurrency ?? 'USD' }}</strong> (e.g. cents).</p>
                     </div>
                     <div class="field">
                       <label class="field__label">Max profiles</label>
@@ -254,15 +270,22 @@
                 <label class="field__label">Max lifetime subscribers</label>
                 <input class="input" name="lifetime_max_subscribers" type="number" placeholder="Leave empty for unlimited" />
               </div>
-              <div class="field">
-                <label class="field__label" data-admin-monthly-price-label>Monthly price (minor units, {{ $pricingBaseCurrency ?? 'USD' }})</label>
-                <input class="input" name="monthly_price_cents" type="number" placeholder="990" data-admin-monthly-price-input />
+              <div class="field" data-admin-monthly-price-row>
+                <label class="field__label" data-admin-monthly-price-label>Monthly price (minor units)</label>
+                <span data-admin-monthly-price-mount>
+                  <input class="input" name="monthly_price_cents" type="number" placeholder="990" data-admin-monthly-price-input />
+                </span>
                 <p class="field__hint" data-admin-monthly-price-hint>Smallest units of <strong>{{ $pricingBaseCurrency ?? 'USD' }}</strong> (e.g. cents). Set base currency under Admin → Payment gateways.</p>
               </div>
               <div class="field" data-admin-yearly-price-row>
                 <label class="field__label">Yearly price (minor units)</label>
                 <input class="input" name="yearly_price_cents" type="number" placeholder="9900" data-admin-yearly-price-input />
                 <p class="field__hint">Optional. Leave empty to derive from monthly for annual billing display.</p>
+              </div>
+              <div class="field" data-admin-lifetime-price-row style="display:none">
+                <label class="field__label">Lifetime price (minor units)</label>
+                <span data-admin-lifetime-price-mount></span>
+                <p class="field__hint">One-time lifetime payment in the smallest units of <strong>{{ $pricingBaseCurrency ?? 'USD' }}</strong> (e.g. cents).</p>
               </div>
               <div class="field">
                 <label class="field__label">Max profiles</label>
@@ -360,23 +383,39 @@
 (function () {
   var cur = @json($pricingBaseCurrency ?? 'USD');
   function syncPlanPricingForm(form) {
-    var life = form.querySelector('[name="is_lifetime"]');
-    var free = form.querySelector('[name="is_free"]');
+    var life = form.querySelector('[data-admin-lifetime-toggle]');
+    var free = form.querySelector('input[type="checkbox"][name="is_free"]');
     var yearlyRow = form.querySelector('[data-admin-yearly-price-row]');
+    var monthlyRow = form.querySelector('[data-admin-monthly-price-row]');
+    var lifetimeRow = form.querySelector('[data-admin-lifetime-price-row]');
+    var monthlyMount = form.querySelector('[data-admin-monthly-price-mount]');
+    var lifetimeMount = form.querySelector('[data-admin-lifetime-price-mount]');
+    var input = form.querySelector('[data-admin-monthly-price-input]');
     var lbl = form.querySelector('[data-admin-monthly-price-label]');
     var hint = form.querySelector('[data-admin-monthly-price-hint]');
-    var trialCb = form.querySelector('[name="has_free_trial"]');
-    var lifeOn = life && life.checked;
-    var freeOn = free && free.checked;
+    var trialCb = form.querySelector('input[type="checkbox"][name="has_free_trial"]');
+    var lifeOn = !!(life && life.checked);
+    var freeOn = !!(free && free.checked);
 
     if (yearlyRow) {
       yearlyRow.style.display = lifeOn || freeOn ? 'none' : '';
     }
+    if (monthlyRow) {
+      monthlyRow.style.display = lifeOn && !freeOn ? 'none' : '';
+    }
+    if (lifetimeRow) {
+      lifetimeRow.style.display = lifeOn && !freeOn ? '' : 'none';
+    }
+    if (input && monthlyMount && lifetimeMount) {
+      if (freeOn || !lifeOn) {
+        monthlyMount.appendChild(input);
+      } else {
+        lifetimeMount.appendChild(input);
+      }
+    }
     if (lbl) {
       if (freeOn) {
         lbl.textContent = 'Price (not used for free tier)';
-      } else if (lifeOn) {
-        lbl.textContent = 'One-time price (minor units)';
       } else {
         lbl.textContent = 'Monthly price (minor units)';
       }
@@ -384,8 +423,6 @@
     if (hint) {
       if (freeOn) {
         hint.textContent = 'Free plans ignore price fields; both are cleared when you save.';
-      } else if (lifeOn) {
-        hint.textContent = 'Single lifetime payment in the smallest units of ' + cur + ' (e.g. cents). Yearly is not used.';
       } else {
         hint.textContent = 'Smallest units of ' + cur + ' (e.g. cents). Set base currency under Admin → Payment gateways.';
       }
@@ -400,7 +437,7 @@
     }
   }
   document.querySelectorAll('[data-admin-plan-form]').forEach(function (form) {
-    form.querySelectorAll('[name="is_lifetime"], [name="is_free"]').forEach(function (el) {
+    form.querySelectorAll('input[type="checkbox"][name="is_lifetime"], input[type="checkbox"][name="is_free"]').forEach(function (el) {
       el.addEventListener('change', function () {
         syncPlanPricingForm(form);
       });

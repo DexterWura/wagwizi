@@ -395,7 +395,7 @@
       <section class="lp-section" id="resources">
         <div class="lp-section__head" data-lp-reveal>
           <h2>Active on all your favorite channels</h2>
-          <p>Floating tiles — hover to feel the glow. Connect accounts when your backend is ready.</p>
+          <p>Link the networks your team uses and manage them from one place—so your brand stays consistent everywhere your audience already spends time.</p>
         </div>
         <div class="lp-wrap">
           <div class="lp-int-grid">

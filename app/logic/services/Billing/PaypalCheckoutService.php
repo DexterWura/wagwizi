@@ -65,7 +65,7 @@ final class PaypalCheckoutService
 
         $transactionData = new \PayPal\Api\Transaction();
         $transactionData->setAmount($amount);
-        $transactionData->setDescription($plan->name . ' subscription');
+        $transactionData->setDescription($this->fulfillment->planCheckoutProductTitle($plan));
         $transactionData->setCustom($reference);
         $transactionData->setInvoiceNumber($reference);
 

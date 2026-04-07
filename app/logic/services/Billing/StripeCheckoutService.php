@@ -77,7 +77,7 @@ final class StripeCheckoutService
                         'currency' => strtolower($checkoutCurrency),
                         'unit_amount' => $chargedMinor,
                         'product_data' => [
-                            'name' => $plan->name . ' subscription',
+                            'name' => $this->fulfillment->planCheckoutProductTitle($plan),
                         ],
                     ],
                 ]],

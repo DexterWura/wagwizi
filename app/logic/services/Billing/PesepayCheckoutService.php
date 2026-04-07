@@ -56,7 +56,7 @@ final class PesepayCheckoutService
         $pesepayTx   = $pesepay->createTransaction(
             $amountFloat,
             $checkoutCurrency,
-            $plan->name . ' subscription',
+            $this->fulfillment->planCheckoutProductTitle($plan),
             $reference
         );
 
