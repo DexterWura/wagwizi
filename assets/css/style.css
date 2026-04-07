@@ -2572,6 +2572,115 @@ a.pill {
   margin-bottom: 0.25rem;
 }
 
+.dashboard-chart {
+  padding: 0.35rem 1rem 1rem;
+  min-height: 220px;
+  min-width: 0;
+}
+
+.dashboard-chart__figure {
+  margin: 0;
+  min-width: 0;
+}
+
+.dashboard-chart__plot {
+  width: 100%;
+  overflow: hidden;
+}
+
+.dashboard-chart__svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 300px;
+}
+
+.dashboard-chart__grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  opacity: 0.9;
+}
+
+.dashboard-chart__axis-text {
+  fill: var(--text-muted);
+  font-size: 10px;
+  font-family: inherit;
+}
+
+.dashboard-chart__axis-text--x {
+  font-size: 9px;
+}
+
+.dashboard-chart__line {
+  stroke: currentColor;
+}
+
+.dashboard-chart__line--posts {
+  color: var(--accent-blue, #60a5fa);
+}
+
+.dashboard-chart__line--impressions {
+  color: var(--accent-purple, #a78bfa);
+}
+
+.dashboard-chart__line--engagement {
+  color: var(--accent-green, #34d399);
+}
+
+.dashboard-chart__dot {
+  fill: currentColor;
+  stroke: var(--bg-elevated);
+  stroke-width: 2;
+}
+
+.dashboard-chart__legend {
+  list-style: none;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1.1rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.dashboard-chart__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.dashboard-chart__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.dashboard-chart__legend-item .dashboard-chart__swatch.dashboard-chart__line--posts {
+  background: var(--accent-blue, #60a5fa);
+}
+
+.dashboard-chart__legend-item .dashboard-chart__swatch.dashboard-chart__line--impressions {
+  background: var(--accent-purple, #a78bfa);
+}
+
+.dashboard-chart__legend-item .dashboard-chart__swatch.dashboard-chart__line--engagement {
+  background: var(--accent-green, #34d399);
+}
+
+.dashboard-chart__note {
+  margin: 0.65rem 0 0;
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  line-height: 1.45;
+}
+
+.dashboard-chart__note strong {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
 .action-row {
   display: grid;
   grid-template-columns: 1fr;
@@ -5685,6 +5794,76 @@ button.link-create {
 
 .plans-gateway-picker__opt input {
   margin: 0;
+}
+
+.plans-pay-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.plans-pay-card {
+  position: relative;
+  display: block;
+  margin: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.plans-pay-card__input.sr-only {
+  margin: -1px;
+}
+
+.plans-pay-card__surface {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 5.5rem;
+  padding: 0.85rem 0.65rem;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border);
+  background: var(--bg-elevated);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.plans-pay-card:hover .plans-pay-card__surface {
+  border-color: var(--text-muted);
+  background: var(--bg-input);
+}
+
+.plans-pay-card:has(.plans-pay-card__input:checked) .plans-pay-card__surface {
+  border-color: var(--accent-orange, #f97316);
+  box-shadow: 0 0 0 3px var(--accent-orange-dim, rgba(247, 168, 124, 0.2));
+  background: var(--bg-elevated);
+}
+
+.plans-pay-card__input:focus-visible + .plans-pay-card__surface {
+  outline: 2px solid var(--accent-orange, #f97316);
+  outline-offset: 2px;
+}
+
+.plans-pay-card__icon {
+  font-size: 1.65rem;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.plans-pay-card:has(.plans-pay-card__input:checked) .plans-pay-card__icon {
+  color: var(--accent-orange, #f97316);
+}
+
+.plans-pay-card__label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+}
+
+.app-modal__body .plans-pay-cards {
+  margin-bottom: 0;
 }
 
 .plans-grid {

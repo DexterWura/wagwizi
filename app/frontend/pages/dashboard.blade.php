@@ -92,14 +92,25 @@
               <div class="card__head">
                 <span>Audience &amp; reach</span>
                 <div class="card__head-controls">
-                  <select aria-label="Metric"><option>Reach</option><option>Impressions</option><option>Profile visits</option></select>
+                  <select class="dashboard-chart__filter" data-dashboard-chart-filter aria-label="Chart metric">
+                    <option value="all" selected>All metrics</option>
+                    <option value="posts">Posts published</option>
+                    <option value="impressions">Impressions</option>
+                    <option value="engagement">Engagement</option>
+                  </select>
                   <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
                 </div>
               </div>
-              <div class="empty-lg">
-                <i class="fa-solid fa-chart-area" aria-hidden="true"></i>
-                <strong>Connect live accounts</strong>
-                <span>Historical charts populate when analytics sync is enabled.</span>
+              <div class="dashboard-chart" data-dashboard-chart>
+                <figure class="dashboard-chart__figure" aria-label="Activity over the selected date range">
+                  <div class="dashboard-chart__plot" data-dashboard-chart-plot></div>
+                </figure>
+                <ul class="dashboard-chart__legend" data-dashboard-chart-legend></ul>
+                <p class="dashboard-chart__note">
+                  Posts use publish dates in your display timezone. Impressions and engagement come from synced network metrics on each post.
+                  <span data-dashboard-chart-scale-note> With <strong>All metrics</strong>, each line is scaled to its own peak so you can compare timing.</span>
+                </p>
+                <script type="application/json" data-dashboard-chart-json>@json($activityChart)</script>
               </div>
             </div>
             <div class="card">

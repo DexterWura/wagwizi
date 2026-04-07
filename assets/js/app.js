@@ -744,6 +744,244 @@
     });
   }
 
+  function initDashboardActivityChart() {
+    var root = document.querySelector("[data-dashboard-chart]");
+    var jsonScript = document.querySelector("script[data-dashboard-chart-json]");
+    var filterEl = document.querySelector("[data-dashboard-chart-filter]");
+    if (!root || !jsonScript) return;
+
+    var data;
+    try {
+      data = JSON.parse(jsonScript.textContent || "{}");
+    } catch (e) {
+      return;
+    }
+    if (!data.labels || !Array.isArray(data.series)) return;
+
+    var plot = root.querySelector("[data-dashboard-chart-plot]");
+    var legend = root.querySelector("[data-dashboard-chart-legend]");
+    var scaleNote = root.querySelector("[data-dashboard-chart-scale-note]");
+    if (!plot || !legend) return;
+
+    var LINE_CLASS = {
+      posts: "dashboard-chart__line--posts",
+      impressions: "dashboard-chart__line--impressions",
+      engagement: "dashboard-chart__line--engagement"
+    };
+
+    function fmtNum(n) {
+      var x = Number(n);
+      if (!isFinite(x)) return "0";
+      if (x >= 1000000) return (x / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
+      if (x >= 10000) return Math.round(x / 1000) + "k";
+      if (x >= 1000) return (x / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+      return String(Math.round(x));
+    }
+
+    function seriesPeak(vals) {
+      var m = 0;
+      for (var i = 0; i < vals.length; i++) {
+        if (vals[i] > m) m = vals[i];
+      }
+      return m;
+    }
+
+    function seriesTotal(vals) {
+      var t = 0;
+      for (var j = 0; j < vals.length; j++) t += vals[j];
+      return t;
+    }
+
+    function render(mode) {
+      var labels = data.labels;
+      var seriesAll = data.series;
+      var n = labels.length;
+      if (n === 0) return;
+
+      var active = [];
+      if (mode === "all") {
+        active = seriesAll.slice();
+      } else {
+        for (var s = 0; s < seriesAll.length; s++) {
+          if (seriesAll[s].id === mode) active.push(seriesAll[s]);
+        }
+      }
+      if (active.length === 0) active = seriesAll.slice();
+
+      var W = 640;
+      var H = 248;
+      var padL = 48;
+      var padR = 12;
+      var padT = 8;
+      var padB = 40;
+      var iw = W - padL - padR;
+      var ih = H - padT - padB;
+
+      function xAt(i) {
+        if (n <= 1) return padL + iw / 2;
+        return padL + (i / (n - 1)) * iw;
+      }
+
+      function normalize(vals) {
+        var m = seriesPeak(vals);
+        if (m === 0) m = 1;
+        var out = [];
+        for (var k = 0; k < vals.length; k++) out.push(vals[k] / m);
+        return out;
+      }
+
+      function buildPoints(scaledVals, denom) {
+        if (denom <= 0) denom = 1;
+        var pts = [];
+        for (var i = 0; i < scaledVals.length; i++) {
+          pts.push({
+            x: xAt(i),
+            y: padT + (1 - scaledVals[i] / denom) * ih
+          });
+        }
+        return pts;
+      }
+
+      var maxTick = 1;
+      var lineSpecs = [];
+
+      if (mode === "all") {
+        if (scaleNote) scaleNote.hidden = false;
+        for (var a = 0; a < active.length; a++) {
+          var s0 = active[a];
+          var norm0 = normalize(s0.values);
+          var pts0 = buildPoints(norm0, 1);
+          var d0 = "";
+          for (var p = 0; p < pts0.length; p++) {
+            d0 += (p === 0 ? "M" : "L") + pts0[p].x.toFixed(1) + " " + pts0[p].y.toFixed(1);
+          }
+          lineSpecs.push({ d: d0, id: s0.id, pts: pts0 });
+        }
+      } else {
+        if (scaleNote) scaleNote.hidden = true;
+        var s1 = active[0];
+        var vals = s1.values;
+        maxTick = seriesPeak(vals);
+        if (maxTick === 0) maxTick = 1;
+        var pts1 = buildPoints(vals, maxTick);
+        var d1 = "";
+        for (var q = 0; q < pts1.length; q++) {
+          d1 += (q === 0 ? "M" : "L") + pts1[q].x.toFixed(1) + " " + pts1[q].y.toFixed(1);
+        }
+        lineSpecs.push({ d: d1, id: s1.id, pts: pts1 });
+      }
+
+      var gridN = 4;
+      var svgNs = "http://www.w3.org/2000/svg";
+      var svg = document.createElementNS(svgNs, "svg");
+      svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+      svg.setAttribute("class", "dashboard-chart__svg");
+      svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+      for (var g = 0; g <= gridN; g++) {
+        var gy = padT + (g / gridN) * ih;
+        var gp = document.createElementNS(svgNs, "path");
+        gp.setAttribute("d", "M" + padL + " " + gy.toFixed(1) + " L" + (W - padR) + " " + gy.toFixed(1));
+        gp.setAttribute("class", "dashboard-chart__grid");
+        gp.setAttribute("fill", "none");
+        svg.appendChild(gp);
+      }
+
+      var pctLabels = ["100%", "75%", "50%", "25%", "0"];
+      for (var yl = 0; yl <= gridN; yl++) {
+        var gy2 = padT + (yl / gridN) * ih;
+        var t = document.createElementNS(svgNs, "text");
+        t.setAttribute("x", padL - 8);
+        t.setAttribute("y", gy2 + 4);
+        t.setAttribute("text-anchor", "end");
+        t.setAttribute("class", "dashboard-chart__axis-text");
+        if (mode === "all") {
+          t.textContent = pctLabels[yl] || "";
+        } else {
+          var ratio = 1 - yl / gridN;
+          var val = yl === gridN ? 0 : Math.round(ratio * maxTick);
+          t.textContent = fmtNum(val);
+        }
+        svg.appendChild(t);
+      }
+
+      var xStep = Math.max(1, Math.ceil(n / 7));
+      var xDone = {};
+      for (var xi = 0; xi < n; xi += xStep) {
+        xDone[xi] = true;
+        var tx = document.createElementNS(svgNs, "text");
+        tx.setAttribute("x", xAt(xi));
+        tx.setAttribute("y", H - 12);
+        tx.setAttribute("text-anchor", "middle");
+        tx.setAttribute("class", "dashboard-chart__axis-text dashboard-chart__axis-text--x");
+        tx.textContent = labels[xi] || "";
+        svg.appendChild(tx);
+      }
+      if (n > 1 && !xDone[n - 1]) {
+        var txLast = document.createElementNS(svgNs, "text");
+        txLast.setAttribute("x", xAt(n - 1));
+        txLast.setAttribute("y", H - 12);
+        txLast.setAttribute("text-anchor", "middle");
+        txLast.setAttribute("class", "dashboard-chart__axis-text dashboard-chart__axis-text--x");
+        txLast.textContent = labels[n - 1] || "";
+        svg.appendChild(txLast);
+      }
+
+      for (var li = 0; li < lineSpecs.length; li++) {
+        var spec = lineSpecs[li];
+        var pathEl = document.createElementNS(svgNs, "path");
+        pathEl.setAttribute("d", spec.d);
+        pathEl.setAttribute("fill", "none");
+        pathEl.setAttribute("stroke-width", "2.25");
+        pathEl.setAttribute("stroke-linejoin", "round");
+        pathEl.setAttribute("stroke-linecap", "round");
+        pathEl.setAttribute("class", "dashboard-chart__line " + (LINE_CLASS[spec.id] || ""));
+        svg.appendChild(pathEl);
+
+        if (n === 1 && spec.pts && spec.pts[0]) {
+          var c = document.createElementNS(svgNs, "circle");
+          c.setAttribute("cx", spec.pts[0].x.toFixed(1));
+          c.setAttribute("cy", spec.pts[0].y.toFixed(1));
+          c.setAttribute("r", "5");
+          c.setAttribute("class", "dashboard-chart__dot " + (LINE_CLASS[spec.id] || ""));
+          svg.appendChild(c);
+        }
+      }
+
+      plot.innerHTML = "";
+      plot.appendChild(svg);
+
+      legend.innerHTML = "";
+      for (var le = 0; le < active.length; le++) {
+        var sv = active[le];
+        var peak = seriesPeak(sv.values);
+        var total = seriesTotal(sv.values);
+        var liEl = document.createElement("li");
+        liEl.className = "dashboard-chart__legend-item";
+        var sw = document.createElement("span");
+        sw.className = "dashboard-chart__swatch " + (LINE_CLASS[sv.id] || "");
+        sw.setAttribute("aria-hidden", "true");
+        var cap = document.createElement("span");
+        cap.textContent = sv.label + " — peak " + fmtNum(peak) + ", total " + fmtNum(total);
+        liEl.appendChild(sw);
+        liEl.appendChild(cap);
+        legend.appendChild(liEl);
+      }
+    }
+
+    function currentMode() {
+      return filterEl && filterEl.value ? filterEl.value : "all";
+    }
+
+    render(currentMode());
+
+    if (filterEl) {
+      filterEl.addEventListener("change", function () {
+        render(currentMode());
+      });
+    }
+  }
+
   function initInsightsDynamicCharts() {
     if (!document.body || document.body.getAttribute("data-app-page") !== "insights") {
       return;
@@ -1968,6 +2206,25 @@
       return paidSlugs.indexOf(slug) !== -1;
     }
 
+    function runHostedCheckoutWithGateway(planSlug, gw) {
+      var statusEl = document.querySelector("[data-app-plan-status]");
+      apiPost("/plans/checkout/start", { plan_slug: planSlug, gateway: gw })
+        .then(function (res) {
+          if (res.success && res.redirect_url) {
+            global.location.href = res.redirect_url;
+            return;
+          }
+          if (statusEl) statusEl.textContent = res.message || "Could not start checkout.";
+          if (!res.success && global.App && global.App.showFlash) {
+            global.App.showFlash(res.message || "Checkout failed.", "error");
+          }
+        })
+        .catch(function () {
+          if (statusEl) statusEl.textContent = "Network error starting checkout.";
+          if (global.App && global.App.showFlash) global.App.showFlash("Network error.", "error");
+        });
+    }
+
     root.addEventListener("click", function (e) {
       var btn = e.target.closest("[data-plan-select]");
       if (!btn || btn.disabled) return;
@@ -1994,9 +2251,8 @@
         var mode = root.getAttribute("data-checkout-mode") || "single";
         var gw = null;
         if (mode === "choose") {
-          var sel = root.parentElement
-            ? root.parentElement.querySelector('input[name="plans_checkout_gateway"]:checked')
-            : null;
+          var scope = root.closest(".card__body") || root.parentElement;
+          var sel = scope ? scope.querySelector('input[name="plans_checkout_gateway"]:checked') : null;
           if (!sel) {
             sel = document.querySelector('input[name="plans_checkout_gateway"]:checked');
           }
@@ -2014,19 +2270,7 @@
             gw = "paynow";
           }
         }
-        apiPost("/plans/checkout/start", { plan_slug: planSlug, gateway: gw }).then(function (res) {
-          if (res.success && res.redirect_url) {
-            global.location.href = res.redirect_url;
-            return;
-          }
-          if (status) status.textContent = res.message || "Could not start checkout.";
-          if (!res.success && global.App && global.App.showFlash) {
-            global.App.showFlash(res.message || "Checkout failed.", "error");
-          }
-        }).catch(function () {
-          if (status) status.textContent = "Network error starting checkout.";
-          if (global.App && global.App.showFlash) global.App.showFlash("Network error.", "error");
-        });
+        runHostedCheckoutWithGateway(planSlug, gw);
       }
 
       apiPost("/plans/change", { plan_slug: planSlug }).then(function (res) {
@@ -2083,6 +2327,7 @@
       initPlansPage();
       initPlanHistoryPage();
       initSettingsAi();
+      initDashboardActivityChart();
       initInsightsDynamicCharts();
       initProfilePage();
       initSettingsPage();

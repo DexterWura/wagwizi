@@ -51,12 +51,29 @@
             <div class="card__head">Choose a plan</div>
             <div class="card__body">
           @if(($checkoutRequiresGatewayChoice ?? false) && !empty($availableCheckoutGateways))
-            <div class="plans-gateway-picker" role="radiogroup" aria-labelledby="plans-gateway-picker-label">
-              <span id="plans-gateway-picker-label" class="plans-gateway-picker__label">Pay with</span>
+            <div class="plans-pay-cards" role="radiogroup" aria-label="Payment method">
               @foreach(($availableCheckoutGateways ?? []) as $gateway)
-                <label class="plans-gateway-picker__opt">
-                  <input type="radio" name="plans_checkout_gateway" value="{{ $gateway }}" {{ ($defaultCheckoutGateway ?? 'paynow') === $gateway ? 'checked' : '' }} />
-                  {{ ucfirst($gateway) }}
+                @php
+                  [$payLabel, $payIcon] = match ($gateway) {
+                    'paypal' => ['PayPal', 'fa-brands fa-paypal'],
+                    'stripe' => ['Stripe', 'fa-brands fa-stripe'],
+                    'paynow' => ['Paynow', 'fa-solid fa-bolt'],
+                    'pesepay' => ['Pesepay', 'fa-solid fa-building-columns'],
+                    default => [ucfirst($gateway), 'fa-solid fa-wallet'],
+                  };
+                @endphp
+                <label class="plans-pay-card">
+                  <input
+                    type="radio"
+                    name="plans_checkout_gateway"
+                    class="plans-pay-card__input sr-only"
+                    value="{{ $gateway }}"
+                    @checked(($defaultCheckoutGateway ?? 'paynow') === $gateway)
+                  />
+                  <span class="plans-pay-card__surface">
+                    <span class="plans-pay-card__icon" aria-hidden="true"><i class="{{ $payIcon }}"></i></span>
+                    <span class="plans-pay-card__label">{{ $payLabel }}</span>
+                  </span>
                 </label>
               @endforeach
             </div>

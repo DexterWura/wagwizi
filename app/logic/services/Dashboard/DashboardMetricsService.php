@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -43,6 +44,7 @@ final class DashboardMetricsService
      *   recentPosts: \Illuminate\Support\Collection,
      *   nextUp: \Illuminate\Support\Collection,
      *   totalAudienceCount: int|null,
+     *   activityChart: array{labels: list<string>, labelsIso: list<string>, series: list<array{id: string, label: string, values: list<int>}>},
      * }
      */
     public function build(User $user, Request $request): array
@@ -110,6 +112,15 @@ final class DashboardMetricsService
             : $user->socialAccounts()->active()->count();
         $totalAudience = $this->computeAudienceTotal($user, $scope, $platformSlug);
 
+        $activityChart = $this->buildActivityChartSeries(
+            $user,
+            $range,
+            $emptyPlatformScope,
+            $platformSlug,
+            $now,
+            $tz
+        );
+
         $recentPosts = $user->posts()
             ->whereIn('status', ['published', 'scheduled', 'draft'])
             ->where('updated_at', '>=', $pubStart)
@@ -151,8 +162,122 @@ final class DashboardMetricsService
             'recentPosts'             => $recentPosts,
             'nextUp'                  => $nextUp,
             'totalAudienceCount'      => $totalAudience,
+            'activityChart'           => $activityChart,
         ];
         });
+    }
+
+    /**
+     * Daily buckets in the user timezone for the same window as published post metrics.
+     *
+     * @return array{labels: list<string>, labelsIso: list<string>, series: list<array{id: string, label: string, values: list<int>}>}
+     */
+    private function buildActivityChartSeries(
+        User $user,
+        string $range,
+        bool $emptyPlatformScope,
+        ?string $platformSlug,
+        Carbon $now,
+        string $tz
+    ): array {
+        [$pubStart, $pubEnd] = $this->publishedWindow($range, $now);
+
+        $keys = [];
+        $cursor = $pubStart->copy()->startOfDay();
+        $lastDay = $pubEnd->copy()->startOfDay();
+        while ($cursor->lte($lastDay)) {
+            $keys[] = $cursor->format('Y-m-d');
+            $cursor->addDay();
+        }
+        if ($keys === []) {
+            $keys[] = $pubStart->format('Y-m-d');
+        }
+
+        $labels = [];
+        $labelsIso = [];
+        foreach ($keys as $ymd) {
+            $labelsIso[] = $ymd;
+            $labels[] = Carbon::createFromFormat('Y-m-d', $ymd, $tz)->format('M j');
+        }
+
+        $postsByDay = array_fill_keys($keys, 0);
+        $impressionsByDay = array_fill_keys($keys, 0);
+        $engagementByDay = array_fill_keys($keys, 0);
+
+        $startUtc = $pubStart->copy()->utc();
+        $endUtc = $pubEnd->copy()->utc();
+
+        if (! $emptyPlatformScope) {
+            $postRows = $user->posts()
+                ->where('status', 'published')
+                ->whereNotNull('published_at')
+                ->where('published_at', '>=', $startUtc)
+                ->where('published_at', '<=', $endUtc)
+                ->when($platformSlug !== null, function (Builder $q) use ($platformSlug): void {
+                    $q->whereHas('postPlatforms', fn (Builder $pp) => $pp->where('platform', $platformSlug));
+                })
+                ->get(['published_at']);
+
+            foreach ($postRows as $post) {
+                $k = $post->published_at->timezone($tz)->format('Y-m-d');
+                if (isset($postsByDay[$k])) {
+                    $postsByDay[$k]++;
+                }
+            }
+
+            $metricQuery = DB::table('post_platforms')
+                ->join('posts', 'posts.id', '=', 'post_platforms.post_id')
+                ->where('posts.user_id', $user->id)
+                ->where('posts.status', 'published')
+                ->whereNotNull('posts.published_at')
+                ->where('posts.published_at', '>=', $startUtc)
+                ->where('posts.published_at', '<=', $endUtc)
+                ->when($platformSlug !== null, function ($q) use ($platformSlug): void {
+                    $q->where('post_platforms.platform', $platformSlug);
+                })
+                ->select([
+                    'posts.published_at',
+                    'post_platforms.impressions_count',
+                    'post_platforms.likes_count',
+                    'post_platforms.comments_count',
+                    'post_platforms.reposts_count',
+                ]);
+
+            foreach ($metricQuery->get() as $row) {
+                $k = Carbon::parse((string) $row->published_at, 'UTC')->timezone($tz)->format('Y-m-d');
+                if (! isset($impressionsByDay[$k])) {
+                    continue;
+                }
+                $impressionsByDay[$k] += max(0, (int) ($row->impressions_count ?? 0));
+                $engagementByDay[$k] += max(0, (int) ($row->likes_count ?? 0))
+                    + max(0, (int) ($row->comments_count ?? 0))
+                    + max(0, (int) ($row->reposts_count ?? 0));
+            }
+        }
+
+        $series = [
+            [
+                'id'     => 'posts',
+                'label'  => 'Posts published',
+                'values' => array_values(array_map(static fn (string $k) => $postsByDay[$k], $keys)),
+            ],
+            [
+                'id'     => 'impressions',
+                'label'  => 'Impressions',
+                'values' => array_values(array_map(static fn (string $k) => $impressionsByDay[$k], $keys)),
+            ],
+            [
+                'id'     => 'engagement',
+                'label'  => 'Engagement',
+                'values' => array_values(array_map(static fn (string $k) => $engagementByDay[$k], $keys)),
+            ],
+        ];
+
+        return [
+            'labels'    => $labels,
+            'labelsIso' => $labelsIso,
+            'series'    => $series,
+        ];
     }
 
     private function computeAudienceTotal(User $user, string $scope, ?string $platformSlug): ?int
