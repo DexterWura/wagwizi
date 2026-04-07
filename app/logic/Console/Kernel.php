@@ -10,7 +10,7 @@ class Kernel extends ConsoleKernel
 {
     /**
      * Fallback scheduler for environments using `php artisan schedule:run`.
-     * In production the single /api/cron/run endpoint is the preferred trigger,
+     * In production use GET or POST /cron?token=… (cPanel-friendly) or POST /api/cron/run with X-Cron-Secret;
      * with task enablement and intervals managed by admins via the cron_tasks table.
      */
     protected function schedule(Schedule $schedule): void

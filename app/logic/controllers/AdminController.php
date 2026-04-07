@@ -1378,12 +1378,22 @@ class AdminController extends Controller
             ->get();
 
         $cronSecret = trim((string) config('app.cron_secret', ''));
-        $cronUrl = url('/api/cron/run');
-        $cpanelCommand = $cronSecret !== ''
-            ? "curl -sS -X POST \"{$cronUrl}\" -H \"X-Cron-Secret: {$cronSecret}\""
+        $cronTriggerUrl = $cronSecret !== ''
+            ? url('/cron') . '?' . http_build_query(['token' => $cronSecret])
+            : '';
+        $cronApiUrl = url('/api/cron/run');
+        $cpanelCommand = $cronTriggerUrl !== ''
+            ? 'curl -s "' . $cronTriggerUrl . '"'
             : '';
 
-        return view('admin.cron-jobs', compact('tasks', 'runs', 'cronSecret', 'cronUrl', 'cpanelCommand'));
+        return view('admin.cron-jobs', compact(
+            'tasks',
+            'runs',
+            'cronSecret',
+            'cronTriggerUrl',
+            'cronApiUrl',
+            'cpanelCommand'
+        ));
     }
 
     public function updateCronJob(Request $request, int $id): RedirectResponse

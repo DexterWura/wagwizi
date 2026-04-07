@@ -2,6 +2,7 @@
 
 use App\Controllers\AdminController;
 use App\Controllers\ComposerAiController;
+use App\Controllers\CronController;
 use App\Controllers\AdminMarketingController;
 use App\Controllers\AdminNotificationController;
 use App\Controllers\Auth\AuthController;
@@ -34,6 +35,14 @@ Route::get('/terms', [PageController::class, 'terms'])->name('terms');
 Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
 
 Route::get('/status', [StatusController::class, 'show'])->name('status');
+
+/*
+| cPanel-friendly cron trigger: GET or POST /cron?token=YOUR_CRON_SECRET
+| (Same handler as POST /api/cron/run with X-Cron-Secret.)
+*/
+Route::match(['get', 'post'], '/cron', [CronController::class, 'run'])
+    ->middleware('throttle:10,1')
+    ->name('cron.run');
 
 /*
 |--------------------------------------------------------------------------

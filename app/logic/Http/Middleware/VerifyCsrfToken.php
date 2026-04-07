@@ -12,5 +12,6 @@ class VerifyCsrfToken extends Middleware
         'pesepay/result',
         'stripe/webhook',
         'paypal/webhook',
+        'cron',
     ];
 }

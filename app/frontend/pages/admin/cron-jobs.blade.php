@@ -32,7 +32,7 @@
                 <div class="field">
                   <input class="input" type="text" readonly value="{{ $cpanelCommand }}" onclick="this.select();" />
                 </div>
-                <p class="field__hint">Endpoint: <span class="admin-mono">{{ $cronUrl }}</span></p>
+                <p class="field__hint">Uses your site URL and <code class="admin-code-tag">CRON_SECRET</code> as the <code class="admin-code-tag">token</code> query parameter. Advanced (POST): <span class="admin-mono">{{ $cronApiUrl }}</span> with header <code class="admin-code-tag">X-Cron-Secret</code>.</p>
               @else
                 <div class="alert alert--warning">
                   <strong>CRON_SECRET is not configured.</strong>
