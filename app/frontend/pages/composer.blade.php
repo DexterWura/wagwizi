@@ -44,6 +44,10 @@
                   <i class="fa-solid fa-gear fa-fw" aria-hidden="true"></i>
                   Settings
                 </a>
+                <button type="button" class="app-topbar-account-menu__link" role="menuitem" data-app-logout>
+                  <i class="fa-solid fa-right-from-bracket fa-fw" aria-hidden="true"></i>
+                  Log out
+                </button>
               </nav>
             </div>
           </div>

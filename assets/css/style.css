@@ -1066,6 +1066,15 @@ html.app-nav-loading .app-nav-preloader {
   text-decoration: none;
 }
 
+button.app-topbar-account-menu__link {
+  width: 100%;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
 .app-topbar-account-menu__link:hover {
   background: var(--border);
 }
