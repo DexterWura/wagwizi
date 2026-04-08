@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <link rel="stylesheet" href="{{ asset(config('app.debug') ? 'assets/css/style.css' : 'assets/css/style.min.css') }}" />
+    <link rel="stylesheet" href="{{ asset(app_bundle_css_path()) }}" />
   </head>
   <body class="login-page">
     <div class="login-page__brand">
@@ -66,6 +66,6 @@
         if (icon) icon.className = t === "light" ? "fa-solid fa-sun" : "fa-solid fa-moon";
       })();
     </script>
-    <script src="{{ asset($appJsAsset = (config('app.debug') ? 'assets/js/app.js' : 'assets/js/app.min.js')) }}?v={{ file_exists(public_path($appJsAsset)) ? filemtime(public_path($appJsAsset)) : time() }}"></script>
+    <script src="{{ asset(app_bundle_js_path()) }}?v={{ app_bundle_asset_version(app_bundle_js_path()) }}"></script>
   </body>
 </html>

@@ -45,7 +45,7 @@
     <link rel="preload" href="{{ $faCss }}" as="style" crossorigin="anonymous" />
     <link href="{{ $faCss }}" rel="stylesheet" media="print" onload="this.media='all'" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <noscript><link href="{{ $faCss }}" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer" /></noscript>
-    <link rel="stylesheet" href="{{ asset(config('app.debug') ? 'assets/css/style.css' : 'assets/css/style.min.css') }}" />
+    <link rel="stylesheet" href="{{ asset(app_bundle_css_path()) }}" />
     @stack('styles')
   </head>
   <body class="app" data-app-page="@yield('page-id')" @if(!empty($aiClientConfig)) data-app-ai-config="{{ e(json_encode($aiClientConfig)) }}" @endif>
@@ -110,7 +110,7 @@
       window.__appDisplayTimezones = @json($displayTimezonesMeta ?? []);
       window.__appDefaultDisplayTimezone = @json($defaultDisplayTimezoneIdentifier ?? 'UTC');
     </script>
-    <script src="{{ asset($appJsAsset = (config('app.debug') ? 'assets/js/app.js' : 'assets/js/app.min.js')) }}?v={{ file_exists(public_path($appJsAsset)) ? filemtime(public_path($appJsAsset)) : time() }}"></script>
+    <script src="{{ asset(app_bundle_js_path()) }}?v={{ app_bundle_asset_version(app_bundle_js_path()) }}"></script>
     @stack('scripts')
   </body>
 </html>
