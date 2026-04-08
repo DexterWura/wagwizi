@@ -5886,6 +5886,11 @@ button.link-create {
   color: var(--text-muted);
 }
 
+.card__body[data-plans-section-busy="1"] .plans-pay-card {
+  pointer-events: none;
+  opacity: 0.55;
+}
+
 .plans-gateway-picker {
   display: flex;
   flex-wrap: wrap;

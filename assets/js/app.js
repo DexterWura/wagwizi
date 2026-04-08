@@ -2539,8 +2539,40 @@
       return paidSlugs.indexOf(slug) !== -1;
     }
 
+    function clearPlansCheckoutBusy() {
+      root.removeAttribute("data-plans-busy");
+      root.removeAttribute("aria-busy");
+      var cardBody = root.closest(".card__body");
+      if (cardBody) {
+        cardBody.removeAttribute("data-plans-section-busy");
+        cardBody.querySelectorAll('input[name="plans_checkout_gateway"]').forEach(function (inp) {
+          inp.disabled = false;
+        });
+      }
+      renderPlansFromServer(root);
+    }
+
+    function setPlansCheckoutBusy(statusEl, message) {
+      root.setAttribute("data-plans-busy", "1");
+      root.setAttribute("aria-busy", "true");
+      root.querySelectorAll("[data-plan-select]").forEach(function (b) {
+        b.disabled = true;
+      });
+      var cardBody = root.closest(".card__body");
+      if (cardBody) {
+        cardBody.setAttribute("data-plans-section-busy", "1");
+        cardBody.querySelectorAll('input[name="plans_checkout_gateway"]').forEach(function (inp) {
+          inp.disabled = true;
+        });
+      }
+      if (statusEl && message) statusEl.textContent = message;
+    }
+
     function runHostedCheckoutWithGateway(planSlug, gw) {
       var statusEl = document.querySelector("[data-app-plan-status]");
+      if (statusEl) {
+        statusEl.textContent = "Redirecting to the payment gateway…";
+      }
       apiPost("/plans/checkout/start", { plan_slug: planSlug, gateway: gw })
         .then(function (res) {
           if (res.success && res.redirect_url) {
@@ -2551,16 +2583,19 @@
           if (!res.success && global.App && global.App.showFlash) {
             global.App.showFlash(res.message || "Checkout failed.", "error");
           }
+          clearPlansCheckoutBusy();
         })
         .catch(function () {
           if (statusEl) statusEl.textContent = "Network error starting checkout.";
           if (global.App && global.App.showFlash) global.App.showFlash("Network error.", "error");
+          clearPlansCheckoutBusy();
         });
     }
 
     root.addEventListener("click", function (e) {
       var btn = e.target.closest("[data-plan-select]");
       if (!btn || btn.disabled) return;
+      if (root.getAttribute("data-plans-busy") === "1") return;
       var card = btn.closest("[data-plan-id]");
       if (!card) return;
       var planSlug = card.getAttribute("data-plan-id");
@@ -2595,6 +2630,7 @@
             if (global.App && global.App.showFlash) {
               global.App.showFlash("Select a payment method first.", "error");
             }
+            clearPlansCheckoutBusy();
             return;
           }
         } else {
@@ -2606,31 +2642,40 @@
         runHostedCheckoutWithGateway(planSlug, gw);
       }
 
-      apiPost("/plans/change", { plan_slug: planSlug }).then(function (res) {
-        if (res.success && res.trial) {
-          if (status) status.textContent = res.message || "Trial started.";
-          if (global.App && global.App.showFlash) {
-            global.App.showFlash(res.message || "Trial started.", "success");
+      setPlansCheckoutBusy(status, "Processing your selection…");
+
+      apiPost("/plans/change", { plan_slug: planSlug })
+        .then(function (res) {
+          if (res.success && res.trial) {
+            if (status) status.textContent = res.message || "Trial started.";
+            if (global.App && global.App.showFlash) {
+              global.App.showFlash(res.message || "Trial started.", "success");
+            }
+            global.location.reload();
+            return;
           }
-          global.location.reload();
-          return;
-        }
-        if (res._ok) {
-          if (status) status.textContent = res.message || "Plan updated.";
-          root.setAttribute("data-current-plan-slug", planSlug);
-          renderPlansFromServer(root);
-          if (global.App && global.App.showFlash) global.App.showFlash(res.message || "Plan updated.");
-          return;
-        }
-        if (res.checkout_required && checkoutOn && slugNeedsPaynow(planSlug)) {
-          startHostedCheckout();
-          return;
-        }
-        if (status) status.textContent = res.message || "Plan could not be updated.";
-        if (!res._ok && global.App && global.App.showFlash) {
-          global.App.showFlash(res.message || "Plan could not be updated.", "error");
-        }
-      });
+          if (res._ok) {
+            if (status) status.textContent = res.message || "Plan updated.";
+            root.setAttribute("data-current-plan-slug", planSlug);
+            if (global.App && global.App.showFlash) global.App.showFlash(res.message || "Plan updated.");
+            clearPlansCheckoutBusy();
+            return;
+          }
+          if (res.checkout_required && checkoutOn && slugNeedsPaynow(planSlug)) {
+            startHostedCheckout();
+            return;
+          }
+          if (status) status.textContent = res.message || "Plan could not be updated.";
+          if (!res._ok && global.App && global.App.showFlash) {
+            global.App.showFlash(res.message || "Plan could not be updated.", "error");
+          }
+          clearPlansCheckoutBusy();
+        })
+        .catch(function () {
+          if (status) status.textContent = "Network error. Please try again.";
+          if (global.App && global.App.showFlash) global.App.showFlash("Network error.", "error");
+          clearPlansCheckoutBusy();
+        });
     });
   }
 
