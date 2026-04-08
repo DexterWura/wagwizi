@@ -217,11 +217,13 @@ class PlanCheckoutController extends Controller
             $payload = $checkout->startHostedCheckout($user, $plan, $returnUrl, $cancelUrl);
         } catch (\Throwable $e) {
             $paypalDetail = $this->paypalCheckoutStartErrorDetail($e);
+            $paypalMeta   = $this->paypalCheckoutStartErrorMeta($e);
             Log::warning('PayPal checkout start failed', [
                 'user_id'       => $user->id,
                 'plan_slug'     => $plan->slug,
                 'message'       => $e->getMessage(),
                 'paypal_detail' => $paypalDetail,
+                'paypal_meta'   => $paypalMeta,
                 'exception'     => $e,
             ]);
 
@@ -230,10 +232,18 @@ class PlanCheckoutController extends Controller
                 $message .= ' (' . $paypalDetail . ')';
             }
 
-            return response()->json([
+            $payload = [
                 'success' => false,
                 'message' => $message,
-            ], 422);
+            ];
+            if ($paypalMeta['paypal_error_name'] !== '') {
+                $payload['paypal_error_name'] = $paypalMeta['paypal_error_name'];
+            }
+            if ($paypalMeta['paypal_error_issue'] !== '') {
+                $payload['paypal_error_issue'] = $paypalMeta['paypal_error_issue'];
+            }
+
+            return response()->json($payload, 422);
         }
 
         return response()->json([
@@ -477,5 +487,73 @@ class PlanCheckoutController extends Controller
         }
 
         return $e->getMessage();
+    }
+
+    /**
+     * Safe subset of PayPal’s response for the client (no secrets). Helps diagnose live issues without APP_DEBUG.
+     *
+     * @return array{paypal_error_name: string, paypal_error_issue: string}
+     */
+    private function paypalCheckoutStartErrorMeta(\Throwable $e): array
+    {
+        $out = ['paypal_error_name' => '', 'paypal_error_issue' => ''];
+
+        if ($e instanceof \PayPal\Exception\PayPalConnectionException) {
+            $data = $e->getData();
+            if (is_string($data) && $data !== '') {
+                $decoded = json_decode($data, true);
+                if (is_array($decoded)) {
+                    $out['paypal_error_name'] = trim((string) ($decoded['name'] ?? ''));
+                    $details = $decoded['details'] ?? null;
+                    if (is_array($details) && isset($details[0]) && is_array($details[0])) {
+                        $d = $details[0];
+                        $issue = trim((string) ($d['issue'] ?? ''));
+                        if ($issue === '') {
+                            $issue = trim((string) ($d['description'] ?? ''));
+                        }
+                        if ($issue !== '') {
+                            $out['paypal_error_issue'] = mb_substr($issue, 0, 240);
+                        }
+                    }
+                    if ($out['paypal_error_name'] === '' && $out['paypal_error_issue'] === '') {
+                        $msg = trim((string) ($decoded['message'] ?? ''));
+                        if ($msg !== '') {
+                            $out['paypal_error_issue'] = mb_substr($msg, 0, 240);
+                        }
+                    }
+
+                    return $out;
+                }
+            }
+
+            $code = (int) $e->getCode();
+            if ($code >= 400 && $code < 600) {
+                $out['paypal_error_name'] = 'HTTP_' . $code;
+            }
+
+            return $out;
+        }
+
+        if ($e instanceof \PayPal\Exception\PayPalConfigurationException) {
+            $out['paypal_error_name'] = 'CONFIGURATION';
+
+            return $out;
+        }
+
+        if ($e instanceof \PayPal\Exception\PayPalInvalidCredentialException) {
+            $out['paypal_error_name'] = 'INVALID_CREDENTIAL';
+
+            return $out;
+        }
+
+        if ($e instanceof \PayPal\Exception\PayPalMissingCredentialException) {
+            $out['paypal_error_name'] = 'MISSING_CREDENTIAL';
+
+            return $out;
+        }
+
+        $out['paypal_error_name'] = 'APP_EXCEPTION';
+
+        return $out;
     }
 }

@@ -2579,9 +2579,22 @@
             global.location.href = res.redirect_url;
             return;
           }
-          if (statusEl) statusEl.textContent = res.message || "Could not start checkout.";
+          if (statusEl) {
+            var failMsg = res.message || "Could not start checkout.";
+            if (res.paypal_error_name) {
+              failMsg += " (" + res.paypal_error_name + ")";
+            }
+            if (res.paypal_error_issue) {
+              failMsg += " — " + res.paypal_error_issue;
+            }
+            statusEl.textContent = failMsg;
+          }
           if (!res.success && global.App && global.App.showFlash) {
-            global.App.showFlash(res.message || "Checkout failed.", "error");
+            var flashMsg = res.message || "Checkout failed.";
+            if (res.paypal_error_name) {
+              flashMsg += " (" + res.paypal_error_name + ")";
+            }
+            global.App.showFlash(flashMsg, "error");
           }
           clearPlansCheckoutBusy();
         })
