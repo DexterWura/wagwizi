@@ -227,7 +227,7 @@ class PlanCheckoutController extends Controller
                 'exception'     => $e,
             ]);
 
-            $message = 'Could not start PayPal checkout. Please try again or contact support.';
+            $message = $this->paypalCheckoutUserMessage($paypalMeta, $paypalDetail);
             if (config('app.debug')) {
                 $message .= ' (' . $paypalDetail . ')';
             }
@@ -466,6 +466,14 @@ class PlanCheckoutController extends Controller
             if (is_string($data) && $data !== '') {
                 $decoded = json_decode($data, true);
                 if (is_array($decoded)) {
+                    $oauthErr = trim((string) ($decoded['error'] ?? ''));
+                    $oauthDesc = trim((string) ($decoded['error_description'] ?? ''));
+                    if ($oauthErr !== '') {
+                        $parts = array_filter([$oauthErr, $oauthDesc], static fn (string $p): bool => $p !== '');
+
+                        return $parts !== [] ? implode(' — ', $parts) : mb_substr($data, 0, 400);
+                    }
+
                     $name = trim((string) ($decoded['name'] ?? ''));
                     $msg = trim((string) ($decoded['message'] ?? ''));
                     $inner = '';
@@ -503,6 +511,17 @@ class PlanCheckoutController extends Controller
             if (is_string($data) && $data !== '') {
                 $decoded = json_decode($data, true);
                 if (is_array($decoded)) {
+                    $oauthErr = trim((string) ($decoded['error'] ?? ''));
+                    if ($oauthErr !== '') {
+                        $out['paypal_error_name'] = $oauthErr;
+                        $desc = trim((string) ($decoded['error_description'] ?? ''));
+                        if ($desc !== '') {
+                            $out['paypal_error_issue'] = mb_substr($desc, 0, 240);
+                        }
+
+                        return $out;
+                    }
+
                     $out['paypal_error_name'] = trim((string) ($decoded['name'] ?? ''));
                     $details = $decoded['details'] ?? null;
                     if (is_array($details) && isset($details[0]) && is_array($details[0])) {
@@ -555,5 +574,23 @@ class PlanCheckoutController extends Controller
         $out['paypal_error_name'] = 'APP_EXCEPTION';
 
         return $out;
+    }
+
+    /**
+     * @param array{paypal_error_name: string, paypal_error_issue: string} $paypalMeta
+     */
+    private function paypalCheckoutUserMessage(array $paypalMeta, string $paypalDetail): string
+    {
+        $name = $paypalMeta['paypal_error_name'] ?? '';
+
+        if ($name === 'invalid_client') {
+            return 'PayPal could not verify your app (invalid client). Open Admin → Payment gateways, set Mode to Sandbox or Live to match your PayPal Developer app, then paste a fresh Client ID and Client secret from that same app (Apps & Credentials). If the secret was rotated, the old one no longer works.';
+        }
+
+        if (in_array($name, ['invalid_grant', 'unauthorized_client'], true)) {
+            return 'PayPal rejected the authorization for this app. Confirm Client ID and secret, Sandbox vs Live mode, and that the PayPal app is allowed to request payments.';
+        }
+
+        return 'Could not start PayPal checkout. Please try again or contact support.';
     }
 }

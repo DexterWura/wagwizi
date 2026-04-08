@@ -6023,9 +6023,10 @@ button.link-create {
   box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.12);
 }
 
+/* Featured plan + “Most Popular” strip: match landing `.lp-pricing-card--featured` / `__badge-most` */
 .plan-card--featured {
-  border-color: rgba(167, 139, 250, 0.4);
-  background: linear-gradient(180deg, rgba(167, 139, 250, 0.06) 0%, var(--bg-elevated) 42%);
+  border-color: rgba(168, 85, 247, 0.45);
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.1) 0%, var(--bg-elevated) 45%);
 }
 
 .plan-card__popular-strip {
@@ -6033,9 +6034,9 @@ button.link-create {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: -0.15rem -1.15rem 0.6rem;
-  padding: 0.4rem 1.15rem 0;
-  min-height: 1.55rem;
+  margin: -0.2rem -1.15rem 0.65rem;
+  padding: 0.45rem 1.15rem 0;
+  min-height: 1.6rem;
 }
 
 .plan-card__popular-line {
@@ -6045,22 +6046,28 @@ button.link-create {
   top: 50%;
   height: 2px;
   margin-top: -1px;
-  background: #4ade80;
   border-radius: 2px;
-  box-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #a855f7 20%,
+    #9333ea 80%,
+    transparent
+  );
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.45);
 }
 
 .plan-card__badge-most {
   position: relative;
   z-index: 1;
-  padding: 0.28rem 0.85rem;
+  padding: 0.32rem 0.95rem;
   border-radius: 999px;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.02em;
-  color: #0b1220;
-  background: linear-gradient(95deg, #34d399 0%, #a7f3d0 38%, #fef9c3 72%, #facc15 100%);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  color: #fff;
+  background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 4px 20px rgba(168, 85, 247, 0.35);
 }
 
 .plan-card__name {
