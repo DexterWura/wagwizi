@@ -16,6 +16,11 @@ final class SubscriptionInsightsService
      *   trialing_count: int,
      *   mrr_cents: int,
      *   mrr_display: string,
+     *   lifetime_active_count: int,
+     *   lifetime_revenue_total_cents: int,
+     *   lifetime_revenue_total_display: string,
+     *   lifetime_revenue_30d_cents: int,
+     *   lifetime_revenue_30d_display: string,
      *   plan_distribution: array<int, array{label: string, count: int, slug: string}>,
      *   gateway_breakdown: array<int, array{gateway: string, count: int}>,
      *   new_subs_by_day: array<int, array{date: string, count: int}>,
@@ -27,6 +32,7 @@ final class SubscriptionInsightsService
     public function build(): array
     {
         $now = Carbon::now();
+        $start = $now->copy()->subDays(29)->startOfDay();
 
         $activeQuery = Subscription::query()
             ->where('status', 'active')
@@ -46,9 +52,15 @@ final class SubscriptionInsightsService
         $activeWithPlans = (clone $activeQuery)->with('planModel')->get();
 
         $mrrCents = 0;
+        $lifetimeActiveCount = 0;
         foreach ($activeWithPlans as $sub) {
             $plan = $sub->planModel;
             if ($plan === null || $plan->is_free) {
+                continue;
+            }
+            if ($plan->is_lifetime) {
+                $lifetimeActiveCount++;
+
                 continue;
             }
             if ($plan->monthly_price_cents !== null && $plan->monthly_price_cents > 0) {
@@ -57,6 +69,15 @@ final class SubscriptionInsightsService
                 $mrrCents += (int) round($plan->yearly_price_cents / 12);
             }
         }
+
+        $lifetimeRevQuery = PaymentTransaction::query()
+            ->where('status', 'completed')
+            ->whereHas('plan', static fn ($q) => $q->where('is_lifetime', true));
+
+        $lifetimeRevenueTotalCents = (int) (clone $lifetimeRevQuery)->sum('amount_cents');
+        $lifetimeRevenue30dCents = (int) (clone $lifetimeRevQuery)
+            ->where('updated_at', '>=', $start)
+            ->sum('amount_cents');
 
         $planDistribution = (clone $activeQuery)
             ->select('plan_id', DB::raw('count(*) as c'))
@@ -87,8 +108,6 @@ final class SubscriptionInsightsService
             ])
             ->values()
             ->all();
-
-        $start = $now->copy()->subDays(29)->startOfDay();
 
         $newSubsByDay = Subscription::query()
             ->where('created_at', '>=', $start)
@@ -129,6 +148,11 @@ final class SubscriptionInsightsService
             'trialing_count'         => $trialingCount,
             'mrr_cents'              => $mrrCents,
             'mrr_display'            => '$' . number_format($mrrCents / 100, 0),
+            'lifetime_active_count'  => $lifetimeActiveCount,
+            'lifetime_revenue_total_cents' => $lifetimeRevenueTotalCents,
+            'lifetime_revenue_total_display' => '$' . number_format($lifetimeRevenueTotalCents / 100, 0),
+            'lifetime_revenue_30d_cents' => $lifetimeRevenue30dCents,
+            'lifetime_revenue_30d_display' => '$' . number_format($lifetimeRevenue30dCents / 100, 0),
             'plan_distribution'      => $planDistribution,
             'gateway_breakdown'      => $gatewayBreakdown,
             'new_subs_by_day'        => $newSubsByDay,

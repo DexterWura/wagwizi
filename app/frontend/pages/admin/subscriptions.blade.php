@@ -25,7 +25,7 @@
                 <div class="page-icon" aria-hidden="true"><i class="fa-solid fa-chart-pie"></i></div>
                 <div>
                   <h1>Subscriptions &amp; revenue</h1>
-                  <p>Active plans, estimated MRR, and recent payment activity.</p>
+                  <p>Active plans, recurring revenue (MRR), lifetime deal revenue, and recent payment activity.</p>
                 </div>
               </div>
             </div>
@@ -40,7 +40,12 @@
             <article class="card admin-metric-card admin-metric-card--accent">
               <span class="admin-metric-card__label">Est. MRR</span>
               <strong class="admin-metric-card__value">{{ $stats['mrr_display'] }}</strong>
-              <span class="admin-metric-card__hint">From plan list prices (monthly or yearly ÷ 12)</span>
+              <span class="admin-metric-card__hint">Recurring only — monthly or yearly ÷ 12; excludes free &amp; lifetime plans</span>
+            </article>
+            <article class="card admin-metric-card">
+              <span class="admin-metric-card__label">Lifetime revenue</span>
+              <strong class="admin-metric-card__value">{{ $stats['lifetime_revenue_total_display'] }}</strong>
+              <span class="admin-metric-card__hint">Completed payments on lifetime plans (all time). {{ number_format($stats['lifetime_active_count']) }} active lifetime · {{ $stats['lifetime_revenue_30d_display'] }} last 30 days</span>
             </article>
             <article class="card admin-metric-card">
               <span class="admin-metric-card__label">Trialing</span>
