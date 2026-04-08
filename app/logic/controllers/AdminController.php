@@ -1110,6 +1110,7 @@ class AdminController extends Controller
             'paypal_client_secret'         => 'nullable|string|max:300',
             'paypal_webhook_id'            => 'nullable|string|max:200',
             'paypal_mode'                  => 'nullable|string|in:sandbox,live',
+            'paypal_checkout_currency'     => 'nullable|string|size:3',
         ]);
 
         $current = $cfg->all();
@@ -1183,6 +1184,8 @@ class AdminController extends Controller
         $paypalMode = strtolower(trim((string) $request->input('paypal_mode', 'sandbox')));
         $current['paypal']['mode'] = $paypalMode === 'live' ? 'live' : 'sandbox';
         $current['paypal']['webhook_id'] = trim((string) $request->input('paypal_webhook_id', ''));
+        $ppc = strtoupper(trim((string) $request->input('paypal_checkout_currency', '')));
+        $current['paypal']['checkout_currency'] = strlen($ppc) === 3 ? $ppc : '';
         foreach (['client_id', 'client_secret'] as $f) {
             $v = $request->input('paypal_' . $f);
             if (is_string($v) && trim($v) !== '') {

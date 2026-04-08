@@ -219,6 +219,11 @@
                   </select>
                 </div>
                 <div class="field field--full">
+                  <label class="field__label" for="paypal_checkout_currency">PayPal charge currency (optional)</label>
+                  <input class="input" id="paypal_checkout_currency" name="paypal_checkout_currency" value="{{ $gateways['paypal']['checkout_currency'] ?? '' }}" maxlength="3" placeholder="e.g. USD (leave empty to auto-pick a PayPal-supported code)" autocomplete="off" />
+                  <p class="field__hint">PayPal cannot settle in every Paynow checkout currency (e.g. some local currencies). Leave blank to use the first supported option among Paynow lock → default → base, then <strong>USD</strong>. Amounts are converted using your exchange rates.</p>
+                </div>
+                <div class="field field--full">
                   <label class="field__label" for="paypal_client_id">Client ID</label>
                   <input class="input" id="paypal_client_id" name="paypal_client_id" value="{{ $gateways['paypal']['client_id'] ?? '' }}" autocomplete="off" />
                 </div>

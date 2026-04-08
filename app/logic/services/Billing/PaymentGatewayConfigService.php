@@ -326,11 +326,12 @@ final class PaymentGatewayConfigService
                 'webhook_secret'  => '',
             ],
             'paypal'           => [
-                'enabled'         => false,
-                'client_id'       => '',
-                'client_secret'   => '',
-                'webhook_id'      => '',
-                'mode'            => 'sandbox',
+                'enabled'           => false,
+                'client_id'         => '',
+                'client_secret'     => '',
+                'webhook_id'        => '',
+                'mode'              => 'sandbox',
+                'checkout_currency' => '',
             ],
         ];
     }

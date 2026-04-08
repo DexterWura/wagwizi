@@ -86,6 +86,50 @@ final class CurrencyDisplayService
     }
 
     /**
+     * Currency charged in PayPal REST payments. PayPal does not support every ISO code
+     * (e.g. many local African currencies); this picks a supported code and converts the amount.
+     *
+     * @see https://developer.paypal.com/docs/references/currency-codes/
+     */
+    public function resolvePaypalCheckoutCurrency(): string
+    {
+        $paypal = $this->gatewayConfig->all()['paypal'] ?? [];
+        $explicit = strtoupper(trim((string) ($paypal['checkout_currency'] ?? '')));
+        if (strlen($explicit) === 3 && $this->isPayPalSupportedCurrency($explicit)) {
+            return $explicit;
+        }
+
+        foreach (
+            [
+                $this->resolvePaynowCheckoutCurrency(),
+                $this->defaultCurrency(),
+                $this->baseCurrency(),
+            ] as $code
+        ) {
+            $u = strtoupper(trim((string) $code));
+            if (strlen($u) === 3 && $this->isPayPalSupportedCurrency($u)) {
+                return $u;
+            }
+        }
+
+        return 'USD';
+    }
+
+    /**
+     * PayPal-supported currency codes for Payment.create (subset of PayPal’s documented list).
+     */
+    private function isPayPalSupportedCurrency(string $code): bool
+    {
+        static $supported = [
+            'AUD', 'BRL', 'CAD', 'CHF', 'CNY', 'CZK', 'DKK', 'EUR', 'GBP', 'HKD', 'HUF', 'ILS',
+            'INR', 'JPY', 'MXN', 'MYR', 'NOK', 'NZD', 'PHP', 'PLN', 'RUB', 'SEK', 'SGD', 'THB',
+            'TWD', 'USD',
+        ];
+
+        return in_array(strtoupper($code), $supported, true);
+    }
+
+    /**
      * Convert stored plan amounts (minor units of base currency) to major units in $targetCurrency.
      */
     public function convertBaseMinorToCurrencyMajor(int $baseMinor, string $targetCurrency): float

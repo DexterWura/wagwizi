@@ -216,15 +216,23 @@ class PlanCheckoutController extends Controller
             $cancelUrl = route('plans');
             $payload = $checkout->startHostedCheckout($user, $plan, $returnUrl, $cancelUrl);
         } catch (\Throwable $e) {
+            $paypalDetail = $this->paypalCheckoutStartErrorDetail($e);
             Log::warning('PayPal checkout start failed', [
-                'user_id' => $user->id,
-                'plan_slug' => $plan->slug,
-                'exception' => $e,
+                'user_id'       => $user->id,
+                'plan_slug'     => $plan->slug,
+                'message'       => $e->getMessage(),
+                'paypal_detail' => $paypalDetail,
+                'exception'     => $e,
             ]);
+
+            $message = 'Could not start PayPal checkout. Please try again or contact support.';
+            if (config('app.debug')) {
+                $message .= ' (' . $paypalDetail . ')';
+            }
 
             return response()->json([
                 'success' => false,
-                'message' => 'Could not start PayPal checkout. Please try again or contact support.',
+                'message' => $message,
             ], 422);
         }
 
@@ -436,5 +444,38 @@ class PlanCheckoutController extends Controller
         }
 
         return redirect()->route('plans')->with('info', 'Payment is still processing. This page will update when PayPal confirms.');
+    }
+
+    /**
+     * Extract PayPal REST error JSON (when present) for logs and APP_DEBUG responses.
+     */
+    private function paypalCheckoutStartErrorDetail(\Throwable $e): string
+    {
+        if ($e instanceof \PayPal\Exception\PayPalConnectionException) {
+            $data = $e->getData();
+            if (is_string($data) && $data !== '') {
+                $decoded = json_decode($data, true);
+                if (is_array($decoded)) {
+                    $name = trim((string) ($decoded['name'] ?? ''));
+                    $msg = trim((string) ($decoded['message'] ?? ''));
+                    $inner = '';
+                    $details = $decoded['details'] ?? null;
+                    if (is_array($details) && isset($details[0]) && is_array($details[0])) {
+                        $d = $details[0];
+                        $inner = trim((string) ($d['issue'] ?? ''));
+                        if ($inner === '') {
+                            $inner = trim((string) ($d['description'] ?? ''));
+                        }
+                    }
+                    $parts = array_filter([$name, $msg, $inner], static fn (string $p): bool => $p !== '');
+
+                    return $parts !== [] ? implode(' — ', $parts) : mb_substr($data, 0, 400);
+                }
+
+                return mb_substr($data, 0, 400);
+            }
+        }
+
+        return $e->getMessage();
     }
 }
