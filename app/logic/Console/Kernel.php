@@ -26,6 +26,7 @@ class Kernel extends ConsoleKernel
         })->dailyAt('04:15');
 
         $schedule->command('logs:purge --days=7')->dailyAt('03:00');
+        $schedule->command('audit:purge --days=90')->dailyAt('03:20');
 
         $schedule->command('notifications:send-expiry-reminders')->dailyAt('08:00');
     }
@@ -33,6 +34,7 @@ class Kernel extends ConsoleKernel
     protected $commands = [
         Commands\PublishDuePosts::class,
         Commands\PurgeOldLogs::class,
+        Commands\PurgeOldAuditTrail::class,
         Commands\SeedCronTasks::class,
         Commands\SendInAppExpiryRemindersCommand::class,
         Commands\MinifyAssets::class,

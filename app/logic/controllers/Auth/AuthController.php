@@ -6,6 +6,7 @@ use App\Controllers\Controller;
 use App\Models\User;
 use App\Services\Auth\AuthService;
 use App\Services\Auth\SocialLoginAvailability;
+use App\Services\Audit\AuditTrailService;
 use App\Services\Notifications\InAppNotificationService;
 use App\Services\Notifications\NotificationChannelConfigService;
 use Illuminate\Http\RedirectResponse;
@@ -22,6 +23,7 @@ class AuthController extends Controller
     public function __construct(
         private readonly AuthService $authService,
         private readonly SocialLoginAvailability $socialLoginAvailability,
+        private readonly AuditTrailService $auditTrailService,
     ) {}
 
     public function showLogin(): View
@@ -52,12 +54,34 @@ class AuthController extends Controller
         );
 
         if (!$result['success']) {
+            $this->auditTrailService->record(
+                category: 'auth',
+                event: 'login_failed',
+                request: $request,
+                statusCode: 422,
+                metadata: [
+                    'email' => (string) ($validated['email'] ?? ''),
+                    'reason' => (string) ($result['message'] ?? 'Login failed'),
+                ],
+            );
+
             return back()
                 ->withErrors(['email' => $result['message']])
                 ->withInput($request->only('email', 'redirect'));
         }
 
         $request->session()->regenerate();
+        $user = $request->user();
+        $this->auditTrailService->record(
+            category: 'auth',
+            event: 'login_success',
+            userId: $user?->id ? (int) $user->id : null,
+            request: $request,
+            statusCode: 200,
+            metadata: [
+                'email' => (string) ($validated['email'] ?? ''),
+            ],
+        );
 
         return redirect()->intended('/dashboard');
     }
@@ -212,12 +236,33 @@ class AuthController extends Controller
         );
 
         $request->session()->regenerate();
+        $user = $request->user();
+        $this->auditTrailService->record(
+            category: 'auth',
+            event: 'signup_success',
+            userId: $user?->id ? (int) $user->id : null,
+            request: $request,
+            statusCode: 201,
+            metadata: [
+                'email' => (string) ($validated['email'] ?? ''),
+                'referred' => $referredByUserId !== null,
+            ],
+        );
 
         return redirect()->intended('/dashboard');
     }
 
     public function logout(Request $request): RedirectResponse
     {
+        $user = $request->user();
+        $this->auditTrailService->record(
+            category: 'auth',
+            event: 'logout',
+            userId: $user?->id ? (int) $user->id : null,
+            request: $request,
+            statusCode: 200
+        );
+
         $this->authService->logout();
 
         $request->session()->invalidate();

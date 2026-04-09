@@ -3,6 +3,8 @@
 namespace App\Controllers;
 
 use App\Models\BillingCurrencySetting;
+use App\Models\AuditTrail;
+use App\Models\IpBlock;
 use App\Models\CronTask;
 use App\Models\CronTaskRun;
 use App\Models\PaymentTransaction;
@@ -33,6 +35,7 @@ use App\Services\Cron\CronSecretResolver;
 use App\Services\Cron\CronService;
 use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Auth\SocialLoginAvailability;
+use App\Services\Audit\AuditTrailService;
 use App\Services\Platform\Platform;
 use App\Services\Landing\LandingFeaturesDeepService;
 use App\Services\Notifications\InAppNotificationService;
@@ -52,6 +55,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminController extends Controller
 {
@@ -1262,6 +1266,185 @@ class AdminController extends Controller
         $transactions = $list->paginate($request);
 
         return view('admin.payment-transactions', compact('transactions'));
+    }
+
+    public function ipBlocks(): View
+    {
+        $blocks = IpBlock::query()
+            ->with('creator:id,name,email')
+            ->orderByDesc('id')
+            ->paginate(30);
+
+        return view('admin.ip-blocks', compact('blocks'));
+    }
+
+    public function storeIpBlock(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'ip_address' => 'required|ip|max:64',
+            'reason' => 'nullable|string|max:255',
+            'expires_at' => 'nullable|date|after:now',
+        ]);
+
+        $block = IpBlock::query()->updateOrCreate(
+            ['ip_address' => (string) $validated['ip_address']],
+            [
+                'reason' => isset($validated['reason']) ? (string) $validated['reason'] : null,
+                'expires_at' => isset($validated['expires_at']) ? (string) $validated['expires_at'] : null,
+                'is_active' => true,
+                'created_by' => Auth::id(),
+            ]
+        );
+
+        app(AuditTrailService::class)->record(
+            category: 'security',
+            event: 'ip_block_created',
+            userId: Auth::id(),
+            request: $request,
+            statusCode: 200,
+            metadata: [
+                'ip_address' => $block->ip_address,
+                'reason' => $block->reason,
+                'expires_at' => optional($block->expires_at)->toDateTimeString(),
+            ],
+        );
+
+        return back()->with('success', "IP {$block->ip_address} has been blocked.");
+    }
+
+    public function destroyIpBlock(int $id): RedirectResponse
+    {
+        $row = IpBlock::query()->findOrFail($id);
+        $ip = (string) $row->ip_address;
+        app(AuditTrailService::class)->record(
+            category: 'security',
+            event: 'ip_block_removed',
+            userId: Auth::id(),
+            metadata: ['ip_address' => $ip],
+            statusCode: 200,
+        );
+        $row->delete();
+
+        return back()->with('success', "IP {$ip} has been unblocked.");
+    }
+
+    public function auditTrail(Request $request): View
+    {
+        $query = AuditTrail::query()
+            ->with('user:id,name,email')
+            ->orderByDesc('occurred_at');
+
+        if ($category = trim((string) $request->input('category', ''))) {
+            $query->where('category', $category);
+        }
+        if ($event = trim((string) $request->input('event', ''))) {
+            $query->where('event', 'like', '%' . $event . '%');
+        }
+        if ($method = strtoupper(trim((string) $request->input('method', '')))) {
+            $query->where('method', $method);
+        }
+        if ($statusCode = trim((string) $request->input('status_code', ''))) {
+            $query->where('status_code', (int) $statusCode);
+        }
+        if ($userId = trim((string) $request->input('user_id', ''))) {
+            $query->where('user_id', (int) $userId);
+        }
+        if ($path = trim((string) $request->input('path', ''))) {
+            $query->where('path', 'like', '%' . $path . '%');
+        }
+
+        $events = $query->paginate(50)->appends($request->query());
+
+        $categories = AuditTrail::query()
+            ->select('category')
+            ->distinct()
+            ->orderBy('category')
+            ->pluck('category');
+
+        return view('admin.audit-trail', compact('events', 'categories'));
+    }
+
+    public function auditTrailExport(Request $request): StreamedResponse
+    {
+        $query = AuditTrail::query()
+            ->with('user:id,name,email')
+            ->orderByDesc('occurred_at');
+
+        if ($category = trim((string) $request->input('category', ''))) {
+            $query->where('category', $category);
+        }
+        if ($event = trim((string) $request->input('event', ''))) {
+            $query->where('event', 'like', '%' . $event . '%');
+        }
+        if ($method = strtoupper(trim((string) $request->input('method', '')))) {
+            $query->where('method', $method);
+        }
+        if ($statusCode = trim((string) $request->input('status_code', ''))) {
+            $query->where('status_code', (int) $statusCode);
+        }
+        if ($userId = trim((string) $request->input('user_id', ''))) {
+            $query->where('user_id', (int) $userId);
+        }
+        if ($path = trim((string) $request->input('path', ''))) {
+            $query->where('path', 'like', '%' . $path . '%');
+        }
+
+        $fileName = 'audit-trail-' . now()->format('Ymd-His') . '.csv';
+
+        return response()->streamDownload(function () use ($query): void {
+            $out = fopen('php://output', 'wb');
+            if ($out === false) {
+                return;
+            }
+            fputcsv($out, [
+                'occurred_at',
+                'category',
+                'event',
+                'severity',
+                'user_id',
+                'user_email',
+                'method',
+                'path',
+                'route_name',
+                'status_code',
+                'ip_address',
+                'metadata_json',
+            ]);
+
+            $query->chunkById(500, function ($rows) use ($out): void {
+                foreach ($rows as $row) {
+                    $severity = 'info';
+                    $status = (int) ($row->status_code ?? 0);
+                    if ($status >= 500) {
+                        $severity = 'critical';
+                    } elseif ($status >= 400) {
+                        $severity = 'warning';
+                    } elseif (str_starts_with((string) $row->event, 'login_failed')) {
+                        $severity = 'warning';
+                    } elseif ((string) $row->category === 'auth') {
+                        $severity = 'security';
+                    }
+
+                    fputcsv($out, [
+                        optional($row->occurred_at)->format('Y-m-d H:i:s'),
+                        (string) $row->category,
+                        (string) $row->event,
+                        $severity,
+                        (string) ($row->user_id ?? ''),
+                        (string) ($row->user->email ?? ''),
+                        (string) ($row->method ?? ''),
+                        (string) ($row->path ?? ''),
+                        (string) ($row->route_name ?? ''),
+                        (string) ($row->status_code ?? ''),
+                        (string) ($row->ip_address ?? ''),
+                        json_encode($row->metadata ?? [], JSON_UNESCAPED_SLASHES),
+                    ]);
+                }
+            });
+            fclose($out);
+        }, $fileName, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     // ── Operations & Reliability ───────────────────────

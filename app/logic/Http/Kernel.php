@@ -9,6 +9,8 @@ class Kernel extends HttpKernel
     protected $middleware = [
         \Illuminate\Http\Middleware\TrustProxies::class,
         \App\Http\Middleware\ForceHttps::class,
+        \App\Http\Middleware\EnforceIpBlocks::class,
+        \App\Http\Middleware\AdaptiveDosProtection::class,
         \Illuminate\Http\Middleware\HandleCors::class,
         \Illuminate\Foundation\Http\Middleware\PreventRequestsDuringMaintenance::class,
         \Illuminate\Http\Middleware\ValidatePostSize::class,
@@ -28,12 +30,14 @@ class Kernel extends HttpKernel
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
             \App\Http\Middleware\ExpireTrialSubscription::class,
+            \App\Http\Middleware\AuditTrailRequestLogger::class,
         ],
 
         'api' => [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
             'throttle:api',
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\AuditTrailRequestLogger::class,
         ],
     ];
 

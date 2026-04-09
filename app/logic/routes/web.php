@@ -74,10 +74,10 @@ Route::middleware('guest')->group(function () {
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
-Route::post('/paynow/result', [PaynowWebhookController::class, 'result'])->name('paynow.result');
-Route::match(['get', 'post'], '/pesepay/result', [PesepayWebhookController::class, 'result'])->name('pesepay.result');
-Route::post('/stripe/webhook', [StripeWebhookController::class, 'result'])->name('stripe.webhook');
-Route::post('/paypal/webhook', [PaypalWebhookController::class, 'result'])->name('paypal.webhook');
+Route::post('/paynow/result', [PaynowWebhookController::class, 'result'])->middleware('throttle:40,1')->name('paynow.result');
+Route::match(['get', 'post'], '/pesepay/result', [PesepayWebhookController::class, 'result'])->middleware('throttle:40,1')->name('pesepay.result');
+Route::post('/stripe/webhook', [StripeWebhookController::class, 'result'])->middleware('throttle:80,1')->name('stripe.webhook');
+Route::post('/paypal/webhook', [PaypalWebhookController::class, 'result'])->middleware('throttle:80,1')->name('paypal.webhook');
 
 /*
 |--------------------------------------------------------------------------
@@ -201,6 +201,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/subscriptions', [AdminController::class, 'subscriptionsDashboard'])->name('subscriptions');
         Route::get('/analytics', [AdminController::class, 'analytics'])->name('analytics');
         Route::get('/payment-transactions', [AdminController::class, 'paymentTransactions'])->name('payment-transactions');
+        Route::get('/ip-blocks', [AdminController::class, 'ipBlocks'])->name('ip-blocks');
+        Route::post('/ip-blocks', [AdminController::class, 'storeIpBlock'])->name('ip-blocks.store');
+        Route::delete('/ip-blocks/{id}', [AdminController::class, 'destroyIpBlock'])->name('ip-blocks.destroy');
+        Route::get('/audit-trail', [AdminController::class, 'auditTrail'])->name('audit-trail');
+        Route::get('/audit-trail/export', [AdminController::class, 'auditTrailExport'])->name('audit-trail.export');
 
         Route::get('/operations',                [AdminController::class, 'operations'])->name('operations');
         Route::post('/operations/clear-cache',   [AdminController::class, 'clearApplicationCache'])->name('operations.clear-cache');

@@ -74,6 +74,8 @@
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-analytics' ? 'nav-link--active' : '' }}" href="{{ route('admin.analytics') }}"><i class="fa-solid fa-chart-pie fa-fw" aria-hidden="true"></i>Analytics</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-payment-gateways' ? 'nav-link--active' : '' }}" href="{{ route('admin.payment-gateways') }}"><i class="fa-solid fa-building-columns fa-fw" aria-hidden="true"></i>Payment gateways</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-payment-transactions' ? 'nav-link--active' : '' }}" href="{{ route('admin.payment-transactions') }}"><i class="fa-solid fa-receipt fa-fw" aria-hidden="true"></i>Transactions</a>
+      <a class="nav-link nav-link--sub {{ $activePage === 'admin-ip-blocks' ? 'nav-link--active' : '' }}" href="{{ route('admin.ip-blocks') }}"><i class="fa-solid fa-ban fa-fw" aria-hidden="true"></i>IP blocks</a>
+      <a class="nav-link nav-link--sub {{ $activePage === 'admin-audit-trail' ? 'nav-link--active' : '' }}" href="{{ route('admin.audit-trail') }}"><i class="fa-solid fa-fingerprint fa-fw" aria-hidden="true"></i>Audit trail</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-plans' ? 'nav-link--active' : '' }}" href="{{ route('admin.plans') }}"><i class="fa-solid fa-layer-group fa-fw" aria-hidden="true"></i>Plans &amp; pricing</a>
       <span class="nav-subgroup-label">People &amp; platform</span>
       <a class="nav-link nav-link--sub {{ $activePage === 'admin-users' ? 'nav-link--active' : '' }}" href="{{ route('admin.users') }}"><i class="fa-solid fa-users fa-fw" aria-hidden="true"></i>Users</a>

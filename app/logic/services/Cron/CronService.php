@@ -88,6 +88,13 @@ class CronService
                 'enabled'          => true,
             ],
             [
+                'key'              => 'purge_old_audit_trail',
+                'label'            => 'Purge old audit trail entries',
+                'description'      => 'Deletes audit trail records older than 90 days to control table growth.',
+                'interval_minutes' => 1440,
+                'enabled'          => true,
+            ],
+            [
                 'key'              => 'inapp_expiry_reminders',
                 'label'            => 'In-app subscription & trial reminders',
                 'description'      => 'Creates dashboard notifications when trials or paid subscriptions are about to renew.',

@@ -94,6 +94,11 @@ class AppServiceProvider extends ServiceProvider
                 return trim(Artisan::output());
             });
 
+            $cron->register('purge_old_audit_trail', function () {
+                Artisan::call('audit:purge', ['--days' => 90]);
+                return trim(Artisan::output());
+            });
+
             $cron->register('inapp_expiry_reminders', function () use ($app) {
                 $app->make(InAppNotificationService::class)->sendScheduledExpiryReminders();
 
