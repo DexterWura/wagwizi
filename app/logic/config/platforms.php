@@ -7,7 +7,7 @@ return [
         'client_id'     => env('TWITTER_CLIENT_ID'),
         'client_secret' => env('TWITTER_CLIENT_SECRET'),
         'redirect_uri'  => env('TWITTER_REDIRECT_URI'),
-        'scopes'        => ['tweet.read', 'tweet.write', 'users.read', 'offline.access'],
+        'scopes'        => ['tweet.read', 'tweet.write', 'users.read', 'offline.access', 'media.write'],
         'max_content_length' => 280,
         'supports_images'    => true,
         'supports_video'     => true,

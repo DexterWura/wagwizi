@@ -56,7 +56,10 @@ class TwitterAdapter extends AbstractPlatformAdapter
                 $mediaIds = $upload['ids'];
                 if (count($mediaIds) !== count($mediaUrls)) {
                     $details = $upload['errors'] !== [] ? (' Details: ' . implode(' | ', array_slice($upload['errors'], 0, 3))) : '';
-                    return PublishResult::fail('Twitter media upload failed for one or more files. Tweet was not published as text-only.' . $details);
+                    $hint = !empty($upload['forbidden'])
+                        ? ' Reconnect your Twitter account to grant media upload permissions (include media.write).'
+                        : '';
+                    return PublishResult::fail('Twitter media upload failed for one or more files. Tweet was not published as text-only.' . $hint . $details);
                 }
                 $payload['media'] = ['media_ids' => $mediaIds];
             }
@@ -99,12 +102,13 @@ class TwitterAdapter extends AbstractPlatformAdapter
     /**
      * Upload media via the v1.1 media upload endpoint (still required by X API v2 for tweets).
      *
-     * @return array{ids: array<int,string>, errors: array<int,string>}
+     * @return array{ids: array<int,string>, errors: array<int,string>, forbidden: bool}
      */
     private function uploadMedia(SocialAccount $account, array $mediaUrls): array
     {
         $mediaIds = [];
         $errors = [];
+        $forbidden = false;
 
         foreach ($mediaUrls as $url) {
             $mediaContent = $this->downloadSafeMedia($url);
@@ -135,6 +139,9 @@ class TwitterAdapter extends AbstractPlatformAdapter
                             break 2;
                         }
 
+                        if ($response->status() === 403) {
+                            $forbidden = true;
+                        }
                         $attemptErrors[] = $host . ' status=' . $response->status() . ' body=' . mb_substr($response->body(), 0, 220);
                         if ($response->status() === 402) {
                             Log::warning('Twitter media upload blocked by account credits', [
@@ -145,6 +152,9 @@ class TwitterAdapter extends AbstractPlatformAdapter
                     } catch (RequestException $e) {
                         $resp = $e->response;
                         $attemptErrors[] = $host . ' request-exception status=' . ($resp?->status() ?? 'n/a') . ' error=' . $e->getMessage();
+                        if (($resp?->status() ?? null) === 403) {
+                            $forbidden = true;
+                        }
                         Log::warning('Twitter media upload request exception', [
                             'status' => $resp?->status(),
                             'error'  => $e->getMessage(),
@@ -169,6 +179,7 @@ class TwitterAdapter extends AbstractPlatformAdapter
         return [
             'ids' => $mediaIds,
             'errors' => $errors,
+            'forbidden' => $forbidden,
         ];
     }
 
