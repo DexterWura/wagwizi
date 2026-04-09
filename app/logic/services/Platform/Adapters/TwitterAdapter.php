@@ -119,53 +119,68 @@ class TwitterAdapter extends AbstractPlatformAdapter
 
             $uploadedId = null;
             $attemptErrors = [];
-            $uploadHosts = ['https://upload.twitter.com/1.1', 'https://upload.x.com/1.1'];
-            $uploadPayloads = [
-                [['name' => 'media', 'contents' => $mediaContent, 'filename' => 'upload.bin']],
-                [['name' => 'media_data', 'contents' => base64_encode($mediaContent)]],
+            $uploadEndpoints = [
+                'https://upload.twitter.com/1.1/media/upload.json',
+                'https://upload.x.com/1.1/media/upload.json',
             ];
+            $filename = $this->filenameFromMediaUrl($url);
+            $mimeType = $this->mimeTypeFromMediaUrl($url);
 
-            foreach ($uploadHosts as $host) {
-                foreach ($uploadPayloads as $multipartPayload) {
-                    try {
-                        $response = Http::baseUrl($host)
-                            ->withToken($account->access_token)
-                            ->timeout(60)
-                            ->asMultipart()
-                            ->post('/media/upload.json', $multipartPayload);
+            foreach ($uploadEndpoints as $endpoint) {
+                try {
+                    // Preferred upload shape for X media endpoint: multipart file using "media".
+                    $response = Http::withToken($account->access_token)
+                        ->timeout(60)
+                        ->acceptJson()
+                        ->attach('media', $mediaContent, $filename, ['Content-Type' => $mimeType])
+                        ->post($endpoint);
 
-                        if ($response->successful() && $response->json('media_id_string')) {
-                            $uploadedId = (string) $response->json('media_id_string');
-                            break 2;
-                        }
-
-                        if ($response->status() === 403) {
-                            $forbidden = true;
-                        }
-                        $attemptErrors[] = $host . ' status=' . $response->status() . ' body=' . mb_substr($response->body(), 0, 220);
-                        if ($response->status() === 402) {
-                            Log::warning('Twitter media upload blocked by account credits', [
-                                'status' => $response->status(),
-                                'body'   => mb_substr($response->body(), 0, 500),
-                            ]);
-                        }
-                    } catch (RequestException $e) {
-                        $resp = $e->response;
-                        $attemptErrors[] = $host . ' request-exception status=' . ($resp?->status() ?? 'n/a') . ' error=' . $e->getMessage();
-                        if (($resp?->status() ?? null) === 403) {
-                            $forbidden = true;
-                        }
-                        Log::warning('Twitter media upload request exception', [
-                            'status' => $resp?->status(),
-                            'error'  => $e->getMessage(),
-                            'body'   => $resp ? mb_substr($resp->body(), 0, 500) : null,
-                        ]);
-                    } catch (\Throwable $e) {
-                        $attemptErrors[] = $host . ' exception=' . $e->getMessage();
-                        Log::warning('Twitter media upload unexpected exception', [
-                            'error' => $e->getMessage(),
-                        ]);
+                    if ($response->successful() && $response->json('media_id_string')) {
+                        $uploadedId = (string) $response->json('media_id_string');
+                        break;
                     }
+
+                    // Fallback shape: base64 payload using "media_data" with form encoding.
+                    if ($uploadedId === null) {
+                        $fallback = Http::withToken($account->access_token)
+                            ->timeout(60)
+                            ->acceptJson()
+                            ->asForm()
+                            ->post($endpoint, [
+                                'media_data' => base64_encode($mediaContent),
+                            ]);
+
+                        if ($fallback->successful() && $fallback->json('media_id_string')) {
+                            $uploadedId = (string) $fallback->json('media_id_string');
+                            break;
+                        }
+
+                        if ($fallback->status() === 403) {
+                            $forbidden = true;
+                        }
+                        $attemptErrors[] = $endpoint . ' status=' . $fallback->status() . ' body=' . mb_substr($fallback->body(), 0, 220);
+                    }
+
+                    if ($response->status() === 403) {
+                        $forbidden = true;
+                    }
+                    $attemptErrors[] = $endpoint . ' status=' . $response->status() . ' body=' . mb_substr($response->body(), 0, 220);
+                } catch (RequestException $e) {
+                    $resp = $e->response;
+                    $attemptErrors[] = $endpoint . ' request-exception status=' . ($resp?->status() ?? 'n/a') . ' error=' . $e->getMessage();
+                    if (($resp?->status() ?? null) === 403) {
+                        $forbidden = true;
+                    }
+                    Log::warning('Twitter media upload request exception', [
+                        'status' => $resp?->status(),
+                        'error'  => $e->getMessage(),
+                        'body'   => $resp ? mb_substr($resp->body(), 0, 500) : null,
+                    ]);
+                } catch (\Throwable $e) {
+                    $attemptErrors[] = $endpoint . ' exception=' . $e->getMessage();
+                    Log::warning('Twitter media upload unexpected exception', [
+                        'error' => $e->getMessage(),
+                    ]);
                 }
             }
 
@@ -181,6 +196,29 @@ class TwitterAdapter extends AbstractPlatformAdapter
             'errors' => $errors,
             'forbidden' => $forbidden,
         ];
+    }
+
+    private function filenameFromMediaUrl(string $url): string
+    {
+        $path = (string) parse_url($url, PHP_URL_PATH);
+        $name = trim((string) basename($path));
+
+        return $name !== '' ? $name : 'upload.bin';
+    }
+
+    private function mimeTypeFromMediaUrl(string $url): string
+    {
+        $ext = strtolower((string) pathinfo((string) parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION));
+
+        return match ($ext) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'mp4' => 'video/mp4',
+            'mov' => 'video/quicktime',
+            default => 'application/octet-stream',
+        };
     }
 
     public function deletePost(SocialAccount $account, string $platformPostId): bool
