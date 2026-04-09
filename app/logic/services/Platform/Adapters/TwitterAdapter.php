@@ -52,9 +52,11 @@ class TwitterAdapter extends AbstractPlatformAdapter
 
         try {
             if (!empty($mediaUrls)) {
-                $mediaIds = $this->uploadMedia($account, $mediaUrls);
+                $upload = $this->uploadMedia($account, $mediaUrls);
+                $mediaIds = $upload['ids'];
                 if (count($mediaIds) !== count($mediaUrls)) {
-                    return PublishResult::fail('Twitter media upload failed for one or more files. Tweet was not published as text-only.');
+                    $details = $upload['errors'] !== [] ? (' Details: ' . implode(' | ', array_slice($upload['errors'], 0, 3))) : '';
+                    return PublishResult::fail('Twitter media upload failed for one or more files. Tweet was not published as text-only.' . $details);
                 }
                 $payload['media'] = ['media_ids' => $mediaIds];
             }
@@ -97,53 +99,77 @@ class TwitterAdapter extends AbstractPlatformAdapter
     /**
      * Upload media via the v1.1 media upload endpoint (still required by X API v2 for tweets).
      *
-     * @return string[] Array of media_id strings
+     * @return array{ids: array<int,string>, errors: array<int,string>}
      */
     private function uploadMedia(SocialAccount $account, array $mediaUrls): array
     {
         $mediaIds = [];
+        $errors = [];
 
         foreach ($mediaUrls as $url) {
             $mediaContent = $this->downloadSafeMedia($url);
             if ($mediaContent === null) {
+                $errors[] = 'Could not fetch media from: ' . $url;
                 continue;
             }
 
-            try {
-                $response = Http::baseUrl('https://upload.twitter.com/1.1')
-                    ->withToken($account->access_token)
-                    ->timeout(60)
-                    ->asMultipart()
-                    ->post('/media/upload.json', [
-                        ['name' => 'media_data', 'contents' => base64_encode($mediaContent)],
-                    ]);
+            $uploadedId = null;
+            $attemptErrors = [];
+            $uploadHosts = ['https://upload.twitter.com/1.1', 'https://upload.x.com/1.1'];
+            $uploadPayloads = [
+                [['name' => 'media', 'contents' => $mediaContent, 'filename' => 'upload.bin']],
+                [['name' => 'media_data', 'contents' => base64_encode($mediaContent)]],
+            ];
 
-                if ($response->successful() && $response->json('media_id_string')) {
-                    $mediaIds[] = $response->json('media_id_string');
-                    continue;
-                }
+            foreach ($uploadHosts as $host) {
+                foreach ($uploadPayloads as $multipartPayload) {
+                    try {
+                        $response = Http::baseUrl($host)
+                            ->withToken($account->access_token)
+                            ->timeout(60)
+                            ->asMultipart()
+                            ->post('/media/upload.json', $multipartPayload);
 
-                if ($response->status() === 402) {
-                    Log::warning('Twitter media upload blocked by account credits', [
-                        'status' => $response->status(),
-                        'body'   => mb_substr($response->body(), 0, 500),
-                    ]);
+                        if ($response->successful() && $response->json('media_id_string')) {
+                            $uploadedId = (string) $response->json('media_id_string');
+                            break 2;
+                        }
+
+                        $attemptErrors[] = $host . ' status=' . $response->status() . ' body=' . mb_substr($response->body(), 0, 220);
+                        if ($response->status() === 402) {
+                            Log::warning('Twitter media upload blocked by account credits', [
+                                'status' => $response->status(),
+                                'body'   => mb_substr($response->body(), 0, 500),
+                            ]);
+                        }
+                    } catch (RequestException $e) {
+                        $resp = $e->response;
+                        $attemptErrors[] = $host . ' request-exception status=' . ($resp?->status() ?? 'n/a') . ' error=' . $e->getMessage();
+                        Log::warning('Twitter media upload request exception', [
+                            'status' => $resp?->status(),
+                            'error'  => $e->getMessage(),
+                            'body'   => $resp ? mb_substr($resp->body(), 0, 500) : null,
+                        ]);
+                    } catch (\Throwable $e) {
+                        $attemptErrors[] = $host . ' exception=' . $e->getMessage();
+                        Log::warning('Twitter media upload unexpected exception', [
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
                 }
-            } catch (RequestException $e) {
-                $resp = $e->response;
-                Log::warning('Twitter media upload request exception', [
-                    'status' => $resp?->status(),
-                    'error'  => $e->getMessage(),
-                    'body'   => $resp ? mb_substr($resp->body(), 0, 500) : null,
-                ]);
-            } catch (\Throwable $e) {
-                Log::warning('Twitter media upload unexpected exception', [
-                    'error' => $e->getMessage(),
-                ]);
+            }
+
+            if ($uploadedId !== null) {
+                $mediaIds[] = $uploadedId;
+            } else {
+                $errors[] = 'Upload failed for ' . $url . (count($attemptErrors) ? (' (' . implode(' || ', array_slice($attemptErrors, 0, 2)) . ')') : '');
             }
         }
 
-        return $mediaIds;
+        return [
+            'ids' => $mediaIds,
+            'errors' => $errors,
+        ];
     }
 
     public function deletePost(SocialAccount $account, string $platformPostId): bool
