@@ -121,6 +121,43 @@ class TokenRefreshService
         return $refreshed;
     }
 
+    /**
+     * Refresh OAuth / Bluesky accounts that have a refresh token but no stored expiry.
+     * Run on a slow cadence (e.g. daily) so tokens are rotated even when token_expires_at was never set.
+     */
+    public function refreshAccountsWithUnknownExpiry(): int
+    {
+        $platformSlugs = [];
+        foreach (Platform::cases() as $p) {
+            if ($p === Platform::Telegram) {
+                continue;
+            }
+            if ($p->usesOAuth() || $p === Platform::Bluesky) {
+                $platformSlugs[] = $p->value;
+            }
+        }
+
+        if ($platformSlugs === []) {
+            return 0;
+        }
+
+        $accounts = SocialAccount::active()
+            ->whereNull('token_expires_at')
+            ->whereNotNull('refresh_token')
+            ->whereIn('platform', $platformSlugs)
+            ->get();
+
+        $refreshed = 0;
+
+        foreach ($accounts as $account) {
+            if ($this->refresh($account)) {
+                $refreshed++;
+            }
+        }
+
+        return $refreshed;
+    }
+
     private function needsRefresh(SocialAccount $account): bool
     {
         if ($account->token_expires_at === null) {

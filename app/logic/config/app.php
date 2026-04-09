@@ -31,6 +31,28 @@ return [
     // Used only when no cron token is stored in site_settings (see CronSecretResolver).
     'cron_secret' => env('CRON_SECRET'),
 
+    /*
+    | When true (default), posts picked up by publishDuePosts() run PublishPostToPlatformJob
+    | synchronously so scheduled publishing works without a separate queue worker.
+    */
+    'publish_due_posts_sync' => filter_var(env('PUBLISH_DUE_POSTS_SYNC', true), FILTER_VALIDATE_BOOLEAN),
+
+    /*
+    | When true, all publish jobs (immediate + scheduled) and eligible first-comment jobs run
+    | synchronously — use when you do not run queue workers at all.
+    */
+    'publish_all_jobs_sync' => filter_var(env('PUBLISH_ALL_JOBS_SYNC', false), FILTER_VALIDATE_BOOLEAN),
+
+    /*
+    | When true (without publish_all_jobs_sync), first comments publish synchronously if delay is 0.
+    */
+    'publish_comment_jobs_sync' => filter_var(env('PUBLISH_COMMENT_JOBS_SYNC', false), FILTER_VALIDATE_BOOLEAN),
+
+    /*
+    | Serialize publishes targeting the same social account to reduce rate-limit races.
+    */
+    'publish_per_account_lock' => filter_var(env('PUBLISH_PER_ACCOUNT_LOCK', true), FILTER_VALIDATE_BOOLEAN),
+
     'maintenance' => [
         'driver' => 'file',
     ],

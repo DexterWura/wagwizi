@@ -65,6 +65,7 @@
     "scripts": {
         "post-autoload-dump": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
-        ]
+        ],
+        "test": "phpunit -c phpunit.xml"
     }
 }

@@ -164,6 +164,7 @@ class PostController extends Controller
     public function schedule(Request $request, int $id): JsonResponse
     {
         $validated = $request->validate([
+            'content'             => 'sometimes|string|min:1|max:40000',
             'scheduled_at'        => 'nullable|date|after:now',
             'delay_value'         => 'nullable|integer|min:1|max:10080',
             'delay_unit'          => 'nullable|in:minutes,hours',
@@ -245,6 +246,28 @@ class PostController extends Controller
         });
     }
 
+    public function retryFailedPlatforms(int $id): JsonResponse
+    {
+        return $this->tryServiceCall(function () use ($id) {
+            $post = \App\Models\Post::where('user_id', Auth::id())->findOrFail($id);
+
+            if (! $post->postPlatforms()->where('status', 'failed')->exists()) {
+                return response()->json(['error' => 'No failed platform targets to retry.'], 422);
+            }
+
+            if ($post->postPlatforms()->where('status', 'publishing')->exists()) {
+                return response()->json(['error' => 'This post is still publishing. Try again when it finishes.'], 422);
+            }
+
+            $dispatched = $this->publishingService->retryFailedPlatforms($post);
+
+            return response()->json([
+                'message' => "{$dispatched} platform publish job(s) dispatched.",
+                'post'    => $post->fresh(),
+            ]);
+        });
+    }
+
     public function publishSummary(int $id): JsonResponse
     {
         return $this->tryServiceCall(function () use ($id) {
@@ -280,6 +303,7 @@ class PostController extends Controller
                     'failed_count'       => $failed,
                     'pending_count'      => $pending,
                     'failures'           => $failures,
+                    'can_retry_failed'   => $failed > 0,
                 ],
             ]);
         });

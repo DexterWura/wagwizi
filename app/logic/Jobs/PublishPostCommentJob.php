@@ -73,13 +73,18 @@ class PublishPostCommentJob implements ShouldQueue
             return;
         }
 
-        $tokenRefreshService->refreshIfNeeded($account);
+        $initialOk = $tokenRefreshService->refreshIfNeeded($account);
         $account->refresh();
 
-        if ($account->isTokenExpired()) {
+        if (! $initialOk) {
+            $tokenRefreshService->refresh($account);
+            $account->refresh();
+        }
+
+        if ($account->isTokenExpired() || trim((string) $account->access_token) === '') {
             $postPlatform->update([
-                'comment_status' => 'failed',
-                'comment_error_message' => 'Access token expired and refresh failed. Reconnect account.',
+                'comment_status'        => 'failed',
+                'comment_error_message' => 'Access token expired or missing and could not be refreshed. Reconnect account.',
             ]);
             return;
         }

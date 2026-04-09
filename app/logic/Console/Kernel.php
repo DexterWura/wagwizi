@@ -3,6 +3,7 @@
 namespace App\Console;
 
 use App\Jobs\RefreshExpiredTokensJob;
+use App\Services\SocialAccount\TokenRefreshService;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
@@ -18,6 +19,11 @@ class Kernel extends ConsoleKernel
         $schedule->command('posts:publish-due')->everyMinute();
 
         $schedule->job(new RefreshExpiredTokensJob)->everyFifteenMinutes();
+
+        $schedule->call(function () {
+            $n = app(TokenRefreshService::class)->refreshAccountsWithUnknownExpiry();
+            \Illuminate\Support\Facades\Log::info('refreshAccountsWithUnknownExpiry', ['refreshed' => $n]);
+        })->dailyAt('04:15');
 
         $schedule->command('logs:purge --days=14')->dailyAt('03:00');
 

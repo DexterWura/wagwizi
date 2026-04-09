@@ -32,6 +32,7 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::delete('/posts/{id}',       [PostController::class, 'destroy']);
     Route::post('/posts/{id}/schedule', [PostController::class, 'schedule']);
     Route::post('/posts/{id}/publish',  [PostController::class, 'publish']);
+    Route::post('/posts/{id}/retry-failed-platforms', [PostController::class, 'retryFailedPlatforms'])->whereNumber('id');
     Route::get('/posts/{id}/publish-summary', [PostController::class, 'publishSummary'])->whereNumber('id');
     Route::post('/posts/{id}/cancel',   [PostController::class, 'cancel']);
     Route::patch('/posts/{id}/reschedule', [PostController::class, 'reschedule']);

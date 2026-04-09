@@ -83,6 +83,11 @@ class AppServiceProvider extends ServiceProvider
                 return "Refreshed {$refreshed} token(s).";
             });
 
+            $cron->register('refresh_tokens_unknown_expiry', function () use ($app) {
+                $refreshed = $app->make(TokenRefreshService::class)->refreshAccountsWithUnknownExpiry();
+                return "Refreshed {$refreshed} account(s) with unknown token expiry.";
+            });
+
             $cron->register('purge_old_logs', function () {
                 Artisan::call('logs:purge', ['--days' => 14]);
                 return trim(Artisan::output());

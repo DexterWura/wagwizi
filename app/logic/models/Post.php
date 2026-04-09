@@ -8,6 +8,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * User posts and drafts.
+ *
+ * `scheduled_at` uses the application timezone (`config('app.timezone')`, default UTC).
+ * Due scheduled posts are published on the next cron tick when `scheduled_at <= now()` (overdue posts are not skipped).
+ */
 class Post extends Model
 {
     use HasFactory;
@@ -66,6 +72,6 @@ class Post extends Model
     public function scopeDueForPublishing($query)
     {
         return $query->where('status', 'scheduled')
-                     ->where('scheduled_at', '<=', now());
+            ->where('scheduled_at', '<=', now());
     }
 }

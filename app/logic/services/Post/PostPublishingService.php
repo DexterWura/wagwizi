@@ -13,8 +13,10 @@ class PostPublishingService
 {
     /**
      * Dispatch publish jobs for all pending PostPlatform rows of a post.
+     *
+     * @param  bool  $syncWhenDue  When true (used by publishDuePosts), jobs may run synchronously per config.
      */
-    public function dispatchPublishing(Post $post): int
+    public function dispatchPublishing(Post $post, bool $syncWhenDue = false): int
     {
         if ($post->status === 'published') {
             Log::warning('Attempted to publish already-published post', ['post_id' => $post->id]);
@@ -37,8 +39,41 @@ class PostPublishingService
 
         $post->update(['status' => 'publishing']);
 
+        $runSync = PublishExecutionMode::useSyncPublish($syncWhenDue);
+
         foreach ($pendingPlatforms as $postPlatform) {
             $postPlatform->update(['status' => 'publishing']);
+            if ($runSync) {
+                try {
+                    PublishPostToPlatformJob::dispatchSync($postPlatform->id);
+                } catch (\Throwable $syncException) {
+                    $postPlatform->update([
+                        'status'        => 'failed',
+                        'error_message' => 'Publish job failed: ' . $syncException->getMessage(),
+                    ]);
+
+                    Log::error('Synchronous publish failed', [
+                        'post_id'          => $post->id,
+                        'post_platform_id' => $postPlatform->id,
+                        'error'            => $syncException->getMessage(),
+                    ]);
+
+                    try {
+                        app(InAppNotificationService::class)->notifySuperAdminsOperationalAlert(
+                            'admin_critical_post_queue',
+                            'Scheduled publish could not run',
+                            "Post #{$post->id}, platform {$postPlatform->platform}: " . mb_substr($syncException->getMessage(), 0, 400),
+                            route('admin.operations'),
+                            ['post_id' => $post->id, 'post_platform_id' => $postPlatform->id],
+                            'post_publish_sync_fail:' . $postPlatform->id,
+                            1800,
+                        );
+                    } catch (\Throwable) {
+                    }
+                }
+                continue;
+            }
+
             try {
                 PublishPostToPlatformJob::dispatch($postPlatform->id);
             } catch (\Throwable $e) {
@@ -97,13 +132,47 @@ class PostPublishingService
     public function publishDuePosts(): int
     {
         $posts = Post::dueForPublishing()->get();
+        if ($posts->isNotEmpty()) {
+            Log::info('Publish due posts batch', [
+                'overdue_count' => $posts->count(),
+                'post_ids'      => $posts->pluck('id')->take(50)->values()->all(),
+            ]);
+        }
         $dispatched = 0;
 
         foreach ($posts as $post) {
-            $dispatched += $this->dispatchPublishing($post);
+            $dispatched += $this->dispatchPublishing($post, true);
         }
 
         return $dispatched;
+    }
+
+    /**
+     * Reset failed platform rows to pending and dispatch publish jobs again.
+     */
+    public function retryFailedPlatforms(Post $post): int
+    {
+        if (trim($post->content) === '') {
+            Log::warning('Cannot retry publish with empty content', ['post_id' => $post->id]);
+            return 0;
+        }
+
+        $failed = $post->postPlatforms()->where('status', 'failed')->get();
+        if ($failed->isEmpty()) {
+            Log::warning('No failed platform targets to retry', ['post_id' => $post->id]);
+            return 0;
+        }
+
+        foreach ($failed as $pp) {
+            $pp->update([
+                'status'        => 'pending',
+                'error_message' => null,
+            ]);
+        }
+
+        $post->update(['status' => 'publishing']);
+
+        return $this->dispatchPublishing($post, false);
     }
 
     /**

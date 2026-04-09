@@ -5,18 +5,25 @@ namespace App\Jobs;
 use App\Jobs\PublishPostCommentJob;
 use App\Models\PostPlatform;
 use App\Models\Post;
+use App\Models\SocialAccount;
 use App\Models\SiteSetting;
 use App\Services\Cache\UserCacheVersionService;
 use App\Services\Platform\Platform;
 use App\Services\Platform\PlatformRegistry;
 use App\Services\Notifications\InAppNotificationService;
+use App\Services\Post\MediaPublishPreflightService;
 use App\Services\Post\PostPublishingService;
+use App\Services\Post\PublishErrorClassifier;
+use App\Services\Post\PublishExecutionMode;
 use App\Services\SocialAccount\TokenRefreshService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class PublishPostToPlatformJob implements ShouldQueue
@@ -34,19 +41,81 @@ class PublishPostToPlatformJob implements ShouldQueue
         TokenRefreshService $tokenRefreshService,
         PostPublishingService $postPublishingService,
     ): void {
-        $postPlatform = PostPlatform::with(['post', 'socialAccount'])->find($this->postPlatformId);
-
-        if ($postPlatform === null) {
-            Log::warning('PublishPostToPlatformJob: PostPlatform row not found', [
-                'post_platform_id' => $this->postPlatformId,
-            ]);
+        $platformLock = Cache::lock('publish_post_platform:' . $this->postPlatformId, 180);
+        if (! $platformLock->get()) {
+            $this->release(10);
             return;
         }
 
-        if (in_array($postPlatform->status, ['published', 'cancelled'])) {
-            return;
-        }
+        try {
+            if ($this->skipIfAlreadyPublished($postPublishingService)) {
+                return;
+            }
 
+            $postPlatform = PostPlatform::with(['post', 'socialAccount'])->find($this->postPlatformId);
+
+            if ($postPlatform === null) {
+                Log::warning('PublishPostToPlatformJob: PostPlatform row not found', [
+                    'post_platform_id' => $this->postPlatformId,
+                ]);
+                return;
+            }
+
+            if (in_array($postPlatform->status, ['published', 'cancelled'])) {
+                return;
+            }
+
+            $this->runPublishWithOptionalAccountLock(
+                $postPlatform,
+                $registry,
+                $tokenRefreshService,
+                $postPublishingService,
+            );
+        } finally {
+            $platformLock->release();
+        }
+    }
+
+    private function skipIfAlreadyPublished(PostPublishingService $postPublishingService): bool
+    {
+        return (bool) DB::transaction(function () use ($postPublishingService) {
+            $pp = PostPlatform::lockForUpdate()->find($this->postPlatformId);
+            if ($pp === null) {
+                return true;
+            }
+            if (in_array($pp->status, ['published', 'cancelled'], true)) {
+                $post = $pp->post;
+                if ($post !== null) {
+                    $postPublishingService->finalizePostStatus($post);
+                }
+                return true;
+            }
+            $remoteId = trim((string) ($pp->platform_post_id ?? ''));
+            if ($remoteId !== '') {
+                if ($pp->status !== 'published') {
+                    $pp->update([
+                        'status'        => 'published',
+                        'published_at'  => $pp->published_at ?? now(),
+                        'error_message' => null,
+                    ]);
+                }
+                $post = $pp->post;
+                if ($post !== null) {
+                    $postPublishingService->finalizePostStatus($post);
+                }
+                return true;
+            }
+
+            return false;
+        });
+    }
+
+    private function runPublishWithOptionalAccountLock(
+        PostPlatform $postPlatform,
+        PlatformRegistry $registry,
+        TokenRefreshService $tokenRefreshService,
+        PostPublishingService $postPublishingService,
+    ): void {
         $post = $postPlatform->post;
 
         if ($post === null) {
@@ -80,22 +149,6 @@ class PublishPostToPlatformJob implements ShouldQueue
             return;
         }
 
-        $refreshOk = $tokenRefreshService->refreshIfNeeded($account);
-        if (!$refreshOk) {
-            Log::warning('Token refresh attempt failed before publish; continuing with current token', [
-                'post_platform_id' => $postPlatform->id,
-                'account_id'       => $account->id,
-                'platform'         => $account->platform,
-            ]);
-        }
-        $account->refresh();
-
-        if ($account->isTokenExpired()) {
-            $this->markFailed($postPlatform, 'Access token is expired and could not be refreshed. Please reconnect.');
-            $postPublishingService->finalizePostStatus($post);
-            return;
-        }
-
         $platform = Platform::tryFrom($postPlatform->platform);
 
         if ($platform === null) {
@@ -104,6 +157,91 @@ class PublishPostToPlatformJob implements ShouldQueue
             return;
         }
 
+        $initialRefreshOk = $tokenRefreshService->refreshIfNeeded($account);
+        $account->refresh();
+
+        if (!$initialRefreshOk) {
+            Log::warning('Token refreshIfNeeded failed before publish; attempting forced refresh', [
+                'post_platform_id' => $postPlatform->id,
+                'account_id'       => $account->id,
+                'platform'         => $account->platform,
+            ]);
+            $forcedRefreshOk = $tokenRefreshService->refresh($account);
+            $account->refresh();
+
+            if (!$forcedRefreshOk) {
+                if (trim((string) $account->access_token) === '') {
+                    $this->markFailed($postPlatform, 'Social account has no access token. Please reconnect.');
+                    $postPublishingService->finalizePostStatus($post);
+                    return;
+                }
+                if ($account->isTokenExpired()) {
+                    $this->markFailed($postPlatform, 'Access token is expired and could not be refreshed. Please reconnect.');
+                    $postPublishingService->finalizePostStatus($post);
+                    return;
+                }
+                $this->markFailed(
+                    $postPlatform,
+                    'Could not refresh access token before publishing. Please reconnect your account.'
+                );
+                $postPublishingService->finalizePostStatus($post);
+                return;
+            }
+        }
+
+        if (trim((string) $account->access_token) === '') {
+            $this->markFailed($postPlatform, 'Social account has no access token. Please reconnect.');
+            $postPublishingService->finalizePostStatus($post);
+            return;
+        }
+
+        if ($account->isTokenExpired()) {
+            $this->markFailed($postPlatform, 'Access token is expired and could not be refreshed. Please reconnect.');
+            $postPublishingService->finalizePostStatus($post);
+            return;
+        }
+
+        if (Config::boolean('app.publish_per_account_lock', true)) {
+            $accountLock = Cache::lock('publish_social_account:' . $account->id, 180);
+            if (! $accountLock->get()) {
+                $this->release(5);
+                return;
+            }
+            try {
+                $this->runAccountLockedPublishSection(
+                    $postPlatform,
+                    $post,
+                    $platform,
+                    $registry,
+                    $tokenRefreshService,
+                    $postPublishingService,
+                    $account,
+                );
+            } finally {
+                $accountLock->release();
+            }
+        } else {
+            $this->runAccountLockedPublishSection(
+                $postPlatform,
+                $post,
+                $platform,
+                $registry,
+                $tokenRefreshService,
+                $postPublishingService,
+                $account,
+            );
+        }
+    }
+
+    private function runAccountLockedPublishSection(
+        PostPlatform $postPlatform,
+        Post $post,
+        Platform $platform,
+        PlatformRegistry $registry,
+        TokenRefreshService $tokenRefreshService,
+        PostPublishingService $postPublishingService,
+        SocialAccount $account,
+    ): void {
         if ($this->isPlatformPaused($platform)) {
             $postPlatform->update([
                 'status' => 'pending',
@@ -134,6 +272,7 @@ class PublishPostToPlatformJob implements ShouldQueue
             'platform'         => $platform->value,
             'media_count'      => count($mediaUrls),
             'media_urls'       => array_slice($mediaUrls, 0, 3),
+            'publish_phase'    => 'media_resolved',
         ]);
 
         if ($platform === Platform::LinkedIn) {
@@ -149,6 +288,13 @@ class PublishPostToPlatformJob implements ShouldQueue
             }
         }
 
+        $preflightError = app(MediaPublishPreflightService::class)->validatePostMediaForPlatform($post, $platform);
+        if ($preflightError !== null) {
+            $this->markFailed($postPlatform, $preflightError);
+            $postPublishingService->finalizePostStatus($post);
+            return;
+        }
+
         try {
             $result = $adapter->publish(
                 account:         $account,
@@ -161,6 +307,7 @@ class PublishPostToPlatformJob implements ShouldQueue
                 !$result->success
                 && !empty($mediaUrls)
                 && $this->isTextFallbackEnabled()
+                && !$this->postHasAttachedMedia($post)
                 && $this->canFallbackToTextOnly($platform, $result->errorMessage)
             ) {
                 Log::warning('Retrying publish without media fallback', [
@@ -178,9 +325,10 @@ class PublishPostToPlatformJob implements ShouldQueue
             }
         } catch (\Throwable $e) {
             Log::error('Platform adapter threw exception during publish', [
-                'post_platform_id' => $postPlatform->id,
-                'platform'         => $platform->value,
-                'error'            => $e->getMessage(),
+                'post_platform_id'  => $postPlatform->id,
+                'platform'          => $platform->value,
+                'error'             => $e->getMessage(),
+                'error_class'       => PublishErrorClassifier::classify(null, $e->getMessage()),
             ]);
 
             $this->markFailed($postPlatform, 'Platform error: ' . $e->getMessage());
@@ -191,7 +339,7 @@ class PublishPostToPlatformJob implements ShouldQueue
         if ($result->success) {
             $this->markPublished($postPlatform, $post->id, $platform, $result);
         } else {
-            if ($this->isAuthFailure($result->errorCode, $result->errorMessage)) {
+            if (PublishErrorClassifier::matchesAuthFailure($result->errorCode, $result->errorMessage)) {
                 Log::warning('Publish failed due to auth; forcing refresh and retrying once', [
                     'post_platform_id' => $postPlatform->id,
                     'platform'         => $platform->value,
@@ -226,7 +374,7 @@ class PublishPostToPlatformJob implements ShouldQueue
 
             if ($result->success) {
                 $this->markPublished($postPlatform, $post->id, $platform, $result);
-            } elseif ($this->isPermanentProviderFailure($result->errorCode, $result->errorMessage)) {
+            } elseif (PublishErrorClassifier::matchesPermanentProviderFailure($result->errorCode, $result->errorMessage)) {
                 $this->markFailed($postPlatform, $result->errorMessage ?? 'Provider rejected this request permanently.');
             } elseif ($this->attempts() >= $this->tries()) {
                 $this->markFailed($postPlatform, $result->errorMessage ?? 'Unknown error');
@@ -252,6 +400,7 @@ class PublishPostToPlatformJob implements ShouldQueue
             'post_platform_id' => $postPlatform->id,
             'platform'         => $postPlatform->platform,
             'error'            => $errorMessage,
+            'error_class'      => PublishErrorClassifier::classify(null, $errorMessage),
         ]);
 
         try {
@@ -288,17 +437,29 @@ class PublishPostToPlatformJob implements ShouldQueue
             $delayMinutes = max(0, $delayMinutes);
 
             $postPlatform->update([
-                'comment_status' => 'queued',
+                'comment_status'        => 'queued',
                 'comment_error_message' => null,
             ]);
 
-            PublishPostCommentJob::dispatch($postPlatform->id)->delay(now()->addMinutes($delayMinutes));
+            $commentSync = PublishExecutionMode::useSyncCommentJobs();
+            if ($commentSync && $delayMinutes === 0) {
+                PublishPostCommentJob::dispatchSync($postPlatform->id);
+            } else {
+                if ($commentSync && $delayMinutes > 0) {
+                    Log::warning('First comment has delay > 0; queued job required despite sync comment preference', [
+                        'post_platform_id' => $postPlatform->id,
+                        'delay_minutes'    => $delayMinutes,
+                    ]);
+                }
+                PublishPostCommentJob::dispatch($postPlatform->id)->delay(now()->addMinutes($delayMinutes));
+            }
         }
 
         Log::info('Post published to platform', [
-            'post_id'      => $postId,
-            'platform'     => $platform->value,
-            'platform_post_id' => $result->platformPostId,
+            'post_id'            => $postId,
+            'platform'           => $platform->value,
+            'platform_post_id'   => $result->platformPostId,
+            'publish_phase'      => 'complete',
         ]);
         $this->bumpUserCacheVersion($postPlatform);
     }
@@ -354,6 +515,20 @@ class PublishPostToPlatformJob implements ShouldQueue
                 app(PostPublishingService::class)->finalizePostStatus($post);
             }
         }
+    }
+
+    private function postHasAttachedMedia(Post $post): bool
+    {
+        if ($post->relationLoaded('mediaFiles')) {
+            if ($post->mediaFiles->isNotEmpty()) {
+                return true;
+            }
+        } elseif ($post->mediaFiles()->exists()) {
+            return true;
+        }
+
+        $paths = $post->media_paths;
+        return is_array($paths) && count(array_filter($paths, fn ($p) => is_string($p) && trim($p) !== '')) > 0;
     }
 
     private function canFallbackToTextOnly(Platform $platform, ?string $errorMessage): bool
@@ -419,68 +594,6 @@ class PublishPostToPlatformJob implements ShouldQueue
     {
         $policy = SiteSetting::getJson('publish_retry_policy', []);
         return (bool) ($policy['text_only_fallback'] ?? true);
-    }
-
-    private function isAuthFailure(?int $errorCode, ?string $errorMessage): bool
-    {
-        if (in_array($errorCode, [401, 403], true)) {
-            return true;
-        }
-
-        $msg = strtolower((string) $errorMessage);
-        if ($msg === '') {
-            return false;
-        }
-
-        $authSignals = [
-            'invalid token',
-            'token expired',
-            'expired token',
-            'unauthorized',
-            'permission',
-            'invalid oauth',
-            'authentication',
-            'forbidden',
-            'access denied',
-        ];
-
-        foreach ($authSignals as $signal) {
-            if (str_contains($msg, $signal)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function isPermanentProviderFailure(?int $errorCode, ?string $errorMessage): bool
-    {
-        if ($errorCode === 402) {
-            return true;
-        }
-
-        $msg = strtolower((string) $errorMessage);
-        if ($msg === '') {
-            return false;
-        }
-
-        $signals = [
-            'creditsdepleted',
-            'credit',
-            'quota exceeded',
-            'insufficient balance',
-            'billing',
-            'payment required',
-            'upgrade your plan',
-        ];
-
-        foreach ($signals as $signal) {
-            if (str_contains($msg, $signal)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private function bumpUserCacheVersion(PostPlatform $postPlatform): void

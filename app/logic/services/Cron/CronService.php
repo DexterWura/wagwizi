@@ -62,7 +62,7 @@ class CronService
             [
                 'key'              => 'publish_due_posts',
                 'label'            => 'Publish scheduled posts',
-                'description'      => 'Finds posts that are due for publishing and dispatches them to the queue.',
+                'description'      => 'Finds posts that are due and publishes them (runs publish jobs synchronously by default so a queue worker is not required).',
                 'interval_minutes' => 1,
                 'enabled'          => true,
             ],
@@ -71,6 +71,13 @@ class CronService
                 'label'            => 'Refresh expiring tokens',
                 'description'      => 'Refreshes OAuth tokens for social accounts that are about to expire.',
                 'interval_minutes' => 15,
+                'enabled'          => true,
+            ],
+            [
+                'key'              => 'refresh_tokens_unknown_expiry',
+                'label'            => 'Refresh tokens missing expiry',
+                'description'      => 'Refreshes OAuth/Bluesky accounts that have a refresh token but no stored token_expires_at.',
+                'interval_minutes' => 1440,
                 'enabled'          => true,
             ],
             [

@@ -16,7 +16,10 @@ use InvalidArgumentException;
 class PostSchedulingService
 {
     private const MAX_SCHEDULE_DAYS_AHEAD = 90;
+
     private const MIN_SCHEDULE_MINUTES_AHEAD = 5;
+
+    /* Date/time strings are parsed with the application timezone (see config app.timezone). */
 
     public function __construct(
         private readonly PlanReplyFeatureService $replyFeature,
@@ -295,10 +298,15 @@ class PostSchedulingService
         $scheduledAt = $this->resolveScheduleFromInput($data);
 
         $result = DB::transaction(function () use ($post, $userId, $data, $scheduledAt): Post {
-            $post->update([
+            $updates = [
                 'status'       => 'scheduled',
                 'scheduled_at' => $scheduledAt,
-            ]);
+            ];
+            if (array_key_exists('content', $data)) {
+                $this->validateContent(['content' => $data['content']]);
+                $updates['content'] = trim($data['content']);
+            }
+            $post->update($updates);
 
             $this->syncPlatformAccounts(
                 $post,
