@@ -18,7 +18,12 @@ final class PublishExecutionMode
             return true;
         }
 
-        return $duePostsContext && Config::boolean('app.publish_due_posts_sync', true);
+        if ($duePostsContext) {
+            return Config::boolean('app.publish_due_posts_sync', true);
+        }
+
+        // "Post now" should feel immediate by default.
+        return Config::boolean('app.publish_now_sync', true);
     }
 
     /**
