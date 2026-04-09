@@ -1921,6 +1921,68 @@
       }
     }
 
+    function resetComposerAfterSuccessfulPublish(message) {
+      var masterEl = document.getElementById("composer-master");
+      var dateEl = document.getElementById("composer-date");
+      var timeEl = document.getElementById("composer-time");
+      var audienceEl = document.getElementById("composer-audience");
+      var firstCommentEl = document.getElementById("composer-first-comment");
+      var commentDelayValueEl = document.getElementById("composer-comment-delay-value");
+      var commentDelayUnitEl = document.getElementById("composer-comment-delay-unit");
+      var mediaTypeEl = document.getElementById("composer-media-type");
+      var scheduleWrap = document.querySelector("[data-app-composer-schedule-settings]");
+      var banner = document.querySelector("[data-app-composer-editing-banner]");
+      var overrideEl = document.getElementById("composer-override");
+      var tabs = document.querySelectorAll("[data-app-platform-tab]");
+
+      if (masterEl) masterEl.value = "";
+      if (dateEl) dateEl.value = "";
+      if (timeEl) timeEl.value = "";
+      if (audienceEl) audienceEl.value = "everyone";
+      if (firstCommentEl) firstCommentEl.value = "";
+      if (commentDelayValueEl) commentDelayValueEl.value = "";
+      if (commentDelayUnitEl) commentDelayUnitEl.value = "minutes";
+      if (mediaTypeEl) mediaTypeEl.value = "none";
+      if (scheduleWrap) scheduleWrap.hidden = true;
+      if (banner) banner.hidden = true;
+      if (overrideEl) {
+        overrideEl.value = "";
+        overrideEl.disabled = true;
+      }
+
+      // Return override state to master-only and clear all custom captions.
+      global.__composerPlatformOverrides = {};
+      tabs.forEach(function (tab) {
+        var key = tab.getAttribute("data-app-platform-tab") || "";
+        tab.setAttribute("aria-selected", key === "master" ? "true" : "false");
+      });
+      if (typeof applyComposerOverrideForActiveTab === "function") {
+        applyComposerOverrideForActiveTab();
+      }
+
+      setSelectedMediaList([]);
+      syncComposerPreviewMedia();
+
+      global.__composerEditingPostId = null;
+      try {
+        var cleanUrl = new URL(global.location.href);
+        cleanUrl.searchParams.delete("draft");
+        cleanUrl.searchParams.delete("publish_post");
+        global.history.replaceState({}, "", cleanUrl.pathname + cleanUrl.search);
+      } catch (e) {}
+
+      if (typeof global.__composerMarkSaved === "function") {
+        global.__composerMarkSaved();
+      }
+
+      if (global.App && typeof global.App.closeModal === "function") {
+        global.App.closeModal(modal);
+      }
+      if (global.App && typeof global.App.showFlash === "function") {
+        global.App.showFlash(message || "Successfully posted.", "success");
+      }
+    }
+
     actionButtons.forEach(function (btn) {
       btn.addEventListener("click", function () {
         var action = btn.getAttribute("data-app-composer-action");
@@ -2072,15 +2134,8 @@
               }
 
               if (result.kind === "success") {
-                setFeedbackModalState({
-                  isError: false,
-                  retryAction: "",
-                  kind: "publish",
-                  iconClass: "fa-solid fa-circle-check",
-                  title: "Published",
-                  desc: result.message || "Your post has been published.",
-                  showCalendar: false
-                });
+                resetComposerAfterSuccessfulPublish(result.message || "Successfully posted.");
+                return;
               } else if (result.kind === "partial") {
                 setFeedbackModalState({
                   isError: true,
