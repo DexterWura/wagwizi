@@ -150,11 +150,16 @@
                   </tbody>
                 </table>
               </div>
+              @if(method_exists($tasks, 'links'))
+                <div style="margin-top: 12px;">
+                  {{ $tasks->appends(['runs_page' => request('runs_page')])->links() }}
+                </div>
+              @endif
             </div>
           </div>
 
           <div class="card">
-            <div class="card__head"><span>Run history (latest 200)</span></div>
+            <div class="card__head"><span>Run history ({{ method_exists($runs, 'total') ? $runs->total() : $runs->count() }})</span></div>
             <div class="card__body">
               <div class="admin-table-wrap">
                 <table class="admin-table">
@@ -182,6 +187,11 @@
                   </tbody>
                 </table>
               </div>
+              @if(method_exists($runs, 'links'))
+                <div style="margin-top: 12px;">
+                  {{ $runs->appends(['tasks_page' => request('tasks_page')])->links() }}
+                </div>
+              @endif
             </div>
           </div>
         </main>

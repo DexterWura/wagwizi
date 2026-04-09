@@ -75,7 +75,7 @@
                 </table>
               </div>
               <div class="admin-pagination">
-                {{ $deliveries->links() }}
+                {{ $deliveries->appends(request()->query())->links() }}
               </div>
             </div>
           </div>

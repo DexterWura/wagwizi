@@ -86,6 +86,11 @@
                   </tbody>
                 </table>
               </div>
+              @if(method_exists($migrations, 'links'))
+                <div style="margin-top: 12px;">
+                  {{ $migrations->links() }}
+                </div>
+              @endif
             </div>
           </div>
         </main>

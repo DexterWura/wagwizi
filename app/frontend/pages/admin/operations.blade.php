@@ -82,7 +82,7 @@
           </div>
 
           <div class="card">
-            <div class="card__head"><span>Failed Publishes ({{ $failedPublishes->count() }})</span></div>
+            <div class="card__head"><span>Failed Publishes ({{ method_exists($failedPublishes, 'total') ? $failedPublishes->total() : $failedPublishes->count() }})</span></div>
             <div class="card__body">
               <div class="admin-table-wrap">
                 <table class="admin-table">
@@ -108,11 +108,16 @@
                   </tbody>
                 </table>
               </div>
+              @if(method_exists($failedPublishes, 'links'))
+                <div style="margin-top: 12px;">
+                  {{ $failedPublishes->appends(['comment_page' => request('comment_page')])->links() }}
+                </div>
+              @endif
             </div>
           </div>
 
           <div class="card">
-            <div class="card__head"><span>Failed Comments ({{ $failedComments->count() }})</span></div>
+            <div class="card__head"><span>Failed Comments ({{ method_exists($failedComments, 'total') ? $failedComments->total() : $failedComments->count() }})</span></div>
             <div class="card__body">
               <div class="admin-table-wrap">
                 <table class="admin-table">
@@ -138,6 +143,11 @@
                   </tbody>
                 </table>
               </div>
+              @if(method_exists($failedComments, 'links'))
+                <div style="margin-top: 12px;">
+                  {{ $failedComments->appends(['publish_page' => request('publish_page')])->links() }}
+                </div>
+              @endif
             </div>
           </div>
         </main>

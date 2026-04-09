@@ -43,6 +43,7 @@ use App\Utils\FileUploadUtil;
 use Illuminate\Support\Str;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -994,9 +995,22 @@ class AdminController extends Controller
 
     public function migrations(): View
     {
-        $service    = app(MigrationService::class);
-        $migrations = $service->getAllMigrations();
-        $pendingMigrationsCount = collect($migrations)->where('ran', false)->count();
+        $service = app(MigrationService::class);
+        $allMigrations = collect($service->getAllMigrations());
+        $pendingMigrationsCount = $allMigrations->where('ran', false)->count();
+
+        $perPage = 25;
+        $currentPage = LengthAwarePaginator::resolveCurrentPage();
+        $migrations = new LengthAwarePaginator(
+            $allMigrations->forPage($currentPage, $perPage)->values(),
+            $allMigrations->count(),
+            $perPage,
+            $currentPage,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ]
+        );
 
         return view('admin.migrations', compact('migrations', 'pendingMigrationsCount'));
     }
@@ -1257,14 +1271,12 @@ class AdminController extends Controller
         $failedPublishes = PostPlatform::with(['post:id,user_id,content', 'socialAccount:id,user_id,platform,display_name,token_expires_at,status'])
             ->where('status', 'failed')
             ->orderByDesc('updated_at')
-            ->limit(200)
-            ->get();
+            ->paginate(25, ['*'], 'publish_page');
 
         $failedComments = PostPlatform::with(['post:id,user_id,content', 'socialAccount:id,user_id,platform,display_name,token_expires_at,status'])
             ->where('comment_status', 'failed')
             ->orderByDesc('updated_at')
-            ->limit(200)
-            ->get();
+            ->paginate(25, ['*'], 'comment_page');
 
         $tokenHealth = [
             'expired' => SocialAccount::active()->whereNotNull('token_expires_at')->where('token_expires_at', '<=', now())->count(),
@@ -1393,13 +1405,12 @@ class AdminController extends Controller
     {
         $tasks = CronTask::query()
             ->orderBy('label')
-            ->get();
+            ->paginate(20, ['*'], 'tasks_page');
 
         $runs = CronTaskRun::query()
             ->with('cronTask:id,key,label')
             ->orderByDesc('ran_at')
-            ->limit(200)
-            ->get();
+            ->paginate(30, ['*'], 'runs_page');
 
         $cronSecret = $cronSecrets->get();
         $cronSecretFromDb = $cronSecrets->isStoredInDatabase();
