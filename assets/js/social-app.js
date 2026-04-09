@@ -1186,7 +1186,6 @@
     var scheduleWrap = document.querySelector("[data-app-composer-schedule-settings]");
     var dateEl = document.getElementById("composer-date");
     var timeEl = document.getElementById("composer-time");
-    var delayEl = document.getElementById("composer-delay-value");
 
     function hasCommentSettingsValue() {
       var c = firstComment ? (firstComment.value || "").trim() : "";
@@ -1206,8 +1205,7 @@
     function hasScheduleSettingsValue() {
       var dv = dateEl ? (dateEl.value || "").trim() : "";
       var tv = timeEl ? (timeEl.value || "").trim() : "";
-      var dl = delayEl ? (delayEl.value || "").trim() : "";
-      return dv !== "" || tv !== "" || dl !== "";
+      return dv !== "" || tv !== "";
     }
 
     function setScheduleOpen(open) {
@@ -1800,12 +1798,48 @@
   function initComposerActions() {
     var modal = document.getElementById("modal-composer-feedback");
     if (!modal || !global.App) return;
+    var heroEl = modal.querySelector(".modal-success-hero");
     var titleEl = modal.querySelector("[data-feedback-title]");
     var descEl = modal.querySelector("[data-feedback-desc]");
     var iconEl = modal.querySelector("[data-feedback-icon]");
     var calLink = modal.querySelector("[data-feedback-calendar-link]");
+    var retryBtn = modal.querySelector("[data-feedback-retry]");
     var gotItBtn = modal.querySelector("[data-feedback-got-it]");
     var actionButtons = document.querySelectorAll("[data-app-composer-action]");
+
+    function setFeedbackModalState(options) {
+      var isError = !!(options && options.isError);
+      var retryAction = options && options.retryAction ? String(options.retryAction) : "";
+      var showCalendar = !!(options && options.showCalendar);
+      var iconClass = (options && options.iconClass) || "fa-solid fa-circle-info";
+      var title = (options && options.title) || (isError ? "Action failed" : "Done");
+      var desc = (options && options.desc) || "";
+
+      modal.setAttribute("data-feedback-state", isError ? "error" : "success");
+      if (heroEl) {
+        heroEl.setAttribute("aria-live", "polite");
+      }
+      if (titleEl) titleEl.textContent = title;
+      if (descEl) descEl.textContent = desc;
+      if (iconEl) iconEl.className = iconClass;
+
+      if (calLink) {
+        if (showCalendar && !isError) calLink.removeAttribute("hidden");
+        else calLink.setAttribute("hidden", "");
+      }
+
+      if (retryBtn) {
+        if (isError && retryAction) {
+          retryBtn.dataset.feedbackRetryAction = retryAction;
+          retryBtn.removeAttribute("hidden");
+        } else {
+          retryBtn.dataset.feedbackRetryAction = "";
+          retryBtn.setAttribute("hidden", "");
+        }
+      }
+
+      if (gotItBtn) gotItBtn.textContent = "Close";
+    }
 
     function setActionBusy(activeBtn, busy, label) {
       actionButtons.forEach(function (b) {
@@ -1877,7 +1911,6 @@
               : global.App.apiPost("/api/v1/posts", draftPayload);
           draftReq.then(function (res) {
             setActionBusy(btn, false);
-            if (titleEl) titleEl.textContent = "Draft saved";
             if (res._ok && res.post && res.post.id) {
               global.__composerEditingPostId = res.post.id;
               if (typeof global.__composerMarkSaved === "function") global.__composerMarkSaved();
@@ -1887,11 +1920,16 @@
                 global.history.replaceState({}, "", u.pathname + u.search);
               } catch (e) {}
             }
-            if (descEl) descEl.textContent = res._ok
-              ? "Draft #" + (res.post ? res.post.id : "") + " saved to your account."
-              : parseApiError(res, "Could not save draft.");
-            if (iconEl) iconEl.className = "fa-solid fa-floppy-disk";
-            if (calLink) calLink.setAttribute("hidden", "");
+            setFeedbackModalState({
+              isError: !res._ok,
+              retryAction: "draft",
+              iconClass: res._ok ? "fa-solid fa-floppy-disk" : "fa-solid fa-triangle-exclamation",
+              title: res._ok ? "Draft saved" : "Save failed",
+              desc: res._ok
+                ? ("Draft #" + (res.post ? res.post.id : "") + " saved to your account.")
+                : parseApiError(res, "Could not save draft."),
+              showCalendar: false
+            });
             global.App.openModal("modal-composer-feedback");
           }).catch(function () {
             setActionBusy(btn, false);
@@ -1931,12 +1969,16 @@
                 modal.removeAttribute("data-feedback-publish-post-id");
               }
             }
-            if (titleEl) titleEl.textContent = pubRes._ok ? "Publishing" : "Publish failed";
-            if (descEl) descEl.textContent = pubRes._ok
-              ? (pubRes.message || "Your post is being published to all selected networks.")
-              : parseApiError(pubRes, "Publish failed.");
-            if (iconEl) iconEl.className = "fa-solid fa-paper-plane";
-            if (calLink) calLink.setAttribute("hidden", "");
+            setFeedbackModalState({
+              isError: !pubRes._ok,
+              retryAction: "publish",
+              iconClass: pubRes._ok ? "fa-solid fa-paper-plane" : "fa-solid fa-triangle-exclamation",
+              title: pubRes._ok ? "Publishing" : "Publish failed",
+              desc: pubRes._ok
+                ? (pubRes.message || "Your post is being published to all selected networks.")
+                : parseApiError(pubRes, "Publish failed."),
+              showCalendar: false
+            });
             global.App.openModal("modal-composer-feedback");
           }
 
@@ -1978,7 +2020,7 @@
           if (scheduleWrap && scheduleWrap.hidden) {
             setActionBusy(btn, false);
             scheduleWrap.hidden = false;
-            global.App.showFlash("Set date/time (or delay), then click Schedule again.", "error");
+            global.App.showFlash("Set date and time, then click Schedule again.", "error");
             return;
           }
           if (!accounts.length) {
@@ -1988,20 +2030,20 @@
           }
           var dateVal = document.getElementById("composer-date") ? document.getElementById("composer-date").value : "";
           var timeVal = document.getElementById("composer-time") ? document.getElementById("composer-time").value : "";
-          var delayValueEl = document.getElementById("composer-delay-value");
-          var delayUnitEl = document.getElementById("composer-delay-unit");
-          var delayValue = delayValueEl ? parseInt(delayValueEl.value || "", 10) : NaN;
-          var delayUnit = delayUnitEl ? delayUnitEl.value : "";
-
-          var useDelay = !isNaN(delayValue) && delayValue > 0 && (delayUnit === "minutes" || delayUnit === "hours");
-
-          if ((!dateVal || !timeVal) && !useDelay) {
+          if (!dateVal || !timeVal) {
             setActionBusy(btn, false);
-            global.App.showFlash("Pick date/time or set a delay in minutes/hours.", "error");
+            global.App.showFlash("Pick date and time to schedule this post.", "error");
             return;
           }
 
-          var scheduledAt = dateVal && timeVal ? (dateVal + "T" + timeVal + ":00") : null;
+          var scheduledAt = null;
+          if (dateVal && timeVal) {
+            var scheduledLocal = new Date(dateVal + "T" + timeVal + ":00");
+            if (!isNaN(scheduledLocal.getTime())) {
+              // Send an absolute timestamp so server timezone does not shift the selected local date/time.
+              scheduledAt = scheduledLocal.toISOString();
+            }
+          }
 
           var schedulePayload = {
             content: content,
@@ -2014,10 +2056,6 @@
           if (scheduleMediaPaths.length) schedulePayload.media_paths = scheduleMediaPaths;
           Object.assign(schedulePayload, commentPayload);
           if (scheduledAt) schedulePayload.scheduled_at = scheduledAt;
-          if (useDelay) {
-            schedulePayload.delay_value = delayValue;
-            schedulePayload.delay_unit = delayUnit;
-          }
 
           var editingSchedId = global.__composerEditingPostId;
           var scheduleUrl = editingSchedId
@@ -2027,17 +2065,16 @@
           global.App.apiPost(scheduleUrl, schedulePayload).then(function (schedRes) {
             setActionBusy(btn, false);
             if (schedRes._ok && typeof global.__composerMarkSaved === "function") global.__composerMarkSaved();
-            if (titleEl) titleEl.textContent = schedRes._ok ? "Scheduled" : "Schedule failed";
-            if (descEl) descEl.textContent = schedRes._ok
-              ? (useDelay
-                ? ("Your post is scheduled in " + delayValue + " " + delayUnit + ".")
-                : ("Your post is scheduled for " + dateVal + " at " + timeVal + "."))
-              : parseApiError(schedRes, "Could not schedule.");
-            if (iconEl) iconEl.className = "fa-solid fa-calendar-days";
-            if (calLink) {
-              if (schedRes._ok) calLink.removeAttribute("hidden");
-              else calLink.setAttribute("hidden", "");
-            }
+            setFeedbackModalState({
+              isError: !schedRes._ok,
+              retryAction: "schedule",
+              iconClass: schedRes._ok ? "fa-solid fa-calendar-days" : "fa-solid fa-triangle-exclamation",
+              title: schedRes._ok ? "Scheduled" : "Schedule failed",
+              desc: schedRes._ok
+                ? ("Your post is scheduled for " + dateVal + " at " + timeVal + ".")
+                : parseApiError(schedRes, "Could not schedule."),
+              showCalendar: !!schedRes._ok
+            });
             global.App.openModal("modal-composer-feedback");
           }).catch(function () {
             setActionBusy(btn, false);
@@ -2046,6 +2083,20 @@
         }
       });
     });
+
+    if (retryBtn) {
+      retryBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var action = retryBtn.dataset.feedbackRetryAction || "";
+        if (!action) return;
+        if (global.App && typeof global.App.closeModal === "function") {
+          global.App.closeModal(modal);
+        }
+        var actionBtn = document.querySelector("[data-app-composer-action=\"" + action + "\"]");
+        if (actionBtn) actionBtn.click();
+      });
+    }
 
     if (gotItBtn && modal) {
       gotItBtn.addEventListener("click", function (e) {
@@ -2219,7 +2270,7 @@
           if (day && day !== "Queue") {
             var parsed = new Date(day + " 09:00:00");
             if (!isNaN(parsed.getTime())) {
-              scheduledAt = parsed.toISOString().slice(0, 19).replace("T", "T");
+              scheduledAt = parsed.toISOString();
             }
           }
 
@@ -2365,8 +2416,6 @@
       var cdu = document.getElementById("composer-comment-delay-unit");
       var d = document.getElementById("composer-date");
       var t = document.getElementById("composer-time");
-      var dv = document.getElementById("composer-delay-value");
-      var du = document.getElementById("composer-delay-unit");
       var media = global.__composerSelectedMedia || null;
       var mediaList = getSelectedMediaList();
 
@@ -2379,8 +2428,6 @@
         commentDelayUnit: cdu ? (cdu.value || "") : "minutes",
         scheduleDate: d ? (d.value || "").trim() : "",
         scheduleTime: t ? (t.value || "").trim() : "",
-        delayValue: dv ? (dv.value || "").trim() : "",
-        delayUnit: du ? (du.value || "") : "minutes",
         mediaId: media && media.id != null ? String(media.id) : "",
         mediaPath: media && media.path ? String(media.path) : "",
         mediaType: media && media.type ? String(media.type) : "",

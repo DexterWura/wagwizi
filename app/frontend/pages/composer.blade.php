@@ -298,16 +298,6 @@
                       <label class="field__label" for="composer-time">Time</label>
                       <input class="input" type="time" id="composer-time" name="schedule-time" />
                     </div>
-                    <div class="composer-schedule-field">
-                      <label class="field__label" for="composer-delay-value">Delay post by</label>
-                      <div class="composer-delay-row">
-                        <input class="input" type="number" id="composer-delay-value" min="1" placeholder="e.g. 30" />
-                        <select class="select" id="composer-delay-unit">
-                          <option value="minutes">Minutes</option>
-                          <option value="hours">Hours</option>
-                        </select>
-                      </div>
-                    </div>
                   </div>
                   <div class="composer-audience-hint" data-app-audience-hint>
                     <div class="composer-audience-hint__icon" aria-hidden="true"><i class="fa-solid fa-chart-line"></i></div>
@@ -482,6 +472,7 @@
         </div>
         <div class="app-modal__foot">
           <a class="btn btn--composer-schedule" href="{{ route('calendar') }}" data-feedback-calendar-link hidden>Open calendar</a>
+          <button type="button" class="btn btn--danger" data-feedback-retry hidden>Retry</button>
           <button type="button" class="btn btn--primary" data-feedback-got-it data-app-modal-close>Got it</button>
         </div>
       </div>

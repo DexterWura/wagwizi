@@ -356,6 +356,10 @@
     var legacy = localStorage.getItem(STORAGE.legacyDisplayCurrency);
     if (legacy === "eur" && DISPLAY_TIMEZONES["Europe/Paris"]) return "Europe/Paris";
     if ((legacy === "gbp" || legacy === "usd") && DISPLAY_TIMEZONES["UTC"]) return "UTC";
+    try {
+      var detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (detected && DISPLAY_TIMEZONES[detected]) return detected;
+    } catch (e) {}
     return DISPLAY_TIMEZONES[def] ? def : Object.keys(DISPLAY_TIMEZONES)[0];
   }
 

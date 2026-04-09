@@ -166,8 +166,6 @@ class PostController extends Controller
         $validated = $request->validate([
             'content'             => 'sometimes|string|min:1|max:40000',
             'scheduled_at'        => 'nullable|date|after:now',
-            'delay_value'         => 'nullable|integer|min:1|max:10080',
-            'delay_unit'          => 'nullable|in:minutes,hours',
             'platform_accounts'   => 'required|array|min:1',
             'platform_accounts.*' => 'integer|exists:social_accounts,id',
             'platform_content'    => 'nullable|array',
@@ -193,8 +191,6 @@ class PostController extends Controller
         $validated = $request->validate([
             'content'             => 'required|string|min:1|max:40000',
             'scheduled_at'        => 'nullable|date|after:now',
-            'delay_value'         => 'nullable|integer|min:1|max:10080',
-            'delay_unit'          => 'nullable|in:minutes,hours',
             'platform_accounts'   => 'required|array|min:1',
             'platform_accounts.*' => 'integer|exists:social_accounts,id',
             'platform_content'    => 'nullable|array',

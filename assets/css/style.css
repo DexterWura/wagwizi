@@ -6399,6 +6399,21 @@ button.link-create {
   margin-top: 0.4rem;
 }
 
+.app-modal--composer-feedback[data-feedback-state="error"] .modal-success-hero {
+  background: linear-gradient(180deg, rgba(244, 63, 94, 0.14) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+.app-modal--composer-feedback[data-feedback-state="error"] .modal-success-hero__icon {
+  background: linear-gradient(145deg, rgba(244, 63, 94, 0.28), rgba(251, 113, 133, 0.18));
+  color: #f43f5e;
+  border-color: rgba(244, 63, 94, 0.45);
+}
+
+.app-modal--composer-feedback[data-feedback-state="error"] .modal-success-hero h2 {
+  color: #f43f5e;
+}
+
 .app-modal--composer-feedback .app-modal__foot {
   justify-content: center;
   flex-wrap: wrap;

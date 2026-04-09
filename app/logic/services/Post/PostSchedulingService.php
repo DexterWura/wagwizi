@@ -370,16 +370,7 @@ class PostSchedulingService
         if (is_string($scheduledAt) && trim($scheduledAt) !== '') {
             return $this->validateScheduleTime($scheduledAt);
         }
-
-        $delayValue = isset($data['delay_value']) ? (int) $data['delay_value'] : null;
-        $delayUnit = $data['delay_unit'] ?? null;
-
-        if ($delayValue === null || $delayValue <= 0 || !in_array($delayUnit, ['minutes', 'hours'], true)) {
-            throw new InvalidArgumentException('Provide schedule date/time or a valid delay in minutes/hours.');
-        }
-
-        $scheduled = now()->addMinutes($delayUnit === 'hours' ? $delayValue * 60 : $delayValue);
-        return $this->validateScheduleTime($scheduled->toDateTimeString());
+        throw new InvalidArgumentException('Provide a valid schedule date/time.');
     }
 
     private function resolveCommentDelayMinutes(array $data): ?int
