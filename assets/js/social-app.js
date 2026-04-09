@@ -1736,6 +1736,7 @@
 
       var queue = Promise.resolve();
       var successCount = 0;
+      var lastUploadedType = "";
 
       files.forEach(function (file, idx) {
         queue = queue.then(function () {
@@ -1760,13 +1761,15 @@
             if (res.media && res.media.path) {
               var ub = res.media.size_bytes;
               if (ub != null && typeof ub === "string") ub = parseInt(ub, 10);
+              var uploadedType = String(res.media.type || "image").toLowerCase();
               addSelectedMedia({
                 id: res.media.id,
                 path: res.media.path,
-                type: res.media.type || "image",
+                type: uploadedType,
                 original_name: res.media.original_name,
                 size_bytes: ub != null && !isNaN(ub) ? ub : null
               });
+              lastUploadedType = uploadedType;
               successCount += 1;
             }
           }).catch(function () {});
@@ -1778,6 +1781,15 @@
           uploadBtn.classList.remove("is-loading");
           if (global.App.uploadProgressEnd) {
             global.App.uploadProgressEnd(successCount > 0);
+          }
+          // If media type was still "none", switch it so newly uploaded media appears in preview.
+          if (
+            successCount > 0 &&
+            mediaTypeSel &&
+            (mediaTypeSel.value || "") === "none" &&
+            (lastUploadedType === "video" || lastUploadedType === "image")
+          ) {
+            mediaTypeSel.value = lastUploadedType;
           }
           syncComposerPreviewMedia();
           if (successCount > 0) {
