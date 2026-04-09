@@ -25,9 +25,13 @@
     if (!root || !global.App) return;
     var templates = readTemplates();
     var canvas = bySel("[data-workflow-canvas]", root);
+    var edgesSvg = bySel("[data-workflow-edges]", root);
+    var nodeLayer = bySel("[data-workflow-node-layer]", root);
+    var emptyState = bySel("[data-workflow-empty-state]", root);
     var palette = bySel("[data-workflow-node-palette]", root);
     var nameEl = bySel("#workflow-name", root);
     var triggerEl = bySel("[data-workflow-trigger]", root);
+    var activeEl = bySel("[data-workflow-active]", root);
     var templateEl = bySel("[data-workflow-template-select]", root);
     var listEl = bySel("[data-workflow-list]", root);
     var runsEl = bySel("[data-workflow-runs]", root);
@@ -37,6 +41,12 @@
 
     var currentWorkflowId = null;
     var selectedNodeId = null;
+    var connectFromNodeId = null;
+    var connectMode = false;
+    var canvasScale = 1;
+    var dragNodeId = null;
+    var dragOffsetX = 0;
+    var dragOffsetY = 0;
     var graph = { nodes: [], edges: [] };
 
     var nodeCatalog = [
@@ -91,37 +101,133 @@
       });
     }
 
-    function addNode(type) {
+    function nodeById(id) {
+      return graph.nodes.find(function (n) { return n.id === id; });
+    }
+
+    function edgeExists(fromId, toId) {
+      return graph.edges.some(function (e) { return e.from === fromId && e.to === toId; });
+    }
+
+    function addEdge(fromId, toId) {
+      if (!fromId || !toId || fromId === toId) return;
+      if (!nodeById(fromId) || !nodeById(toId)) return;
+      if (edgeExists(fromId, toId)) return;
+      graph.edges.push({ from: fromId, to: toId });
+    }
+
+    function removeEdgesFromNode(nodeId) {
+      graph.edges = graph.edges.filter(function (e) {
+        return e.from !== nodeId && e.to !== nodeId;
+      });
+    }
+
+    function addNode(type, x, y) {
       var id = "node_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+      var cx = typeof x === "number" ? x : 120 + (graph.nodes.length * 40);
+      var cy = typeof y === "number" ? y : 120 + (graph.nodes.length * 22);
       graph.nodes.push({
         id: id,
         type: type,
-        config: defaultConfigForType(type)
+        config: defaultConfigForType(type),
+        x: cx,
+        y: cy
       });
       if (graph.nodes.length > 1) {
         var prev = graph.nodes[graph.nodes.length - 2];
-        graph.edges.push({ from: prev.id, to: id });
+        addEdge(prev.id, id);
       }
       renderCanvas();
     }
 
     function renderCanvas() {
-      if (!canvas) return;
-      canvas.innerHTML = "";
+      if (!canvas || !nodeLayer || !edgesSvg) return;
+      nodeLayer.innerHTML = "";
+      edgesSvg.innerHTML = "";
+      if (emptyState) emptyState.hidden = graph.nodes.length > 0;
+
+      var canvasRect = canvas.getBoundingClientRect();
+      edgesSvg.setAttribute("viewBox", "0 0 " + Math.max(400, canvasRect.width) + " " + Math.max(300, canvasRect.height));
+
+      graph.nodes.forEach(function (node) {
+        if (typeof node.x !== "number") node.x = 80;
+        if (typeof node.y !== "number") node.y = 80;
+      });
+
+      graph.edges.forEach(function (edge) {
+        var from = nodeById(edge.from);
+        var to = nodeById(edge.to);
+        if (!from || !to) return;
+        var sx = from.x + 212;
+        var sy = from.y + 38;
+        var ex = to.x;
+        var ey = to.y + 38;
+        var c1x = sx + 80;
+        var c2x = ex - 80;
+        var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", "M " + sx + " " + sy + " C " + c1x + " " + sy + ", " + c2x + " " + ey + ", " + ex + " " + ey);
+        path.setAttribute("class", "workflow-edge-path");
+        edgesSvg.appendChild(path);
+      });
+
       if (!graph.nodes.length) {
-        var empty = document.createElement("p");
-        empty.className = "muted";
-        empty.textContent = "Drag nodes here (double-click node to edit config JSON).";
-        canvas.appendChild(empty);
         return;
       }
 
       graph.nodes.forEach(function (node, idx) {
-        var card = document.createElement("button");
-        card.type = "button";
+        var card = document.createElement("div");
         card.className = "workflow-node-card" + (selectedNodeId === node.id ? " is-active" : "");
         card.dataset.nodeId = node.id;
-        card.innerHTML = "<strong>" + node.type + "</strong><small>#"+ String(idx + 1) + "</small>";
+        card.style.left = (node.x || 0) + "px";
+        card.style.top = (node.y || 0) + "px";
+        card.innerHTML =
+          '<div class="workflow-node-card__head">' +
+            '<strong>' + node.type + '</strong>' +
+            '<small>#' + String(idx + 1) + '</small>' +
+          '</div>' +
+          '<div class="workflow-node-card__sub">Double-click to edit config</div>' +
+          '<button type="button" class="workflow-node-card__in" title="Input"></button>' +
+          '<button type="button" class="workflow-node-card__out" title="Output"></button>' +
+          '<button type="button" class="workflow-node-card__plus" title="Add next node"><i class="fa-solid fa-plus"></i></button>';
+
+        var outBtn = card.querySelector(".workflow-node-card__out");
+        var inBtn = card.querySelector(".workflow-node-card__in");
+        var plusBtn = card.querySelector(".workflow-node-card__plus");
+
+        if (outBtn) {
+          outBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            connectFromNodeId = node.id;
+            connectMode = true;
+            if (global.App.showFlash) global.App.showFlash("Select target node input to connect.");
+            renderCanvas();
+          });
+        }
+
+        if (inBtn) {
+          inBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!connectMode || !connectFromNodeId) return;
+            addEdge(connectFromNodeId, node.id);
+            connectFromNodeId = null;
+            connectMode = false;
+            renderCanvas();
+          });
+        }
+
+        if (plusBtn) {
+          plusBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            addNode("action.compose_post", (node.x || 0) + 260, (node.y || 0));
+            var next = graph.nodes[graph.nodes.length - 1];
+            if (next) addEdge(node.id, next.id);
+            renderCanvas();
+          });
+        }
+
         card.addEventListener("click", function () {
           selectedNodeId = node.id;
           openInspector(node);
@@ -131,8 +237,30 @@
           selectedNodeId = node.id;
           openInspector(node);
         });
-        canvas.appendChild(card);
+
+        card.addEventListener("mousedown", function (e) {
+          var target = e.target;
+          if (target && (target.closest(".workflow-node-card__in") || target.closest(".workflow-node-card__out") || target.closest(".workflow-node-card__plus"))) {
+            return;
+          }
+          dragNodeId = node.id;
+          var rect = card.getBoundingClientRect();
+          dragOffsetX = e.clientX - rect.left;
+          dragOffsetY = e.clientY - rect.top;
+          e.preventDefault();
+        });
+
+        nodeLayer.appendChild(card);
       });
+
+      if (nodeLayer) {
+        nodeLayer.style.transform = "scale(" + canvasScale + ")";
+        nodeLayer.style.transformOrigin = "0 0";
+      }
+      if (edgesSvg) {
+        edgesSvg.style.transform = "scale(" + canvasScale + ")";
+        edgesSvg.style.transformOrigin = "0 0";
+      }
     }
 
     function openInspector(node) {
@@ -167,9 +295,26 @@
         if (!e.dataTransfer) return;
         var type = e.dataTransfer.getData("text/workflow-node-type");
         if (!type) return;
-        addNode(type);
+        var rect = canvas.getBoundingClientRect();
+        var x = (e.clientX - rect.left) / canvasScale;
+        var y = (e.clientY - rect.top) / canvasScale;
+        addNode(type, x - 100, y - 32);
       });
     }
+
+    document.addEventListener("mousemove", function (e) {
+      if (!dragNodeId || !canvas) return;
+      var node = nodeById(dragNodeId);
+      if (!node) return;
+      var rect = canvas.getBoundingClientRect();
+      node.x = (e.clientX - rect.left - dragOffsetX) / canvasScale;
+      node.y = (e.clientY - rect.top - dragOffsetY) / canvasScale;
+      renderCanvas();
+    });
+
+    document.addEventListener("mouseup", function () {
+      dragNodeId = null;
+    });
 
     function loadTemplateByKey(key) {
       var t = templates.find(function (x) { return x.key === key; });
@@ -177,6 +322,10 @@
       nameEl.value = t.name || "";
       if (triggerEl) triggerEl.value = t.trigger_type || "manual";
       graph = JSON.parse(JSON.stringify(t.graph || { nodes: [], edges: [] }));
+      graph.nodes.forEach(function (n, i) {
+        if (typeof n.x !== "number") n.x = 120 + (i * 230);
+        if (typeof n.y !== "number") n.y = 220;
+      });
       selectedNodeId = null;
       if (global.App.showFlash) global.App.showFlash("Template loaded.");
       renderCanvas();
@@ -208,6 +357,10 @@
             nameEl.value = wf.name || "";
             if (triggerEl) triggerEl.value = wf.trigger_type || "manual";
             graph = wf.graph && typeof wf.graph === "object" ? wf.graph : { nodes: [], edges: [] };
+            graph.nodes.forEach(function (n, i) {
+              if (typeof n.x !== "number") n.x = 120 + (i * 230);
+              if (typeof n.y !== "number") n.y = 220;
+            });
             selectedNodeId = null;
             renderCanvas();
             refreshRuns();
@@ -287,7 +440,7 @@
       var payload = {
         name: name,
         trigger_type: triggerEl ? triggerEl.value : "manual",
-        status: "active",
+        status: activeEl && activeEl.checked ? "active" : "draft",
         graph: graph,
         trigger_config: {}
       };
@@ -339,15 +492,63 @@
     var btnSave = bySel("[data-workflows-save]", root);
     var btnRun = bySel("[data-workflows-run]", root);
     var btnNew = bySel("[data-workflows-new]", root);
+    var btnZoomOut = bySel("[data-workflow-zoom-out]", root);
+    var btnZoomIn = bySel("[data-workflow-zoom-in]", root);
+    var btnResetView = bySel("[data-workflow-reset-view]", root);
+    var btnUnselect = bySel("[data-workflow-unselect]", root);
+    var btnAutoLayout = bySel("[data-workflow-auto-layout]", root);
+    var btnConnectMode = bySel("[data-workflow-connect-mode]", root);
+    var btnClearConnections = bySel("[data-workflow-clear-connections]", root);
     if (btnSave) btnSave.addEventListener("click", saveCurrentWorkflow);
     if (btnRun) btnRun.addEventListener("click", runCurrentWorkflow);
+    if (btnZoomOut) btnZoomOut.addEventListener("click", function () {
+      canvasScale = Math.max(0.6, +(canvasScale - 0.1).toFixed(2));
+      renderCanvas();
+    });
+    if (btnZoomIn) btnZoomIn.addEventListener("click", function () {
+      canvasScale = Math.min(1.6, +(canvasScale + 0.1).toFixed(2));
+      renderCanvas();
+    });
+    if (btnResetView) btnResetView.addEventListener("click", function () {
+      canvasScale = 1;
+      renderCanvas();
+    });
+    if (btnUnselect) btnUnselect.addEventListener("click", function () {
+      selectedNodeId = null;
+      if (cfgEmpty) cfgEmpty.hidden = false;
+      if (cfgEditor) cfgEditor.hidden = true;
+      if (cfgSave) cfgSave.hidden = true;
+      renderCanvas();
+    });
+    if (btnAutoLayout) btnAutoLayout.addEventListener("click", function () {
+      graph.nodes.forEach(function (node, i) {
+        var row = Math.floor(i / 4);
+        var col = i % 4;
+        node.x = 110 + (col * 245);
+        node.y = 120 + (row * 130);
+      });
+      renderCanvas();
+    });
+    if (btnConnectMode) btnConnectMode.addEventListener("click", function () {
+      connectMode = !connectMode;
+      connectFromNodeId = null;
+      if (global.App.showFlash) global.App.showFlash(connectMode ? "Connect mode on. Click output then input." : "Connect mode off.");
+    });
+    if (btnClearConnections) btnClearConnections.addEventListener("click", function () {
+      if (!global.confirm("Remove all node connections?")) return;
+      graph.edges = [];
+      renderCanvas();
+    });
     if (btnNew) {
       btnNew.addEventListener("click", function () {
         currentWorkflowId = null;
         selectedNodeId = null;
+        connectFromNodeId = null;
+        connectMode = false;
         graph = { nodes: [], edges: [] };
         if (nameEl) nameEl.value = "";
         if (triggerEl) triggerEl.value = "manual";
+        if (activeEl) activeEl.checked = false;
         if (cfgEmpty) cfgEmpty.hidden = false;
         if (cfgEditor) cfgEditor.hidden = true;
         if (cfgSave) cfgSave.hidden = true;
