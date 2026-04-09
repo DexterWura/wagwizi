@@ -72,6 +72,12 @@
                 $slug = $platform->value;
                 $connected = $connectedMap->get($slug, collect());
                 $activeAccount = $connected->firstWhere('status', 'active');
+                $hasPendingPublishing = $activeAccount
+                    ? $activeAccount->postPlatforms()
+                        ->whereIn('status', ['pending', 'publishing'])
+                        ->whereNull('published_at')
+                        ->exists()
+                    : false;
             @endphp
             <div class="social-connect-card{{ $activeAccount ? ' social-connect-card--connected' : '' }}">
               <div class="social-connect-card__icon"><i class="{{ $platform->icon() }}" aria-hidden="true"></i></div>
@@ -94,7 +100,7 @@
                     <span class="social-connect-card__site">{{ $activeAccount->platform_user_id }}</span>
                   @endif
                 </p>
-                <form method="POST" action="{{ route('accounts.disconnect', $activeAccount->id) }}">
+                <form method="POST" action="{{ route('accounts.disconnect', $activeAccount->id) }}" data-app-force-disconnect="{{ $hasPendingPublishing ? '1' : '0' }}">
                   @csrf
                   <button type="submit" class="btn btn--ghost social-connect-card__btn">Disconnect</button>
                 </form>

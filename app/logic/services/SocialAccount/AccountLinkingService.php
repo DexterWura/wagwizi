@@ -287,33 +287,51 @@ class AccountLinkingService
         );
     }
 
-    public function disconnect(User $user, int $accountId): bool
+    public function disconnect(User $user, int $accountId, bool $force = false): array
     {
         $account = SocialAccount::where('user_id', $user->id)
             ->where('id', $accountId)
             ->first();
 
         if ($account === null) {
-            return false;
+            return ['disconnected' => false, 'cancelled_pending' => 0];
         }
 
         if ($account->status === 'disconnected') {
-            return false;
+            return ['disconnected' => false, 'cancelled_pending' => 0];
         }
 
-        $hasPendingPosts = $account->postPlatforms()
+        $pendingQuery = $account->postPlatforms()
             ->whereIn('status', ['pending', 'publishing'])
-            ->exists();
+            ->whereNull('published_at');
+        $hasPendingPosts = $pendingQuery->exists();
 
         if ($hasPendingPosts) {
-            throw new InvalidArgumentException(
-                'This account has pending or publishing posts. Cancel them before disconnecting.'
-            );
+            if (! $force) {
+                throw new InvalidArgumentException(
+                    'This account has pending or publishing posts. Disconnecting will automatically cancel them. Confirm to continue.'
+                );
+            }
+
+            $cancelled = $pendingQuery->update([
+                'status' => 'failed',
+                'error_message' => 'Disconnected account: posting cancelled by user.',
+            ]);
+
+            Log::info('Pending platform posts cancelled on force disconnect', [
+                'user_id' => $user->id,
+                'account_id' => $account->id,
+                'platform' => $account->platform,
+                'cancelled_count' => $cancelled,
+            ]);
+
+            $this->finalizeDisconnect($user, $account, 'Social account force-disconnected with pending post cancellation');
+            return ['disconnected' => true, 'cancelled_pending' => $cancelled];
         }
 
         $this->finalizeDisconnect($user, $account, 'Social account disconnected');
 
-        return true;
+        return ['disconnected' => true, 'cancelled_pending' => 0];
     }
 
     private const PLAN_ENFORCEMENT_FAIL_MESSAGE = 'This connection was removed because your subscription plan no longer allows it.';

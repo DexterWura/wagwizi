@@ -508,11 +508,21 @@ class SocialAccountController extends Controller
     public function disconnect(Request $request, int $accountId): RedirectResponse
     {
         try {
-            $disconnected = $this->linkingService->disconnect(Auth::user(), $accountId);
+            $result = $this->linkingService->disconnect(
+                Auth::user(),
+                $accountId,
+                $request->boolean('force_disconnect')
+            );
 
-            if (!$disconnected) {
+            if (!($result['disconnected'] ?? false)) {
                 return redirect()->route('accounts')
                     ->with('error', 'Account not found or already disconnected.');
+            }
+
+            $cancelled = (int) ($result['cancelled_pending'] ?? 0);
+            if ($cancelled > 0) {
+                return redirect()->route('accounts')
+                    ->with('success', "Account disconnected. {$cancelled} pending/publishing post(s) were cancelled.");
             }
 
             return redirect()->route('accounts')

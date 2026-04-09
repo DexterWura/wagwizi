@@ -6168,6 +6168,7 @@ button.link-create {
   align-items: flex-start;
   gap: 0.75rem;
   padding: 0.65rem 0.75rem;
+  min-width: 0;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-input);
@@ -6233,9 +6234,18 @@ button.link-create {
   flex-direction: column;
   gap: 0.15rem;
   min-width: 0;
+  max-width: 100%;
   font-size: 0.82rem;
   color: var(--text-muted);
   line-height: 1.4;
+}
+
+.modal-notif-item__body span,
+.modal-notif-item__body strong {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .modal-notif-item__body strong {

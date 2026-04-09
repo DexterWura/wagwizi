@@ -2696,6 +2696,39 @@
     });
   }
 
+  function initAccountsForceDisconnect() {
+    var forms = document.querySelectorAll("form[data-app-force-disconnect]");
+    if (!forms.length) return;
+
+    forms.forEach(function (form) {
+      form.addEventListener("submit", function (event) {
+        var hasPending = (form.getAttribute("data-app-force-disconnect") || "0") === "1";
+        if (!hasPending) return;
+
+        var confirmed = global.confirm(
+          "This account has pending or publishing posts. If you disconnect now, all pending posts for this account will be automatically cancelled. Continue?"
+        );
+
+        if (!confirmed) {
+          event.preventDefault();
+          return;
+        }
+
+        var existing = form.querySelector('input[name="force_disconnect"]');
+        if (existing) {
+          existing.value = "1";
+          return;
+        }
+
+        var forceInput = document.createElement("input");
+        forceInput.type = "hidden";
+        forceInput.name = "force_disconnect";
+        forceInput.value = "1";
+        form.appendChild(forceInput);
+      });
+    });
+  }
+
   var App = {
     init: function () {
       var navPreloadCtl = initNavPreloader();
@@ -2729,6 +2762,7 @@
       initHelpTicketSubmit();
       initNotificationsLoad();
       initPlansServerSync();
+      initAccountsForceDisconnect();
       initMultipartFormUploadUi();
     },
     applyTheme: applyTheme,
