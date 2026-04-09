@@ -1944,11 +1944,13 @@
   function showFlash(message, type) {
     var existing = document.querySelector(".app-flash");
     if (existing) existing.remove();
+    var kind = type || "success";
     var div = document.createElement("div");
-    div.className = "app-flash app-flash--" + (type || "success");
+    div.className = "app-flash app-flash--" + kind;
     div.setAttribute("role", "alert");
+    div.setAttribute("aria-live", kind === "success" ? "polite" : "assertive");
     div.innerHTML =
-      '<i class="fa-solid ' + (type === "error" ? "fa-circle-exclamation" : "fa-circle-check") + '" aria-hidden="true"></i> ' +
+      '<i class="fa-solid ' + (kind === "error" ? "fa-circle-exclamation" : "fa-circle-check") + '" aria-hidden="true"></i> ' +
       '<span>' + message + '</span>' +
       '<button type="button" class="app-flash__close" aria-label="Dismiss">&times;</button>';
     var content = document.querySelector(".app-content") || document.body;
@@ -1958,7 +1960,7 @@
     });
     setTimeout(function () {
       if (div.parentNode) div.remove();
-    }, 6000);
+    }, kind === "success" ? 9000 : 7000);
   }
 
   function initProfilePage() {
