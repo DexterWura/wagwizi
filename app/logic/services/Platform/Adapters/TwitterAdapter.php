@@ -120,6 +120,8 @@ class TwitterAdapter extends AbstractPlatformAdapter
             $uploadedId = null;
             $attemptErrors = [];
             $uploadEndpoints = [
+                'https://api.x.com/2/media/upload',
+                'https://api.twitter.com/2/media/upload',
                 'https://upload.twitter.com/1.1/media/upload.json',
                 'https://upload.x.com/1.1/media/upload.json',
             ];
@@ -135,8 +137,9 @@ class TwitterAdapter extends AbstractPlatformAdapter
                         ->attach('media', $mediaContent, $filename, ['Content-Type' => $mimeType])
                         ->post($endpoint);
 
-                    if ($response->successful() && $response->json('media_id_string')) {
-                        $uploadedId = (string) $response->json('media_id_string');
+                    $mediaId = $this->extractMediaId($response->json());
+                    if ($response->successful() && $mediaId !== null) {
+                        $uploadedId = $mediaId;
                         break;
                     }
 
@@ -150,21 +153,22 @@ class TwitterAdapter extends AbstractPlatformAdapter
                                 'media_data' => base64_encode($mediaContent),
                             ]);
 
-                        if ($fallback->successful() && $fallback->json('media_id_string')) {
-                            $uploadedId = (string) $fallback->json('media_id_string');
+                        $fallbackMediaId = $this->extractMediaId($fallback->json());
+                        if ($fallback->successful() && $fallbackMediaId !== null) {
+                            $uploadedId = $fallbackMediaId;
                             break;
                         }
 
                         if ($fallback->status() === 403) {
                             $forbidden = true;
                         }
-                        $attemptErrors[] = $endpoint . ' status=' . $fallback->status() . ' body=' . mb_substr($fallback->body(), 0, 220);
+                        $attemptErrors[] = $endpoint . ' status=' . $fallback->status() . ' body=' . $this->compactResponseBody($fallback->body());
                     }
 
                     if ($response->status() === 403) {
                         $forbidden = true;
                     }
-                    $attemptErrors[] = $endpoint . ' status=' . $response->status() . ' body=' . mb_substr($response->body(), 0, 220);
+                    $attemptErrors[] = $endpoint . ' status=' . $response->status() . ' body=' . $this->compactResponseBody($response->body());
                 } catch (RequestException $e) {
                     $resp = $e->response;
                     $attemptErrors[] = $endpoint . ' request-exception status=' . ($resp?->status() ?? 'n/a') . ' error=' . $e->getMessage();
@@ -174,7 +178,7 @@ class TwitterAdapter extends AbstractPlatformAdapter
                     Log::warning('Twitter media upload request exception', [
                         'status' => $resp?->status(),
                         'error'  => $e->getMessage(),
-                        'body'   => $resp ? mb_substr($resp->body(), 0, 500) : null,
+                        'body'   => $resp ? $this->compactResponseBody($resp->body(), 1200) : null,
                     ]);
                 } catch (\Throwable $e) {
                     $attemptErrors[] = $endpoint . ' exception=' . $e->getMessage();
@@ -188,6 +192,12 @@ class TwitterAdapter extends AbstractPlatformAdapter
                 $mediaIds[] = $uploadedId;
             } else {
                 $errors[] = 'Upload failed for ' . $url . (count($attemptErrors) ? (' (' . implode(' || ', array_slice($attemptErrors, 0, 2)) . ')') : '');
+                Log::warning('Twitter media upload failed for URL', [
+                    'media_url' => $url,
+                    'attempt_errors' => array_slice($attemptErrors, 0, 4),
+                    'has_media_write_scope' => $this->accountHasScope($account, 'media.write'),
+                    'token_scopes' => $this->normalizeScopes($account->scopes),
+                ]);
             }
         }
 
@@ -219,6 +229,61 @@ class TwitterAdapter extends AbstractPlatformAdapter
             'mov' => 'video/quicktime',
             default => 'application/octet-stream',
         };
+    }
+
+    private function extractMediaId(mixed $payload): ?string
+    {
+        if (!is_array($payload)) {
+            return null;
+        }
+
+        $id = $payload['media_id_string']
+            ?? $payload['media_id']
+            ?? $payload['data']['media_id_string']
+            ?? $payload['data']['id']
+            ?? null;
+
+        if (is_int($id)) {
+            return (string) $id;
+        }
+
+        if (is_string($id) && trim($id) !== '') {
+            return trim($id);
+        }
+
+        return null;
+    }
+
+    private function compactResponseBody(string $body, int $limit = 220): string
+    {
+        $trimmed = trim($body);
+        if ($trimmed === '') {
+            return '[empty]';
+        }
+
+        return mb_substr(preg_replace('/\s+/', ' ', $trimmed) ?? $trimmed, 0, $limit);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function normalizeScopes(mixed $scopes): array
+    {
+        if (is_array($scopes)) {
+            return array_values(array_filter(array_map(static fn ($s): string => strtolower(trim((string) $s)), $scopes)));
+        }
+
+        if (is_string($scopes)) {
+            return array_values(array_filter(array_map(static fn ($s): string => strtolower(trim($s)), preg_split('/[\s,]+/', $scopes) ?: [])));
+        }
+
+        return [];
+    }
+
+    private function accountHasScope(SocialAccount $account, string $scope): bool
+    {
+        $needle = strtolower(trim($scope));
+        return in_array($needle, $this->normalizeScopes($account->scopes), true);
     }
 
     public function deletePost(SocialAccount $account, string $platformPostId): bool
