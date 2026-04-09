@@ -301,6 +301,7 @@ class PublishPostToPlatformJob implements ShouldQueue
                 content:         $post->content,
                 mediaUrls:       $mediaUrls,
                 platformContent: $postPlatform->platform_content,
+                audience:        $postPlatform->audience,
             );
 
             if (
@@ -321,6 +322,7 @@ class PublishPostToPlatformJob implements ShouldQueue
                     content:         $post->content,
                     mediaUrls:       [],
                     platformContent: $postPlatform->platform_content,
+                    audience:        $postPlatform->audience,
                 );
             }
         } catch (\Throwable $e) {
@@ -355,6 +357,7 @@ class PublishPostToPlatformJob implements ShouldQueue
                             content:         $post->content,
                             mediaUrls:       $mediaUrls,
                             platformContent: $postPlatform->platform_content,
+                            audience:        $postPlatform->audience,
                         );
 
                         if ($retryResult->success) {

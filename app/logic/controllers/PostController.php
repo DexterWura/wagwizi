@@ -92,7 +92,7 @@ class PostController extends Controller
     {
         $post = Auth::user()->posts()
             ->with([
-                'postPlatforms:id,post_id,social_account_id,platform,platform_content,first_comment,comment_delay_minutes,status',
+                'postPlatforms:id,post_id,social_account_id,platform,platform_content,audience,first_comment,comment_delay_minutes,status',
                 'mediaFiles:id,path,type,original_name,size_bytes,mime_type',
             ])
             ->findOrFail($id);
@@ -114,6 +114,7 @@ class PostController extends Controller
             'media_path'          => 'nullable|string|max:2048',
             'media_paths'         => 'nullable|array',
             'media_paths.*'       => 'string|max:2048',
+            'audience'            => 'nullable|in:everyone,followers,connections,private',
             'first_comment'       => 'nullable|string|max:40000',
             'comment_delay_value' => 'nullable|integer|min:1|max:10080',
             'comment_delay_unit'  => 'nullable|in:minutes,hours',
@@ -139,6 +140,7 @@ class PostController extends Controller
             'media_path'          => 'nullable|string|max:2048',
             'media_paths'         => 'nullable|array',
             'media_paths.*'       => 'string|max:2048',
+            'audience'            => 'nullable|in:everyone,followers,connections,private',
             'first_comment'       => 'nullable|string|max:40000',
             'comment_delay_value' => 'nullable|integer|min:1|max:10080',
             'comment_delay_unit'  => 'nullable|in:minutes,hours',
@@ -176,6 +178,7 @@ class PostController extends Controller
             'media_path'          => 'nullable|string|max:2048',
             'media_paths'         => 'nullable|array',
             'media_paths.*'       => 'string|max:2048',
+            'audience'            => 'nullable|in:everyone,followers,connections,private',
             'first_comment'       => 'nullable|string|max:40000',
             'comment_delay_value' => 'nullable|integer|min:1|max:10080',
             'comment_delay_unit'  => 'nullable|in:minutes,hours',
@@ -201,6 +204,7 @@ class PostController extends Controller
             'media_path'          => 'nullable|string|max:2048',
             'media_paths'         => 'nullable|array',
             'media_paths.*'       => 'string|max:2048',
+            'audience'            => 'nullable|in:everyone,followers,connections,private',
             'first_comment'       => 'nullable|string|max:40000',
             'comment_delay_value' => 'nullable|integer|min:1|max:10080',
             'comment_delay_unit'  => 'nullable|in:minutes,hours',

@@ -1873,6 +1873,8 @@
         var accounts = getSelectedAccountIds();
         var platformContent = collectPlatformContentByAccount();
         var commentPayload = buildCommentDelayMinutesPayload();
+        var audienceEl = document.getElementById("composer-audience");
+        var audience = audienceEl ? (audienceEl.value || "everyone") : "everyone";
         var scheduleWrap = document.querySelector("[data-app-composer-schedule-settings]");
 
         if (!content) {
@@ -1905,7 +1907,8 @@
           var draftPayload = {
             content: content,
             platform_accounts: accounts,
-            platform_content: platformContent
+            platform_content: platformContent,
+            audience: audience
           };
           var draftMediaIds = selectedMediaIds();
           var draftMediaPaths = selectedMediaPaths();
@@ -1958,7 +1961,8 @@
           var publishPayload = {
             content: content,
             platform_accounts: accounts,
-            platform_content: platformContent
+            platform_content: platformContent,
+            audience: audience
           };
           var publishMediaIds = selectedMediaIds();
           var publishMediaPaths = selectedMediaPaths();
@@ -2058,7 +2062,8 @@
           var schedulePayload = {
             content: content,
             platform_accounts: accounts,
-            platform_content: platformContent
+            platform_content: platformContent,
+            audience: audience
           };
           var scheduleMediaIds = selectedMediaIds();
           var scheduleMediaPaths = selectedMediaPaths();
@@ -2435,11 +2440,13 @@
       var t = document.getElementById("composer-time");
       var media = global.__composerSelectedMedia || null;
       var mediaList = getSelectedMediaList();
+      var audienceEl = document.getElementById("composer-audience");
 
       return {
         master: (master.value || "").trim(),
         overrides: readPlatformOverrides(),
         accounts: readSelectedAccountIds(),
+        audience: audienceEl ? (audienceEl.value || "everyone") : "everyone",
         firstComment: fc ? (fc.value || "").trim() : "",
         commentDelayValue: cdv ? (cdv.value || "").trim() : "",
         commentDelayUnit: cdu ? (cdu.value || "") : "minutes",
@@ -2597,6 +2604,14 @@
       }
 
       applyScheduledAtToComposer(post.scheduled_at);
+
+      var audienceRow = (post.post_platforms || []).find(function (pp) {
+        return pp && pp.audience;
+      });
+      var audienceEl = document.getElementById("composer-audience");
+      if (audienceEl && audienceRow && audienceRow.audience) {
+        audienceEl.value = String(audienceRow.audience);
+      }
 
       var mediaFiles = Array.isArray(post.media_files) ? post.media_files : [];
       if (mediaFiles.length) {

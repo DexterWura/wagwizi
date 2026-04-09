@@ -28,6 +28,7 @@ class LinkedInAdapter extends AbstractPlatformAdapter
         string        $content,
         array         $mediaUrls = [],
         ?string       $platformContent = null,
+        ?string       $audience = null,
     ): PublishResult {
         if ($error = $this->validateAccount($account)) return $error;
 
@@ -47,7 +48,7 @@ class LinkedInAdapter extends AbstractPlatformAdapter
             }
         }
 
-        $payload = $this->buildUgcPostPayload($authorId, $text, $mediaUrls, $account);
+        $payload = $this->buildUgcPostPayload($authorId, $text, $mediaUrls, $account, $audience);
 
         $response = $this->httpClient($account)
             ->withHeaders($this->linkedInHeaders())
@@ -69,7 +70,7 @@ class LinkedInAdapter extends AbstractPlatformAdapter
         return $this->failFromResponse($response);
     }
 
-    private function buildUgcPostPayload(string $authorId, string $text, array $mediaUrls, SocialAccount $account): array
+    private function buildUgcPostPayload(string $authorId, string $text, array $mediaUrls, SocialAccount $account, ?string $audience): array
     {
         $shareMediaCategory = 'NONE';
         $mediaPayload = [];
@@ -104,7 +105,7 @@ class LinkedInAdapter extends AbstractPlatformAdapter
                 ],
             ],
             'visibility' => [
-                'com.linkedin.ugc.MemberNetworkVisibility' => 'PUBLIC',
+                'com.linkedin.ugc.MemberNetworkVisibility' => $this->linkedInVisibilityFromAudience($audience),
             ],
         ];
 
@@ -113,6 +114,14 @@ class LinkedInAdapter extends AbstractPlatformAdapter
         }
 
         return $payload;
+    }
+
+    private function linkedInVisibilityFromAudience(?string $audience): string
+    {
+        return match (strtolower((string) $audience)) {
+            'connections' => 'CONNECTIONS',
+            default => 'PUBLIC',
+        };
     }
 
     private function registerAndUploadImage(SocialAccount $account, string $authorId, string $imageUrl): ?string

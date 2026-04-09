@@ -30,6 +30,7 @@ class ThreadsAdapter extends AbstractPlatformAdapter
         string        $content,
         array         $mediaUrls = [],
         ?string       $platformContent = null,
+        ?string       $audience = null,
     ): PublishResult {
         if ($error = $this->validateAccount($account)) return $error;
 

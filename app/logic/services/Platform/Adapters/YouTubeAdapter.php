@@ -32,6 +32,7 @@ class YouTubeAdapter extends AbstractPlatformAdapter
         string        $content,
         array         $mediaUrls = [],
         ?string       $platformContent = null,
+        ?string       $audience = null,
     ): PublishResult {
         if ($error = $this->validateAccount($account)) return $error;
 
@@ -47,7 +48,7 @@ class YouTubeAdapter extends AbstractPlatformAdapter
             if ($error = $this->validateMediaUrls($mediaUrls)) return $error;
 
             if ($this->isVideoUrl($mediaUrls[0])) {
-                return $this->uploadVideo($account, $text, $mediaUrls[0]);
+                return $this->uploadVideo($account, $text, $mediaUrls[0], $audience);
             }
 
             return PublishResult::fail('YouTube publishing currently supports video uploads only.');
@@ -80,7 +81,7 @@ class YouTubeAdapter extends AbstractPlatformAdapter
         return PublishResult::ok($id, "https://www.youtube.com/post/{$id}");
     }
 
-    private function uploadVideo(SocialAccount $account, string $description, string $videoUrl): PublishResult
+    private function uploadVideo(SocialAccount $account, string $description, string $videoUrl, ?string $audience): PublishResult
     {
         $initResponse = Http::withToken($account->access_token)
             ->withHeaders([
@@ -93,7 +94,7 @@ class YouTubeAdapter extends AbstractPlatformAdapter
                     'description' => $description,
                 ],
                 'status' => [
-                    'privacyStatus' => 'public',
+                    'privacyStatus' => $this->youTubePrivacyFromAudience($audience),
                 ],
             ]);
 
@@ -124,6 +125,14 @@ class YouTubeAdapter extends AbstractPlatformAdapter
         $this->logPublishSuccess($videoId);
 
         return PublishResult::ok($videoId, "https://www.youtube.com/watch?v={$videoId}");
+    }
+
+    private function youTubePrivacyFromAudience(?string $audience): string
+    {
+        return match (strtolower((string) $audience)) {
+            'private' => 'private',
+            default => 'public',
+        };
     }
 
     public function deletePost(SocialAccount $account, string $platformPostId): bool

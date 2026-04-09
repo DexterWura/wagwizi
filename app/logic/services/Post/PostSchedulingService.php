@@ -47,6 +47,7 @@ class PostSchedulingService
                     $userId,
                     $data['platform_accounts'],
                     $data['platform_content'] ?? [],
+                    $this->normalizeAudience($data['audience'] ?? null),
                     $data['first_comment'] ?? null,
                     $this->resolveCommentDelayMinutes($data),
                 );
@@ -110,6 +111,7 @@ class PostSchedulingService
                     $userId,
                     $platformAccounts,
                     $data['platform_content'] ?? [],
+                    $this->normalizeAudience($data['audience'] ?? null),
                     $data['first_comment'] ?? null,
                     $this->resolveCommentDelayMinutes($data),
                 );
@@ -161,6 +163,7 @@ class PostSchedulingService
                 $userId,
                 $data['platform_accounts'],
                 $data['platform_content'] ?? [],
+                $this->normalizeAudience($data['audience'] ?? null),
                 $data['first_comment'] ?? null,
                 $this->resolveCommentDelayMinutes($data),
             );
@@ -209,6 +212,7 @@ class PostSchedulingService
                 $userId,
                 $data['platform_accounts'],
                 $data['platform_content'] ?? [],
+                $this->normalizeAudience($data['audience'] ?? null),
                 $data['first_comment'] ?? null,
                 $this->resolveCommentDelayMinutes($data),
             );
@@ -315,6 +319,7 @@ class PostSchedulingService
                 $userId,
                 $data['platform_accounts'],
                 $data['platform_content'] ?? [],
+                $this->normalizeAudience($data['audience'] ?? null),
                 $data['first_comment'] ?? null,
                 $this->resolveCommentDelayMinutes($data),
             );
@@ -440,6 +445,7 @@ class PostSchedulingService
         int $userId,
         array $platformAccounts,
         array $platformContent = [],
+        ?string $audience = null,
         ?string $firstComment = null,
         ?int $commentDelayMinutes = null,
     ): void
@@ -484,12 +490,29 @@ class PostSchedulingService
                 'social_account_id' => $account->id,
                 'platform'          => $account->platform,
                 'platform_content'  => $overrideContent,
+                'audience'          => $audience,
                 'first_comment'     => $firstComment !== null && trim($firstComment) !== '' ? trim($firstComment) : null,
                 'comment_delay_minutes' => $commentDelayMinutes,
                 'comment_status'    => $firstComment !== null && trim($firstComment) !== '' ? 'pending' : null,
                 'status'            => 'pending',
             ]);
         }
+    }
+
+    private function normalizeAudience(mixed $audience): ?string
+    {
+        if (!is_string($audience)) {
+            return null;
+        }
+
+        $audience = trim(strtolower($audience));
+        if ($audience === '') {
+            return null;
+        }
+
+        return in_array($audience, ['everyone', 'followers', 'connections', 'private'], true)
+            ? $audience
+            : null;
     }
 
     private function syncPostMedia(Post $post, int $userId, mixed $mediaFileIds, mixed $mediaPaths = null): void

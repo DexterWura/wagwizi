@@ -15,12 +15,14 @@ interface PlatformAdapterInterface
      * @param string        $content         Master post content
      * @param string[]      $mediaUrls       Absolute URLs to media files
      * @param string|null   $platformContent Per-platform content override (if user customized)
+     * @param string|null   $audience        Audience selection from composer, if supported by platform
      */
     public function publish(
         SocialAccount $account,
         string        $content,
         array         $mediaUrls = [],
         ?string       $platformContent = null,
+        ?string       $audience = null,
     ): PublishResult;
 
     /**

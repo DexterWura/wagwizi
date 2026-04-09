@@ -15,6 +15,7 @@ class PostPlatform extends Model
         'social_account_id',
         'platform',
         'platform_content',
+        'audience',
         'first_comment',
         'comment_delay_minutes',
         'comment_status',
