@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\Ai\PlatformAiConfigService;
 use App\Services\Ai\PlatformAiQuotaService;
 use App\Services\Subscription\PlanReplyFeatureService;
+use App\Services\Subscription\PlanWorkflowFeatureService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -89,6 +90,11 @@ class User extends Authenticatable
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class);
+    }
+
+    public function workflows(): HasMany
+    {
+        return $this->hasMany(Workflow::class);
     }
 
     public function subscription(): HasOne
@@ -269,5 +275,11 @@ class User extends Authenticatable
     {
         return app(PlanReplyFeatureService::class)
             ->userMayUseFirstCommentReplies($this->id);
+    }
+
+    public function canUseWorkflows(): bool
+    {
+        return app(PlanWorkflowFeatureService::class)
+            ->userMayUseWorkflows($this->id);
     }
 }

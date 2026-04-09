@@ -23,6 +23,7 @@ use App\Services\Platform\Platform;
 use App\Services\Media\MediaLibraryService;
 use App\Services\Notifications\InAppNotificationService;
 use App\Services\Platform\PlatformRegistry;
+use App\Services\Workflow\WorkflowTemplateService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -305,6 +306,19 @@ class PageController extends Controller
             'audienceInsights' => $audienceInsights,
             'insightsFrom'     => $from,
             'insightsTo'       => $to,
+        ]);
+    }
+
+    public function workflows(): View
+    {
+        $user = Auth::user();
+        $accounts = $user->socialAccounts()
+            ->active()
+            ->get(['id', 'platform', 'display_name', 'username']);
+
+        return view('workflows', [
+            'workflowTemplates' => app(WorkflowTemplateService::class)->templates(),
+            'workflowAccounts' => $accounts,
         ]);
     }
 

@@ -206,6 +206,14 @@
                     </div>
                     <div class="field">
                       <label class="check-line">
+                        <input type="hidden" name="includes_workflows" value="0" />
+                        <input type="checkbox" name="includes_workflows" value="1" {{ ($plan->includes_workflows ?? false) ? 'checked' : '' }} />
+                        <span>Includes workflows automation</span>
+                      </label>
+                      <p class="field__hint">If unchecked, subscribers cannot access the Workflows builder and execution features.</p>
+                    </div>
+                    <div class="field">
+                      <label class="check-line">
                         <input type="hidden" name="is_free" value="0" />
                         <input type="checkbox" name="is_free" value="1" {{ $plan->is_free ? 'checked' : '' }} />
                         <span>Free tier (only one free plan; no trial on free)</span>
@@ -383,6 +391,14 @@
                   <span>Includes first-comment / reply publishing (composer)</span>
                 </label>
                 <p class="field__hint">Uncheck for entry tiers that should not use first comments on posts.</p>
+              </div>
+              <div class="field">
+                <label class="check-line">
+                  <input type="hidden" name="includes_workflows" value="0" />
+                  <input type="checkbox" name="includes_workflows" value="1" />
+                  <span>Includes workflows automation</span>
+                </label>
+                <p class="field__hint">Enable this when the plan should access the Workflows builder and automation runs.</p>
               </div>
               <div class="field">
                 <label class="check-line">

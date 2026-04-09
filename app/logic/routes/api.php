@@ -4,6 +4,7 @@ use App\Controllers\ComposerMentionController;
 use App\Controllers\CronController;
 use App\Controllers\PostController;
 use App\Controllers\ProfileController;
+use App\Controllers\WorkflowController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -39,5 +40,17 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/composer/mentions', [ComposerMentionController::class, 'index'])
         ->middleware('throttle:120,1');
+
+    Route::middleware('plan_workflow')->group(function () {
+        Route::get('/workflows', [WorkflowController::class, 'index']);
+        Route::post('/workflows', [WorkflowController::class, 'store']);
+        Route::get('/workflows/templates', [WorkflowController::class, 'templates']);
+        Route::get('/workflows/{id}', [WorkflowController::class, 'show'])->whereNumber('id');
+        Route::put('/workflows/{id}', [WorkflowController::class, 'update'])->whereNumber('id');
+        Route::delete('/workflows/{id}', [WorkflowController::class, 'destroy'])->whereNumber('id');
+        Route::post('/workflows/{id}/run', [WorkflowController::class, 'run'])->whereNumber('id');
+        Route::get('/workflows/{id}/runs', [WorkflowController::class, 'runs'])->whereNumber('id');
+        Route::post('/workflows/events/{eventKey}', [WorkflowController::class, 'triggerEvent']);
+    });
 
 });

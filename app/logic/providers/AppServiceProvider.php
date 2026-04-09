@@ -24,6 +24,7 @@ use App\Services\Platform\Adapters\YouTubeAdapter;
 use App\Services\Platform\PlatformRegistry;
 use App\Services\Post\PostPublishingService;
 use App\Services\SocialAccount\TokenRefreshService;
+use App\Services\Workflow\WorkflowRunnerService;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
@@ -97,6 +98,12 @@ class AppServiceProvider extends ServiceProvider
                 $app->make(InAppNotificationService::class)->sendScheduledExpiryReminders();
 
                 return 'In-app expiry reminders processed.';
+            });
+
+            $cron->register('run_scheduled_workflows', function () use ($app) {
+                $count = $app->make(WorkflowRunnerService::class)->runDueScheduledWorkflows();
+
+                return "Ran {$count} scheduled workflow(s).";
             });
 
             $cron->register('pending_migrations_alert', function () use ($app) {

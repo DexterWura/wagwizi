@@ -94,6 +94,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/media-library', [PageController::class, 'mediaLibrary'])->name('media-library');
     Route::get('/accounts',      [PageController::class, 'accounts'])->name('accounts');
     Route::get('/insights',      [PageController::class, 'insights'])->name('insights');
+    Route::get('/workflows',     [PageController::class, 'workflows'])->middleware('plan_workflow')->name('workflows');
     Route::get('/plans',         [PageController::class, 'plans'])->name('plans');
     Route::get('/plan-history',  [PageController::class, 'planHistory'])->name('plan-history');
     Route::get('/profile',       [PageController::class, 'profile'])->name('profile');

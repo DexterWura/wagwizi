@@ -95,6 +95,13 @@ class CronService
                 'enabled'          => true,
             ],
             [
+                'key'              => 'run_scheduled_workflows',
+                'label'            => 'Run scheduled workflows',
+                'description'      => 'Runs active workflows configured with schedule triggers when their interval is due.',
+                'interval_minutes' => 1,
+                'enabled'          => true,
+            ],
+            [
                 'key'              => 'pending_migrations_alert',
                 'label'            => 'Pending migrations admin alert',
                 'description'      => 'Notifies super admins in-app when database migrations have not been applied.',

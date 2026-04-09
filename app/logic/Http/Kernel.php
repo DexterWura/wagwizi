@@ -48,5 +48,6 @@ class Kernel extends HttpKernel
         'verified'      => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'super_admin'   => \App\Http\Middleware\EnsureSuperAdmin::class,
         'plan_tool'     => \App\Http\Middleware\EnsurePlanToolAccess::class,
+        'plan_workflow' => \App\Http\Middleware\EnsurePlanWorkflowAccess::class,
     ];
 }
