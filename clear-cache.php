@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Facade;
 
 define('PROJECT_ROOT', __DIR__);
 define('LOGIC_PATH', __DIR__ . '/app/logic');
@@ -10,6 +11,8 @@ define('LOGIC_PATH', __DIR__ . '/app/logic');
 require LOGIC_PATH . '/vendor/autoload.php';
 
 $app = require_once LOGIC_PATH . '/bootstrap.php';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+Facade::setFacadeApplication($app);
 
 /** @var string $provided */
 $provided = (string) ($_GET['token'] ?? $_POST['token'] ?? '');
