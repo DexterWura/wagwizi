@@ -1811,11 +1811,17 @@
       var isError = !!(options && options.isError);
       var retryAction = options && options.retryAction ? String(options.retryAction) : "";
       var showCalendar = !!(options && options.showCalendar);
+      var kind = options && options.kind ? String(options.kind) : "";
       var iconClass = (options && options.iconClass) || "fa-solid fa-circle-info";
       var title = (options && options.title) || (isError ? "Action failed" : "Done");
       var desc = (options && options.desc) || "";
 
       modal.setAttribute("data-feedback-state", isError ? "error" : "success");
+      if (kind) {
+        modal.setAttribute("data-feedback-kind", kind);
+      } else {
+        modal.removeAttribute("data-feedback-kind");
+      }
       if (heroEl) {
         heroEl.setAttribute("aria-live", "polite");
       }
@@ -1832,9 +1838,11 @@
         if (isError && retryAction) {
           retryBtn.dataset.feedbackRetryAction = retryAction;
           retryBtn.removeAttribute("hidden");
+          retryBtn.style.display = "";
         } else {
           retryBtn.dataset.feedbackRetryAction = "";
           retryBtn.setAttribute("hidden", "");
+          retryBtn.style.display = "none";
         }
       }
 
@@ -1923,6 +1931,7 @@
             setFeedbackModalState({
               isError: !res._ok,
               retryAction: "draft",
+              kind: "draft",
               iconClass: res._ok ? "fa-solid fa-floppy-disk" : "fa-solid fa-triangle-exclamation",
               title: res._ok ? "Draft saved" : "Save failed",
               desc: res._ok
@@ -1972,6 +1981,7 @@
             setFeedbackModalState({
               isError: !pubRes._ok,
               retryAction: "publish",
+              kind: "publish",
               iconClass: pubRes._ok ? "fa-solid fa-paper-plane" : "fa-solid fa-triangle-exclamation",
               title: pubRes._ok ? "Publishing" : "Publish failed",
               desc: pubRes._ok
@@ -2068,6 +2078,7 @@
             setFeedbackModalState({
               isError: !schedRes._ok,
               retryAction: "schedule",
+              kind: "schedule",
               iconClass: schedRes._ok ? "fa-solid fa-calendar-days" : "fa-solid fa-triangle-exclamation",
               title: schedRes._ok ? "Scheduled" : "Schedule failed",
               desc: schedRes._ok
@@ -2105,6 +2116,7 @@
 
         var kind = modal.getAttribute("data-feedback-kind");
         var publishPostId = modal.getAttribute("data-feedback-publish-post-id");
+        var state = modal.getAttribute("data-feedback-state");
         if (kind === "publish" && publishPostId) {
           try {
             var target = new URL(global.location.href);
@@ -2125,6 +2137,11 @@
           } catch (err) {
             global.location.href = "/composer?publish_post=" + encodeURIComponent(publishPostId);
           }
+          return;
+        }
+
+        if (kind === "schedule" && state === "success") {
+          global.location.href = "/composer";
           return;
         }
 
