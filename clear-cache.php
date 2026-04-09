@@ -1,0 +1,64 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\Artisan;
+
+define('PROJECT_ROOT', __DIR__);
+define('LOGIC_PATH', __DIR__ . '/app/logic');
+
+require LOGIC_PATH . '/vendor/autoload.php';
+
+$app = require_once LOGIC_PATH . '/bootstrap.php';
+
+/** @var string $provided */
+$provided = (string) ($_GET['token'] ?? $_POST['token'] ?? '');
+$expected = (string) env('WEB_CACHE_CLEAR_TOKEN', '');
+
+header('Content-Type: application/json; charset=utf-8');
+
+if ($expected === '') {
+    http_response_code(503);
+    echo json_encode([
+        'ok' => false,
+        'message' => 'WEB_CACHE_CLEAR_TOKEN is not configured.',
+    ]);
+    exit;
+}
+
+if ($provided === '' || !hash_equals($expected, $provided)) {
+    http_response_code(403);
+    echo json_encode([
+        'ok' => false,
+        'message' => 'Forbidden.',
+    ]);
+    exit;
+}
+
+try {
+    $commands = ['optimize:clear', 'config:clear', 'route:clear', 'view:clear', 'cache:clear'];
+    $results = [];
+
+    foreach ($commands as $command) {
+        Artisan::call($command);
+        $results[] = [
+            'command' => $command,
+            'output' => trim(Artisan::output()),
+        ];
+    }
+
+    echo json_encode([
+        'ok' => true,
+        'message' => 'Caches cleared.',
+        'results' => $results,
+        'at' => gmdate('c'),
+    ]);
+} catch (\Throwable $e) {
+    http_response_code(500);
+    echo json_encode([
+        'ok' => false,
+        'message' => 'Failed to clear caches.',
+        'error' => $e->getMessage(),
+    ]);
+}
+
