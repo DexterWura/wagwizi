@@ -202,7 +202,7 @@
                     <button type="button" class="pill" data-app-platform-tab="{{ $account->platform }}" aria-selected="false">{{ $plat?->label() ?? ucfirst($account->platform) }}</button>
                     @endforeach
                   </div>
-                  <div class="field field--flush">
+                  <div class="field field--flush" data-app-composer-override-settings hidden>
                     <label class="field__label" for="composer-override">Active selection</label>
                     <div class="composer-override-wrap">
                       <textarea class="textarea" id="composer-override" rows="4" placeholder="Overrides for the selected tab…" autocomplete="off"></textarea>

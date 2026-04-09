@@ -1122,7 +1122,8 @@
   function initComposerPlatformOverrides() {
     var tabsWrap = document.querySelector("[data-app-tabs]");
     var overrideEl = document.getElementById("composer-override");
-    if (!tabsWrap || !overrideEl) return;
+    var overrideWrap = document.querySelector("[data-app-composer-override-settings]");
+    if (!tabsWrap || !overrideEl || !overrideWrap) return;
 
     var tabs = tabsWrap.querySelectorAll("[data-app-platform-tab]");
     if (!tabs.length) return;
@@ -1142,6 +1143,7 @@
         ? "Select a platform tab to add an override…"
         : "Write override for " + active + "…";
       overrideEl.disabled = active === "master";
+      overrideWrap.hidden = active === "master";
       global.__composerActivePlatformTab = active;
       if (typeof global.requestAnimationFrame === "function") {
         global.requestAnimationFrame(function () {
