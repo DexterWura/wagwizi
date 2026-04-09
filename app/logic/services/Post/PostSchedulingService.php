@@ -6,6 +6,8 @@ use App\Models\Post;
 use App\Models\SocialAccount;
 use App\Models\PostPlatform;
 use App\Models\MediaFile;
+use App\Models\SiteSetting;
+use App\Models\User;
 use App\Services\Cache\UserCacheVersionService;
 use App\Services\Platform\PlatformRegistry;
 use App\Services\Subscription\PlanReplyFeatureService;
@@ -84,7 +86,7 @@ class PostSchedulingService
         }
 
         if (isset($data['scheduled_at'])) {
-            $this->validateScheduleTime($data['scheduled_at']);
+            $this->validateScheduleTime($data['scheduled_at'], $userId);
         }
 
         $post->update(array_filter([
@@ -136,7 +138,7 @@ class PostSchedulingService
     public function schedulePost(int $userId, array $data): Post
     {
         $this->validateContent($data);
-        $scheduledAt = $this->resolveScheduleFromInput($data);
+        $scheduledAt = $this->resolveScheduleFromInput($data, $userId);
 
         if (empty($data['platform_accounts']) || !is_array($data['platform_accounts'])) {
             throw new InvalidArgumentException('At least one platform account must be selected.');
@@ -295,7 +297,7 @@ class PostSchedulingService
         $this->validatePlatformAccountsOwnership($userId, $data['platform_accounts']);
         $this->replyFeature->assertUserMayUseReplies($userId, $data);
 
-        $scheduledAt = $this->resolveScheduleFromInput($data);
+        $scheduledAt = $this->resolveScheduleFromInput($data, $userId);
 
         $result = DB::transaction(function () use ($post, $userId, $data, $scheduledAt): Post {
             $updates = [
@@ -337,25 +339,31 @@ class PostSchedulingService
         }
     }
 
-    private function validateScheduleTime(string $dateTimeString): \Carbon\Carbon
+    private function validateScheduleTime(string $dateTimeString, int $userId): \Carbon\Carbon
     {
+        $timezone = $this->resolveScheduleTimezoneForUser($userId);
+
         try {
-            $scheduledAt = \Carbon\Carbon::parse($dateTimeString);
+            $scheduledAt = \Carbon\Carbon::parse($dateTimeString, $timezone);
         } catch (\Exception) {
             throw new InvalidArgumentException('Invalid date format for scheduled time.');
         }
 
-        if ($scheduledAt->isPast()) {
+        $nowUtc = now('UTC');
+        $scheduledUtc = $scheduledAt->copy()->utc();
+        $deltaSeconds = $scheduledUtc->getTimestamp() - $nowUtc->getTimestamp();
+
+        if ($deltaSeconds <= 0) {
             throw new InvalidArgumentException('Scheduled time must be in the future.');
         }
 
-        if ($scheduledAt->diffInMinutes(now()) < self::MIN_SCHEDULE_MINUTES_AHEAD) {
+        if ($deltaSeconds < (self::MIN_SCHEDULE_MINUTES_AHEAD * 60)) {
             throw new InvalidArgumentException(
                 'Scheduled time must be at least ' . self::MIN_SCHEDULE_MINUTES_AHEAD . ' minutes from now.'
             );
         }
 
-        if ($scheduledAt->diffInDays(now()) > self::MAX_SCHEDULE_DAYS_AHEAD) {
+        if ($deltaSeconds > (self::MAX_SCHEDULE_DAYS_AHEAD * 86400)) {
             throw new InvalidArgumentException(
                 'Posts cannot be scheduled more than ' . self::MAX_SCHEDULE_DAYS_AHEAD . ' days in advance.'
             );
@@ -364,13 +372,33 @@ class PostSchedulingService
         return $scheduledAt;
     }
 
-    private function resolveScheduleFromInput(array $data): \Carbon\Carbon
+    private function resolveScheduleFromInput(array $data, int $userId): \Carbon\Carbon
     {
         $scheduledAt = $data['scheduled_at'] ?? null;
         if (is_string($scheduledAt) && trim($scheduledAt) !== '') {
-            return $this->validateScheduleTime($scheduledAt);
+            return $this->validateScheduleTime($scheduledAt, $userId);
         }
         throw new InvalidArgumentException('Provide a valid schedule date/time.');
+    }
+
+    private function resolveScheduleTimezoneForUser(int $userId): string
+    {
+        $userTz = User::query()->whereKey($userId)->value('timezone');
+        if (is_string($userTz) && trim($userTz) !== '' && in_array($userTz, timezone_identifiers_list(), true)) {
+            return $userTz;
+        }
+
+        $siteDefaultTz = SiteSetting::get('default_display_timezone', null);
+        if (is_string($siteDefaultTz) && trim($siteDefaultTz) !== '' && in_array($siteDefaultTz, timezone_identifiers_list(), true)) {
+            return $siteDefaultTz;
+        }
+
+        $appTz = (string) config('app.timezone', 'UTC');
+        if ($appTz !== '' && in_array($appTz, timezone_identifiers_list(), true)) {
+            return $appTz;
+        }
+
+        return 'UTC';
     }
 
     private function resolveCommentDelayMinutes(array $data): ?int
