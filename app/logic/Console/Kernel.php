@@ -25,7 +25,7 @@ class Kernel extends ConsoleKernel
             \Illuminate\Support\Facades\Log::info('refreshAccountsWithUnknownExpiry', ['refreshed' => $n]);
         })->dailyAt('04:15');
 
-        $schedule->command('logs:purge --days=14')->dailyAt('03:00');
+        $schedule->command('logs:purge --days=7')->dailyAt('03:00');
 
         $schedule->command('notifications:send-expiry-reminders')->dailyAt('08:00');
     }

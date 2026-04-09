@@ -28,6 +28,11 @@ class PesepayWebhookController extends Controller
                 }
             }
             $checkout->handleResultPost($body);
+            Log::info('Pesepay webhook processed', [
+                'has_payload' => $body !== [],
+                'reference' => $body['reference'] ?? ($body['merchantReference'] ?? null),
+                'method' => $request->method(),
+            ]);
         } catch (Throwable $e) {
             Log::error('Pesepay webhook handling failed', [
                 'message' => $e->getMessage(),

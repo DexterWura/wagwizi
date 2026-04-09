@@ -12,6 +12,7 @@ use App\Services\Affiliate\AffiliateCommissionService;
 use App\Services\Ai\PlatformAiQuotaService;
 use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 final class SubscriptionFulfillmentService
 {
@@ -79,6 +80,18 @@ final class SubscriptionFulfillmentService
             $locked->update([
                 'status'       => 'completed',
                 'completed_at' => now(),
+            ]);
+
+            Log::info('Paid plan fulfilled', [
+                'user_id' => $user->id,
+                'transaction_id' => $locked->id,
+                'gateway' => $locked->gateway,
+                'reference' => $locked->reference,
+                'from_plan_id' => $oldPlanId,
+                'to_plan_id' => $newPlan->id,
+                'to_plan_slug' => $newPlan->slug,
+                'subscription_id' => $subscription->id,
+                'renewal' => ($oldPlanId === $newPlan->id) && $hasAnyCompletedPaymentsBefore,
             ]);
 
             // Affiliate payout applies only to the referred user's first successful paid subscription.

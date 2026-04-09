@@ -89,7 +89,7 @@ class AppServiceProvider extends ServiceProvider
             });
 
             $cron->register('purge_old_logs', function () {
-                Artisan::call('logs:purge', ['--days' => 14]);
+                Artisan::call('logs:purge', ['--days' => 7]);
                 return trim(Artisan::output());
             });
 

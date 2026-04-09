@@ -8,7 +8,7 @@ use SplFileInfo;
 
 class PurgeOldLogs extends Command
 {
-    protected $signature   = 'logs:purge {--days=14 : Delete log files older than this many days}';
+    protected $signature   = 'logs:purge {--days=7 : Delete log files older than this many days}';
     protected $description = 'Delete archived log files older than the specified number of days';
 
     public function handle(): int

@@ -83,7 +83,7 @@ class CronService
             [
                 'key'              => 'purge_old_logs',
                 'label'            => 'Purge old log files',
-                'description'      => 'Deletes log files older than 14 days to free disk space.',
+                'description'      => 'Deletes log files older than 7 days to free disk space.',
                 'interval_minutes' => 1440,
                 'enabled'          => true,
             ],

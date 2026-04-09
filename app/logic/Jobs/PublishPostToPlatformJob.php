@@ -34,6 +34,7 @@ class PublishPostToPlatformJob implements ShouldQueue
 
     public function __construct(
         private readonly int $postPlatformId,
+        private readonly bool $syncExecution = false,
     ) {}
 
     public function handle(
@@ -379,6 +380,9 @@ class PublishPostToPlatformJob implements ShouldQueue
                 $this->markPublished($postPlatform, $post->id, $platform, $result);
             } elseif (PublishErrorClassifier::matchesPermanentProviderFailure($result->errorCode, $result->errorMessage)) {
                 $this->markFailed($postPlatform, $result->errorMessage ?? 'Provider rejected this request permanently.');
+            } elseif ($this->syncExecution) {
+                // In sync mode, do not enqueue delayed retries; finalize now to avoid lingering "publishing" state.
+                $this->markFailed($postPlatform, $result->errorMessage ?? 'Publish failed.');
             } elseif ($this->attempts() >= $this->tries()) {
                 $this->markFailed($postPlatform, $result->errorMessage ?? 'Unknown error');
             } else {

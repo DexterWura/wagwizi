@@ -70,6 +70,13 @@ class PlanCheckoutController extends Controller
             ], 422);
         }
 
+        Log::info('Plan checkout requested', [
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'plan_slug' => $plan->slug,
+            'gateway' => $gateway,
+        ]);
+
         if ($gateway === 'paynow') {
             return $this->startPaynowBody($user, $plan, $paynow);
         }
@@ -150,6 +157,14 @@ class PlanCheckoutController extends Controller
             ], 422);
         }
 
+        Log::info('Plan checkout redirect created', [
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'plan_slug' => $plan->slug,
+            'gateway' => 'paynow',
+            'reference' => $payload['reference'],
+        ]);
+
         return response()->json([
             'success'      => true,
             'redirect_url' => $payload['redirect_url'],
@@ -176,6 +191,14 @@ class PlanCheckoutController extends Controller
             ], 422);
         }
 
+        Log::info('Plan checkout redirect created', [
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'plan_slug' => $plan->slug,
+            'gateway' => 'pesepay',
+            'reference' => $payload['reference'],
+        ]);
+
         return response()->json([
             'success'      => true,
             'redirect_url' => $payload['redirect_url'],
@@ -201,6 +224,14 @@ class PlanCheckoutController extends Controller
                 'message' => 'Could not start Stripe checkout. Please try again or contact support.',
             ], 422);
         }
+
+        Log::info('Plan checkout redirect created', [
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'plan_slug' => $plan->slug,
+            'gateway' => 'stripe',
+            'reference' => $payload['reference'],
+        ]);
 
         return response()->json([
             'success' => true,
@@ -245,6 +276,14 @@ class PlanCheckoutController extends Controller
 
             return response()->json($payload, 422);
         }
+
+        Log::info('Plan checkout redirect created', [
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'plan_slug' => $plan->slug,
+            'gateway' => 'paypal',
+            'reference' => $payload['reference'],
+        ]);
 
         return response()->json([
             'success' => true,

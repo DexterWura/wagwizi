@@ -6,8 +6,8 @@ use App\Models\Plan;
 use App\Models\PaymentTransaction;
 use App\Models\User;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 use Paynow\Core\StatusResponse;
-use Paynow\Util\Hash;
 
 final class PaynowCheckoutService
 {
@@ -95,15 +95,26 @@ final class PaynowCheckoutService
     {
         $key = $this->clientFactory->integrationKey();
         if ($key === null || ! isset($payload['hash'])) {
+            Log::warning('Paynow webhook ignored: missing key/hash', [
+                'has_key' => $key !== null,
+                'has_hash' => isset($payload['hash']),
+            ]);
             return;
         }
 
-        if (! Hash::verify($payload, $key)) {
+        if (! $this->verifyPayloadHash($payload, $key)) {
+            Log::warning('Paynow webhook ignored: hash verification failed', [
+                'reference' => isset($payload['reference']) ? (string) $payload['reference'] : null,
+            ]);
             return;
         }
 
         $status = new StatusResponse($payload);
         if (! $status->paid()) {
+            Log::info('Paynow webhook received non-paid status', [
+                'reference' => $status->reference(),
+                'status' => method_exists($status, 'status') ? $status->status() : null,
+            ]);
             return;
         }
 
@@ -118,10 +129,21 @@ final class PaynowCheckoutService
             ->first();
 
         if ($transaction === null || $transaction->isCompleted()) {
+            Log::info('Paynow webhook ignored: transaction missing/completed', [
+                'reference' => $reference,
+                'found' => $transaction !== null,
+                'already_completed' => $transaction?->isCompleted() ?? null,
+            ]);
             return;
         }
 
         if (! $this->paynowReportedAmountMatchesTransaction($status, $transaction)) {
+            Log::warning('Paynow webhook amount mismatch', [
+                'reference' => $reference,
+                'user_id' => $transaction->user_id,
+                'transaction_amount_cents' => $transaction->amount_cents,
+                'reported_amount' => $status->amount(),
+            ]);
             return;
         }
 
@@ -130,6 +152,14 @@ final class PaynowCheckoutService
 
         $transaction->update([
             'paynow_reference' => $status->paynowReference() ?: null,
+        ]);
+
+        Log::info('Paynow payment confirmed via webhook', [
+            'reference' => $reference,
+            'transaction_id' => $transaction->id,
+            'user_id' => $transaction->user_id,
+            'plan_id' => $transaction->plan_id,
+            'gateway' => $transaction->gateway,
         ]);
 
         $this->fulfillment->fulfillAfterPayment($user, $plan, $transaction);
@@ -184,5 +214,29 @@ final class PaynowCheckoutService
         $expectedMajor = $transaction->amount_cents / 100;
 
         return abs((float) $reported - $expectedMajor) <= 0.02;
+    }
+
+    private function verifyPayloadHash(array $payload, string $key): bool
+    {
+        try {
+            if (class_exists(\Paynow\Util\Hash::class)) {
+                return \Paynow\Util\Hash::verify($payload, $key);
+            }
+        } catch (\Throwable) {
+            // Fall through to local verification to avoid webhook hard-failure.
+        }
+
+        $string = '';
+        foreach ($payload as $k => $value) {
+            if (strtoupper((string) $k) === 'HASH') {
+                continue;
+            }
+            $string .= (string) $value;
+        }
+        $string .= $key;
+        $expected = strtoupper(hash('sha512', $string));
+        $provided = strtoupper((string) ($payload['hash'] ?? ''));
+
+        return $provided !== '' && hash_equals($expected, $provided);
     }
 }

@@ -120,6 +120,12 @@ class PostController extends Controller
             'comment_delay_unit'  => 'nullable|in:minutes,hours',
         ]);
 
+        Log::info('Post draft create requested', [
+            'user_id' => Auth::id(),
+            'platform_accounts_count' => count($validated['platform_accounts'] ?? []),
+            'has_media' => !empty($validated['media_file_ids']) || !empty($validated['media_paths']) || !empty($validated['media_file_id']) || !empty($validated['media_path']),
+        ]);
+
         return $this->tryServiceCall(fn () =>
             response()->json(['post' => $this->schedulingService->createDraft(Auth::id(), $validated)], 201)
         );
@@ -149,6 +155,12 @@ class PostController extends Controller
         if (empty($validated)) {
             return response()->json(['error' => 'No fields provided to update.'], 422);
         }
+
+        Log::info('Post update requested', [
+            'user_id' => Auth::id(),
+            'post_id' => $id,
+            'fields' => array_keys($validated),
+        ]);
 
         return $this->tryServiceCall(fn () =>
             response()->json(['post' => $this->schedulingService->updatePost(Auth::id(), $id, $validated)])
@@ -184,6 +196,13 @@ class PostController extends Controller
             'comment_delay_unit'  => 'nullable|in:minutes,hours',
         ]);
 
+        Log::info('Post schedule(existing) requested', [
+            'user_id' => Auth::id(),
+            'post_id' => $id,
+            'platform_accounts_count' => count($validated['platform_accounts'] ?? []),
+            'scheduled_at' => $validated['scheduled_at'] ?? null,
+        ]);
+
         return $this->tryServiceCall(fn () =>
             response()->json(['post' => $this->schedulingService->scheduleExistingPost(Auth::id(), $id, $validated)])
         );
@@ -210,6 +229,12 @@ class PostController extends Controller
             'comment_delay_unit'  => 'nullable|in:minutes,hours',
         ]);
 
+        Log::info('Post schedule(new) requested', [
+            'user_id' => Auth::id(),
+            'platform_accounts_count' => count($validated['platform_accounts'] ?? []),
+            'scheduled_at' => $validated['scheduled_at'] ?? null,
+        ]);
+
         return $this->tryServiceCall(fn () =>
             response()->json(['post' => $this->schedulingService->schedulePost(Auth::id(), $validated)], 201)
         );
@@ -218,6 +243,10 @@ class PostController extends Controller
     public function publish(int $id): JsonResponse
     {
         return $this->tryServiceCall(function () use ($id) {
+            Log::info('Post publish-now requested', [
+                'user_id' => Auth::id(),
+                'post_id' => $id,
+            ]);
             $post = \App\Models\Post::where('user_id', Auth::id())->findOrFail($id);
 
             if ($post->status === 'published') {
@@ -249,6 +278,10 @@ class PostController extends Controller
     public function retryFailedPlatforms(int $id): JsonResponse
     {
         return $this->tryServiceCall(function () use ($id) {
+            Log::info('Post retry failed-platforms requested', [
+                'user_id' => Auth::id(),
+                'post_id' => $id,
+            ]);
             $post = \App\Models\Post::where('user_id', Auth::id())->findOrFail($id);
 
             if (! $post->postPlatforms()->where('status', 'failed')->exists()) {

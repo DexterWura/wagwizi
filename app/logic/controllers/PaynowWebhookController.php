@@ -13,7 +13,13 @@ class PaynowWebhookController extends Controller
     public function result(Request $request, PaynowCheckoutService $checkout): Response
     {
         try {
-            $checkout->handleResultPost($request->request->all());
+            $payload = $request->request->all();
+            $checkout->handleResultPost($payload);
+            Log::info('Paynow webhook processed', [
+                'has_hash' => isset($payload['hash']),
+                'reference' => $payload['reference'] ?? null,
+                'method' => $request->method(),
+            ]);
         } catch (Throwable $e) {
             Log::error('Paynow webhook handling failed', [
                 'message' => $e->getMessage(),

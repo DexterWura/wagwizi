@@ -13,10 +13,16 @@ class StripeWebhookController extends Controller
     public function result(Request $request, StripeCheckoutService $checkout): Response
     {
         try {
+            $raw = (string) $request->getContent();
             $checkout->handleWebhookPayload(
-                (string) $request->getContent(),
+                $raw,
                 $request->header('Stripe-Signature')
             );
+            Log::info('Stripe webhook processed', [
+                'has_signature' => (string) $request->header('Stripe-Signature') !== '',
+                'payload_bytes' => strlen($raw),
+                'method' => $request->method(),
+            ]);
         } catch (Throwable $e) {
             Log::error('Stripe webhook handling failed', [
                 'message' => $e->getMessage(),

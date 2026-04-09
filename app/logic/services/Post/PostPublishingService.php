@@ -45,7 +45,7 @@ class PostPublishingService
             $postPlatform->update(['status' => 'publishing']);
             if ($runSync) {
                 try {
-                    PublishPostToPlatformJob::dispatchSync($postPlatform->id);
+                    PublishPostToPlatformJob::dispatchSync($postPlatform->id, true);
                 } catch (\Throwable $syncException) {
                     $postPlatform->update([
                         'status'        => 'failed',
@@ -84,7 +84,7 @@ class PostPublishingService
                 ]);
 
                 try {
-                    PublishPostToPlatformJob::dispatchSync($postPlatform->id);
+                    PublishPostToPlatformJob::dispatchSync($postPlatform->id, true);
                 } catch (\Throwable $syncException) {
                     $postPlatform->update([
                         'status' => 'failed',
@@ -204,12 +204,19 @@ class PostPublishingService
 
         $published = $platforms->where('status', 'published')->count();
         $failed    = $platforms->where('status', 'failed')->count();
+        $platformResults = $platforms->map(fn (PostPlatform $pp) => [
+            'platform' => $pp->platform,
+            'status' => $pp->status,
+            'reason' => $pp->status === 'failed' ? $pp->error_message : null,
+        ])->values()->all();
 
         Log::info('Post finalized', [
             'post_id'   => $post->id,
+            'user_id'   => $post->user_id,
             'status'    => $finalStatus,
             'published' => $published,
             'failed'    => $failed,
+            'platform_results' => $platformResults,
         ]);
         app(UserCacheVersionService::class)->bump((int) $post->user_id);
     }

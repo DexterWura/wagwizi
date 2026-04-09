@@ -1814,11 +1814,13 @@
       var retryAction = options && options.retryAction ? String(options.retryAction) : "";
       var showCalendar = !!(options && options.showCalendar);
       var kind = options && options.kind ? String(options.kind) : "";
+      var explicitState = options && options.state ? String(options.state) : "";
       var iconClass = (options && options.iconClass) || "fa-solid fa-circle-info";
       var title = (options && options.title) || (isError ? "Action failed" : "Done");
       var desc = (options && options.desc) || "";
+      var state = explicitState || (isError ? "error" : "success");
 
-      modal.setAttribute("data-feedback-state", isError ? "error" : "success");
+      modal.setAttribute("data-feedback-state", state);
       if (kind) {
         modal.setAttribute("data-feedback-kind", kind);
       } else {
@@ -1849,6 +1851,57 @@
       }
 
       if (gotItBtn) gotItBtn.textContent = "Close";
+    }
+
+    function publishSummaryMessage(summary) {
+      var total = summary && summary.total_platforms ? summary.total_platforms : 0;
+      var ok = summary && summary.published_count ? summary.published_count : 0;
+      var failed = summary && summary.failed_count ? summary.failed_count : 0;
+      if (failed <= 0) {
+        return "Posted successfully to " + total + " platform" + (total === 1 ? "" : "s") + ".";
+      }
+      var failures = Array.isArray(summary.failures) ? summary.failures : [];
+      var details = failures.slice(0, 2).map(function (f) {
+        var p = f && f.platform ? String(f.platform) : "platform";
+        var err = f && f.error ? String(f.error) : "Unknown error";
+        return p + ": " + err;
+      }).join(" | ");
+      return ok + " succeeded, " + failed + " failed." + (details ? (" " + details) : "");
+    }
+
+    function resolvePublishResult(postId, done) {
+      var tries = 0;
+      var maxTries = 8;
+      function poll() {
+        tries += 1;
+        global.App.apiGet("/api/v1/posts/" + postId + "/publish-summary").then(function (res) {
+          if (!res._ok || !res.summary) {
+            done({ kind: "error", message: "Could not read publish result." });
+            return;
+          }
+          var summary = res.summary;
+          if (summary.done) {
+            done({
+              kind: summary.failed_count > 0 ? "partial" : "success",
+              summary: summary,
+              message: publishSummaryMessage(summary)
+            });
+            return;
+          }
+          if (tries >= maxTries) {
+            done({ kind: "pending", summary: summary, message: "Publishing started. Final platform results are still in progress." });
+            return;
+          }
+          global.setTimeout(poll, 800);
+        }).catch(function () {
+          if (tries >= maxTries) {
+            done({ kind: "pending", message: "Publishing started. Final platform results are still in progress." });
+            return;
+          }
+          global.setTimeout(poll, 800);
+        });
+      }
+      poll();
     }
 
     function setActionBusy(activeBtn, busy, label) {
@@ -1974,28 +2027,94 @@
           var editingPubId = global.__composerEditingPostId;
 
           function finishPublish(pubRes) {
-            setActionBusy(btn, false);
-            if (pubRes._ok && typeof global.__composerMarkSaved === "function") global.__composerMarkSaved();
-            if (modal) {
-              modal.setAttribute("data-feedback-kind", "publish");
-              if (pubRes._ok && pubRes.post && pubRes.post.id != null) {
-                modal.setAttribute("data-feedback-publish-post-id", String(pubRes.post.id));
-              } else {
-                modal.removeAttribute("data-feedback-publish-post-id");
-              }
+            if (!pubRes._ok) {
+              setActionBusy(btn, false);
+              setFeedbackModalState({
+                isError: true,
+                retryAction: "publish",
+                kind: "publish",
+                iconClass: "fa-solid fa-triangle-exclamation",
+                title: "Publish failed",
+                desc: parseApiError(pubRes, "Publish failed."),
+                showCalendar: false
+              });
+              global.App.openModal("modal-composer-feedback");
+              return;
             }
-            setFeedbackModalState({
-              isError: !pubRes._ok,
-              retryAction: "publish",
-              kind: "publish",
-              iconClass: pubRes._ok ? "fa-solid fa-paper-plane" : "fa-solid fa-triangle-exclamation",
-              title: pubRes._ok ? "Publishing" : "Publish failed",
-              desc: pubRes._ok
-                ? (pubRes.message || "Your post is being published to all selected networks.")
-                : parseApiError(pubRes, "Publish failed."),
-              showCalendar: false
+
+            if (typeof global.__composerMarkSaved === "function") global.__composerMarkSaved();
+            var postId = pubRes && pubRes.post && pubRes.post.id != null ? parseInt(pubRes.post.id, 10) : NaN;
+            if (isNaN(postId) || postId <= 0) {
+              setActionBusy(btn, false);
+              setFeedbackModalState({
+                isError: false,
+                retryAction: "",
+                kind: "publish",
+                iconClass: "fa-solid fa-paper-plane",
+                title: "Publishing",
+                desc: pubRes.message || "Publishing started.",
+                showCalendar: false,
+                state: "pending"
+              });
+              global.App.openModal("modal-composer-feedback");
+              return;
+            }
+
+            setActionBusy(btn, true, "Checking results…");
+            resolvePublishResult(postId, function (result) {
+              setActionBusy(btn, false);
+              if (modal) {
+                if (result.kind === "pending") {
+                  modal.setAttribute("data-feedback-publish-post-id", String(postId));
+                } else {
+                  modal.removeAttribute("data-feedback-publish-post-id");
+                }
+              }
+
+              if (result.kind === "success") {
+                setFeedbackModalState({
+                  isError: false,
+                  retryAction: "",
+                  kind: "publish",
+                  iconClass: "fa-solid fa-circle-check",
+                  title: "Published",
+                  desc: result.message || "Your post has been published.",
+                  showCalendar: false
+                });
+              } else if (result.kind === "partial") {
+                setFeedbackModalState({
+                  isError: true,
+                  retryAction: "publish",
+                  kind: "publish",
+                  iconClass: "fa-solid fa-triangle-exclamation",
+                  title: "Publish completed with errors",
+                  desc: result.message || "Some platforms failed.",
+                  showCalendar: false
+                });
+              } else if (result.kind === "pending") {
+                setFeedbackModalState({
+                  isError: false,
+                  retryAction: "",
+                  kind: "publish",
+                  iconClass: "fa-solid fa-paper-plane",
+                  title: "Publishing in progress",
+                  desc: result.message || "Publishing is still running.",
+                  showCalendar: false,
+                  state: "pending"
+                });
+              } else {
+                setFeedbackModalState({
+                  isError: true,
+                  retryAction: "publish",
+                  kind: "publish",
+                  iconClass: "fa-solid fa-triangle-exclamation",
+                  title: "Publish failed",
+                  desc: result.message || "Could not determine publish result.",
+                  showCalendar: false
+                });
+              }
+              global.App.openModal("modal-composer-feedback");
             });
-            global.App.openModal("modal-composer-feedback");
           }
 
           if (editingPubId && typeof global.App.apiPut === "function") {
@@ -2124,7 +2243,7 @@
         var kind = modal.getAttribute("data-feedback-kind");
         var publishPostId = modal.getAttribute("data-feedback-publish-post-id");
         var state = modal.getAttribute("data-feedback-state");
-        if (kind === "publish" && publishPostId) {
+        if (kind === "publish" && publishPostId && state === "pending") {
           try {
             var target = new URL(global.location.href);
             target.searchParams.set("publish_post", String(publishPostId));
