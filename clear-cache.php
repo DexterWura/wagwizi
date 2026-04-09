@@ -13,18 +13,9 @@ $app = require_once LOGIC_PATH . '/bootstrap.php';
 
 /** @var string $provided */
 $provided = (string) ($_GET['token'] ?? $_POST['token'] ?? '');
-$expected = (string) env('WEB_CACHE_CLEAR_TOKEN', '');
+$expected = '8M3gi8xCdAUJfduvvTsCdKUP05WxIG5Z1f4h2Z55nEzt5Kul';
 
 header('Content-Type: application/json; charset=utf-8');
-
-if ($expected === '') {
-    http_response_code(503);
-    echo json_encode([
-        'ok' => false,
-        'message' => 'WEB_CACHE_CLEAR_TOKEN is not configured.',
-    ]);
-    exit;
-}
 
 if ($provided === '' || !hash_equals($expected, $provided)) {
     http_response_code(403);
