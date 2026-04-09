@@ -10,6 +10,8 @@
       <div class="workflows-topbar__left">
         <i class="fa-solid fa-diagram-project" aria-hidden="true"></i>
         <input class="input workflows-topbar__name" id="workflow-name" type="text" placeholder="Untitled workflow" />
+        <span class="workflows-topbar__meta" data-workflow-current-label>New workflow</span>
+        <span class="workflows-topbar__meta" data-workflow-dirty hidden>Unsaved changes</span>
         <select class="select select--sm workflows-topbar__select" id="workflow-template" data-workflow-template-select>
           <option value="">Blank</option>
           @foreach($workflowTemplates as $template)
@@ -59,6 +61,7 @@
           </button>
           <button class="btn btn--ghost btn--compact" type="button" data-workflow-connect-mode>Connect nodes</button>
           <button class="btn btn--ghost btn--compact" type="button" data-workflow-clear-connections>Clear edges</button>
+          <span class="workflows-toolbar__hint">Tip: `Del` removes selected node</span>
         </div>
         <div class="workflows-canvas" data-workflow-canvas aria-label="Workflow canvas">
           <svg class="workflows-canvas__edges" data-workflow-edges></svg>
@@ -80,6 +83,7 @@
         <p class="muted" data-workflow-inspector-empty>Select a node to edit configuration.</p>
         <textarea class="textarea" rows="10" data-workflow-node-config hidden></textarea>
         <button type="button" class="btn btn--primary btn--compact" data-workflow-node-config-save hidden>Apply node config</button>
+        <button type="button" class="btn btn--ghost btn--compact btn--danger" data-workflow-node-delete hidden>Delete selected node</button>
         <hr />
         <div class="field field--full">
           <label class="field__label">Connected accounts</label>

@@ -38,6 +38,9 @@
     var cfgEmpty = bySel("[data-workflow-inspector-empty]", root);
     var cfgEditor = bySel("[data-workflow-node-config]", root);
     var cfgSave = bySel("[data-workflow-node-config-save]", root);
+    var cfgDelete = bySel("[data-workflow-node-delete]", root);
+    var currentLabelEl = bySel("[data-workflow-current-label]", root);
+    var dirtyEl = bySel("[data-workflow-dirty]", root);
     var lastWorkflowStorageKey = "workflows:lastSelectedId";
 
     var currentWorkflowId = null;
@@ -50,6 +53,7 @@
     var dragOffsetY = 0;
     var graph = { nodes: [], edges: [] };
     var cachedWorkflows = [];
+    var baselineSnapshot = "";
 
     function storeLastSelectedWorkflowId(id) {
       try {
@@ -87,8 +91,48 @@
       });
       selectedNodeId = null;
       storeLastSelectedWorkflowId(wf.id);
+      setEditorDirty(false);
+      updateCurrentWorkflowLabel();
       renderCanvas();
       refreshRuns();
+    }
+
+    function snapshotState() {
+      return JSON.stringify({
+        workflowId: currentWorkflowId || null,
+        name: nameEl ? (nameEl.value || "") : "",
+        trigger: triggerEl ? (triggerEl.value || "manual") : "manual",
+        active: !!(activeEl && activeEl.checked),
+        graph: graph
+      });
+    }
+
+    function setEditorDirty(dirty) {
+      if (!dirtyEl) return;
+      dirtyEl.hidden = !dirty;
+    }
+
+    function markBaseline() {
+      baselineSnapshot = snapshotState();
+      setEditorDirty(false);
+    }
+
+    function maybeDirty() {
+      if (!baselineSnapshot) {
+        baselineSnapshot = snapshotState();
+        return;
+      }
+      setEditorDirty(snapshotState() !== baselineSnapshot);
+    }
+
+    function updateCurrentWorkflowLabel() {
+      if (!currentLabelEl) return;
+      if (!currentWorkflowId) {
+        currentLabelEl.textContent = "New workflow";
+        return;
+      }
+      var wf = cachedWorkflows.find(function (x) { return x.id === currentWorkflowId; });
+      currentLabelEl.textContent = wf ? ("#" + wf.id + " " + (wf.name || "Untitled")) : ("#" + currentWorkflowId);
     }
 
     var nodeCatalog = [
@@ -96,6 +140,9 @@
       { type: "trigger.schedule", label: "Schedule trigger" },
       { type: "trigger.event", label: "Event trigger" },
       { type: "utility.set_variables", label: "Set variables" },
+      { type: "utility.select_platforms", label: "Select platforms" },
+      { type: "utility.exclude_platforms", label: "Exclude platforms" },
+      { type: "utility.limit_accounts", label: "Limit accounts" },
       { type: "utility.delay", label: "Delay" },
       { type: "utility.condition", label: "Condition" },
       { type: "ai.generate_caption", label: "AI generate caption" },
@@ -117,6 +164,9 @@
       if (type === "utility.delay") return { seconds: 5 };
       if (type === "utility.condition") return { left: "draft", operator: "contains", right: "#" };
       if (type === "utility.set_variables") return { variables: { draft: "Your draft text here" } };
+      if (type === "utility.select_platforms") return { platforms: ["linkedin", "twitter"] };
+      if (type === "utility.exclude_platforms") return { platforms: ["twitter"] };
+      if (type === "utility.limit_accounts") return { max: 1 };
       if (type === "trigger.event") return { event_key: "campaign.ready" };
       if (type === "trigger.schedule") return { interval_minutes: 60 };
       return {};
@@ -156,12 +206,22 @@
       if (!nodeById(fromId) || !nodeById(toId)) return;
       if (edgeExists(fromId, toId)) return;
       graph.edges.push({ from: fromId, to: toId });
+      maybeDirty();
     }
 
     function removeEdgesFromNode(nodeId) {
       graph.edges = graph.edges.filter(function (e) {
         return e.from !== nodeId && e.to !== nodeId;
       });
+    }
+
+    function removeNode(nodeId) {
+      if (!nodeId) return;
+      graph.nodes = graph.nodes.filter(function (n) { return n.id !== nodeId; });
+      removeEdgesFromNode(nodeId);
+      if (selectedNodeId === nodeId) selectedNodeId = null;
+      maybeDirty();
+      renderCanvas();
     }
 
     function addNode(type, x, y) {
@@ -179,6 +239,7 @@
         var prev = graph.nodes[graph.nodes.length - 2];
         addEdge(prev.id, id);
       }
+      maybeDirty();
       renderCanvas();
     }
 
@@ -274,6 +335,7 @@
             addEdge(connectFromNodeId, node.id);
             connectFromNodeId = null;
             connectMode = false;
+            maybeDirty();
             renderCanvas();
           });
         }
@@ -285,6 +347,7 @@
             addNode("action.compose_post", (node.x || 0) + 260, (node.y || 0));
             var next = graph.nodes[graph.nodes.length - 1];
             if (next) addEdge(node.id, next.id);
+            maybeDirty();
             renderCanvas();
           });
         }
@@ -329,6 +392,7 @@
       cfgEmpty.hidden = true;
       cfgEditor.hidden = false;
       cfgSave.hidden = false;
+      if (cfgDelete) cfgDelete.hidden = false;
       cfgEditor.value = JSON.stringify(node.config || {}, null, 2);
     }
 
@@ -340,6 +404,7 @@
         try {
           var parsed = JSON.parse(cfgEditor.value || "{}");
           node.config = parsed;
+          maybeDirty();
           if (global.App.showFlash) global.App.showFlash("Node config updated.", "success");
         } catch (e) {
           if (global.App.showFlash) global.App.showFlash("Invalid JSON in node config.", "error");
@@ -370,6 +435,7 @@
       var rect = canvas.getBoundingClientRect();
       node.x = (e.clientX - rect.left + canvas.scrollLeft - dragOffsetX) / canvasScale;
       node.y = (e.clientY - rect.top + canvas.scrollTop - dragOffsetY) / canvasScale;
+          maybeDirty();
       renderCanvas();
     });
 
@@ -389,6 +455,7 @@
       });
       selectedNodeId = null;
       if (global.App.showFlash) global.App.showFlash("Template loaded.");
+      maybeDirty();
       renderCanvas();
     }
 
@@ -471,6 +538,7 @@
                 storeLastSelectedWorkflowId(null);
                 graph = { nodes: [], edges: [] };
                 nameEl.value = "";
+                updateCurrentWorkflowLabel();
                 renderCanvas();
                 refreshRuns();
               }
@@ -500,6 +568,7 @@
           }
           applyWorkflowToEditor(list[0]);
         }
+        updateCurrentWorkflowLabel();
       });
     }
 
@@ -560,6 +629,7 @@
         currentWorkflowId = res.workflow.id;
         storeLastSelectedWorkflowId(currentWorkflowId);
         applyWorkflowToEditor(res.workflow);
+        markBaseline();
         if (global.App.showFlash) global.App.showFlash("Workflow saved.");
         refreshList();
       }).catch(function () {
@@ -627,6 +697,7 @@
       if (cfgEmpty) cfgEmpty.hidden = false;
       if (cfgEditor) cfgEditor.hidden = true;
       if (cfgSave) cfgSave.hidden = true;
+      if (cfgDelete) cfgDelete.hidden = true;
       renderCanvas();
     });
     if (btnAutoLayout) btnAutoLayout.addEventListener("click", function () {
@@ -641,11 +712,13 @@
     if (btnConnectMode) btnConnectMode.addEventListener("click", function () {
       connectMode = !connectMode;
       connectFromNodeId = null;
+      if (btnConnectMode) btnConnectMode.classList.toggle("is-active", connectMode);
       if (global.App.showFlash) global.App.showFlash(connectMode ? "Connect mode on. Click output then input." : "Connect mode off.");
     });
     if (btnClearConnections) btnClearConnections.addEventListener("click", function () {
       if (!global.confirm("Remove all node connections?")) return;
       graph.edges = [];
+      maybeDirty();
       renderCanvas();
     });
     if (btnNew) {
@@ -662,12 +735,40 @@
         if (cfgEmpty) cfgEmpty.hidden = false;
         if (cfgEditor) cfgEditor.hidden = true;
         if (cfgSave) cfgSave.hidden = true;
+        if (cfgDelete) cfgDelete.hidden = true;
+        updateCurrentWorkflowLabel();
+        markBaseline();
         renderCanvas();
       });
     }
 
+    if (cfgDelete) {
+      cfgDelete.addEventListener("click", function () {
+        if (!selectedNodeId) return;
+        if (!global.confirm("Delete selected node and its connections?")) return;
+        removeNode(selectedNodeId);
+        if (cfgEmpty) cfgEmpty.hidden = true;
+      });
+    }
+
+    if (nameEl) nameEl.addEventListener("input", maybeDirty);
+    if (triggerEl) triggerEl.addEventListener("change", maybeDirty);
+    if (activeEl) activeEl.addEventListener("change", maybeDirty);
+
+    document.addEventListener("keydown", function (e) {
+      if (!root.contains(document.activeElement)) return;
+      if (!selectedNodeId) return;
+      var isDelete = e.key === "Delete" || e.key === "Backspace";
+      if (!isDelete) return;
+      var tag = (document.activeElement && document.activeElement.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea") return;
+      e.preventDefault();
+      removeNode(selectedNodeId);
+    });
+
     renderPalette();
     renderCanvas();
+    markBaseline();
     refreshList();
     refreshRuns();
   }

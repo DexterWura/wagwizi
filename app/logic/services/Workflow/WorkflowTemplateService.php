@@ -13,6 +13,26 @@ final class WorkflowTemplateService
     {
         return [
             [
+                'key' => 'platform_targeted_distribution',
+                'name' => 'Platform Targeted Distribution',
+                'description' => 'Compose once, then include only selected platforms before publish.',
+                'trigger_type' => 'manual',
+                'trigger_config' => [],
+                'graph' => [
+                    'nodes' => [
+                        ['id' => 'trigger1', 'type' => 'trigger.manual', 'config' => []],
+                        ['id' => 'compose1', 'type' => 'action.compose_post', 'config' => ['platform_account_ids' => [], 'audience' => 'everyone']],
+                        ['id' => 'select1', 'type' => 'utility.select_platforms', 'config' => ['platforms' => ['linkedin', 'twitter']]],
+                        ['id' => 'publish1', 'type' => 'action.publish_post', 'config' => []],
+                    ],
+                    'edges' => [
+                        ['from' => 'trigger1', 'to' => 'compose1'],
+                        ['from' => 'compose1', 'to' => 'select1'],
+                        ['from' => 'select1', 'to' => 'publish1'],
+                    ],
+                ],
+            ],
+            [
                 'key' => 'scheduled_ai_autopilot',
                 'name' => 'Scheduled AI Autopilot',
                 'description' => 'On schedule, generate a caption with AI then publish.',

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Workflow;
 
 use App\Models\User;
+use App\Models\SocialAccount;
 use App\Models\Workflow;
 use App\Models\WorkflowRun;
 use App\Models\WorkflowRunStep;
@@ -295,6 +296,113 @@ final class WorkflowRunnerService
             return ['state' => $state, 'output' => ['variables_set' => array_keys($vars)]];
         }
 
+        if ($nodeType === 'utility.select_platforms') {
+            $payload = is_array($state['post_payload'] ?? null) ? $state['post_payload'] : null;
+            if ($payload === null) {
+                throw new InvalidArgumentException('Select platforms node requires a prepared post payload.');
+            }
+            $selected = is_array($payload['platform_accounts'] ?? null) ? $payload['platform_accounts'] : [];
+            $selected = array_values(array_unique(array_map(static fn ($v): int => (int) $v, $selected)));
+            $selected = array_values(array_filter($selected, static fn (int $v): bool => $v > 0));
+            if ($selected === []) {
+                throw new InvalidArgumentException('Select platforms node requires platform accounts in payload.');
+            }
+
+            $platforms = is_array($config['platforms'] ?? null) ? $config['platforms'] : [];
+            $platforms = array_values(array_unique(array_map(
+                static fn ($v): string => strtolower(trim((string) $v)),
+                $platforms
+            )));
+            $platforms = array_values(array_filter($platforms, static fn (string $v): bool => $v !== ''));
+            if ($platforms === []) {
+                throw new InvalidArgumentException('Select platforms node requires at least one platform.');
+            }
+
+            $accounts = SocialAccount::query()
+                ->where('user_id', $user->id)
+                ->whereIn('id', $selected)
+                ->get(['id', 'platform']);
+            $selectedSet = array_fill_keys($platforms, true);
+            $allowedIds = [];
+            foreach ($accounts as $account) {
+                $platform = strtolower((string) $account->platform);
+                if (isset($selectedSet[$platform])) {
+                    $allowedIds[] = (int) $account->id;
+                }
+            }
+            $allowedIds = array_values(array_unique($allowedIds));
+            if ($allowedIds === []) {
+                throw new InvalidArgumentException('Select platforms node removed all platform accounts.');
+            }
+            $payload['platform_accounts'] = $allowedIds;
+            $state['post_payload'] = $payload;
+
+            return ['state' => $state, 'output' => ['platforms' => $platforms, 'accounts' => $allowedIds]];
+        }
+
+        if ($nodeType === 'utility.exclude_platforms') {
+            $payload = is_array($state['post_payload'] ?? null) ? $state['post_payload'] : null;
+            if ($payload === null) {
+                throw new InvalidArgumentException('Exclude platforms node requires a prepared post payload.');
+            }
+            $selected = is_array($payload['platform_accounts'] ?? null) ? $payload['platform_accounts'] : [];
+            $selected = array_values(array_unique(array_map(static fn ($v): int => (int) $v, $selected)));
+            $selected = array_values(array_filter($selected, static fn (int $v): bool => $v > 0));
+            if ($selected === []) {
+                throw new InvalidArgumentException('Exclude platforms node requires platform accounts in payload.');
+            }
+
+            $platforms = is_array($config['platforms'] ?? null) ? $config['platforms'] : [];
+            $platforms = array_values(array_unique(array_map(
+                static fn ($v): string => strtolower(trim((string) $v)),
+                $platforms
+            )));
+            $platforms = array_values(array_filter($platforms, static fn (string $v): bool => $v !== ''));
+            if ($platforms === []) {
+                return ['state' => $state, 'output' => ['platforms_excluded' => [], 'accounts' => $selected]];
+            }
+
+            $accounts = SocialAccount::query()
+                ->where('user_id', $user->id)
+                ->whereIn('id', $selected)
+                ->get(['id', 'platform']);
+            $excludedSet = array_fill_keys($platforms, true);
+            $remainingIds = [];
+            foreach ($accounts as $account) {
+                $platform = strtolower((string) $account->platform);
+                if (!isset($excludedSet[$platform])) {
+                    $remainingIds[] = (int) $account->id;
+                }
+            }
+            $remainingIds = array_values(array_unique($remainingIds));
+            if ($remainingIds === []) {
+                throw new InvalidArgumentException('Exclude platforms node removed all platform accounts.');
+            }
+            $payload['platform_accounts'] = $remainingIds;
+            $state['post_payload'] = $payload;
+
+            return ['state' => $state, 'output' => ['platforms_excluded' => $platforms, 'accounts' => $remainingIds]];
+        }
+
+        if ($nodeType === 'utility.limit_accounts') {
+            $payload = is_array($state['post_payload'] ?? null) ? $state['post_payload'] : null;
+            if ($payload === null) {
+                throw new InvalidArgumentException('Limit accounts node requires a prepared post payload.');
+            }
+            $selected = is_array($payload['platform_accounts'] ?? null) ? $payload['platform_accounts'] : [];
+            $selected = array_values(array_unique(array_map(static fn ($v): int => (int) $v, $selected)));
+            $selected = array_values(array_filter($selected, static fn (int $v): bool => $v > 0));
+            if ($selected === []) {
+                throw new InvalidArgumentException('Limit accounts node requires platform accounts in payload.');
+            }
+
+            $max = max(1, (int) ($config['max'] ?? 1));
+            $payload['platform_accounts'] = array_slice($selected, 0, $max);
+            $state['post_payload'] = $payload;
+
+            return ['state' => $state, 'output' => ['accounts' => $payload['platform_accounts'], 'max' => $max]];
+        }
+
         if ($nodeType === 'utility.delay') {
             $seconds = max(0, min(10, (int) ($config['seconds'] ?? 1)));
             if ($seconds > 0) {
@@ -388,6 +496,7 @@ declare(strict_types=1);
 namespace App\Services\Workflow;
 
 use App\Models\User;
+use App\Models\SocialAccount;
 use App\Models\Workflow;
 use App\Models\WorkflowRun;
 use App\Models\WorkflowRunStep;
@@ -657,6 +766,113 @@ final class WorkflowRunnerService
             }
 
             return ['state' => $state, 'output' => ['variables_set' => array_keys($vars)]];
+        }
+
+        if ($nodeType === 'utility.select_platforms') {
+            $payload = is_array($state['post_payload'] ?? null) ? $state['post_payload'] : null;
+            if ($payload === null) {
+                throw new InvalidArgumentException('Select platforms node requires a prepared post payload.');
+            }
+            $selected = is_array($payload['platform_accounts'] ?? null) ? $payload['platform_accounts'] : [];
+            $selected = array_values(array_unique(array_map(static fn ($v): int => (int) $v, $selected)));
+            $selected = array_values(array_filter($selected, static fn (int $v): bool => $v > 0));
+            if ($selected === []) {
+                throw new InvalidArgumentException('Select platforms node requires platform accounts in payload.');
+            }
+
+            $platforms = is_array($config['platforms'] ?? null) ? $config['platforms'] : [];
+            $platforms = array_values(array_unique(array_map(
+                static fn ($v): string => strtolower(trim((string) $v)),
+                $platforms
+            )));
+            $platforms = array_values(array_filter($platforms, static fn (string $v): bool => $v !== ''));
+            if ($platforms === []) {
+                throw new InvalidArgumentException('Select platforms node requires at least one platform.');
+            }
+
+            $accounts = SocialAccount::query()
+                ->where('user_id', $user->id)
+                ->whereIn('id', $selected)
+                ->get(['id', 'platform']);
+            $selectedSet = array_fill_keys($platforms, true);
+            $allowedIds = [];
+            foreach ($accounts as $account) {
+                $platform = strtolower((string) $account->platform);
+                if (isset($selectedSet[$platform])) {
+                    $allowedIds[] = (int) $account->id;
+                }
+            }
+            $allowedIds = array_values(array_unique($allowedIds));
+            if ($allowedIds === []) {
+                throw new InvalidArgumentException('Select platforms node removed all platform accounts.');
+            }
+            $payload['platform_accounts'] = $allowedIds;
+            $state['post_payload'] = $payload;
+
+            return ['state' => $state, 'output' => ['platforms' => $platforms, 'accounts' => $allowedIds]];
+        }
+
+        if ($nodeType === 'utility.exclude_platforms') {
+            $payload = is_array($state['post_payload'] ?? null) ? $state['post_payload'] : null;
+            if ($payload === null) {
+                throw new InvalidArgumentException('Exclude platforms node requires a prepared post payload.');
+            }
+            $selected = is_array($payload['platform_accounts'] ?? null) ? $payload['platform_accounts'] : [];
+            $selected = array_values(array_unique(array_map(static fn ($v): int => (int) $v, $selected)));
+            $selected = array_values(array_filter($selected, static fn (int $v): bool => $v > 0));
+            if ($selected === []) {
+                throw new InvalidArgumentException('Exclude platforms node requires platform accounts in payload.');
+            }
+
+            $platforms = is_array($config['platforms'] ?? null) ? $config['platforms'] : [];
+            $platforms = array_values(array_unique(array_map(
+                static fn ($v): string => strtolower(trim((string) $v)),
+                $platforms
+            )));
+            $platforms = array_values(array_filter($platforms, static fn (string $v): bool => $v !== ''));
+            if ($platforms === []) {
+                return ['state' => $state, 'output' => ['platforms_excluded' => [], 'accounts' => $selected]];
+            }
+
+            $accounts = SocialAccount::query()
+                ->where('user_id', $user->id)
+                ->whereIn('id', $selected)
+                ->get(['id', 'platform']);
+            $excludedSet = array_fill_keys($platforms, true);
+            $remainingIds = [];
+            foreach ($accounts as $account) {
+                $platform = strtolower((string) $account->platform);
+                if (!isset($excludedSet[$platform])) {
+                    $remainingIds[] = (int) $account->id;
+                }
+            }
+            $remainingIds = array_values(array_unique($remainingIds));
+            if ($remainingIds === []) {
+                throw new InvalidArgumentException('Exclude platforms node removed all platform accounts.');
+            }
+            $payload['platform_accounts'] = $remainingIds;
+            $state['post_payload'] = $payload;
+
+            return ['state' => $state, 'output' => ['platforms_excluded' => $platforms, 'accounts' => $remainingIds]];
+        }
+
+        if ($nodeType === 'utility.limit_accounts') {
+            $payload = is_array($state['post_payload'] ?? null) ? $state['post_payload'] : null;
+            if ($payload === null) {
+                throw new InvalidArgumentException('Limit accounts node requires a prepared post payload.');
+            }
+            $selected = is_array($payload['platform_accounts'] ?? null) ? $payload['platform_accounts'] : [];
+            $selected = array_values(array_unique(array_map(static fn ($v): int => (int) $v, $selected)));
+            $selected = array_values(array_filter($selected, static fn (int $v): bool => $v > 0));
+            if ($selected === []) {
+                throw new InvalidArgumentException('Limit accounts node requires platform accounts in payload.');
+            }
+
+            $max = max(1, (int) ($config['max'] ?? 1));
+            $payload['platform_accounts'] = array_slice($selected, 0, $max);
+            $state['post_payload'] = $payload;
+
+            return ['state' => $state, 'output' => ['accounts' => $payload['platform_accounts'], 'max' => $max]];
         }
 
         if ($nodeType === 'utility.delay') {

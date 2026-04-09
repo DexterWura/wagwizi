@@ -13,6 +13,7 @@ final class WorkflowTemplateServiceTest extends TestCase
 
         $keys = array_map(static fn (array $t): string => (string) ($t['key'] ?? ''), $templates);
 
+        $this->assertContains('platform_targeted_distribution', $keys);
         $this->assertContains('scheduled_ai_autopilot', $keys);
         $this->assertContains('event_news_to_social', $keys);
         $this->assertContains('approval_before_publish', $keys);

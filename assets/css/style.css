@@ -7635,6 +7635,15 @@ button.link-create {
   max-width: 360px;
 }
 
+.workflows-topbar__meta {
+  font-size: 0.7rem;
+  border: 1px solid var(--border, #2c2f36);
+  border-radius: 999px;
+  padding: 0.16rem 0.5rem;
+  color: var(--muted, #94a3b8);
+  background: rgba(15, 23, 42, 0.5);
+}
+
 .workflows-topbar__select {
   min-width: 120px;
 }
@@ -7689,6 +7698,17 @@ button.link-create {
   border-bottom: 1px solid var(--border, #2c2f36);
 }
 
+.workflows-toolbar__hint {
+  margin-left: auto;
+  font-size: 0.72rem;
+  color: var(--muted, #94a3b8);
+}
+
+[data-workflow-connect-mode].is-active {
+  border-color: rgba(96, 165, 250, 0.8);
+  background: rgba(59, 130, 246, 0.18);
+}
+
 .workflows-canvas {
   position: relative;
   min-height: 560px;
@@ -7723,6 +7743,12 @@ button.link-create {
   stroke: rgba(148, 163, 184, 0.85);
   stroke-width: 2;
   stroke-linecap: round;
+}
+
+.workflow-node-card.is-active .workflow-node-card__in,
+.workflow-node-card.is-active .workflow-node-card__out {
+  border-color: rgba(96, 165, 250, 0.9);
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.35);
 }
 
 .workflow-node-card {
@@ -7796,6 +7822,15 @@ button.link-create {
   background: var(--bg-elevated, #111827);
   color: inherit;
   cursor: pointer;
+}
+
+.btn--danger {
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #fecaca;
+}
+
+.btn--danger:hover {
+  background: rgba(239, 68, 68, 0.2);
 }
 
 .workflows-canvas-footer {
