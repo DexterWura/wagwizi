@@ -127,6 +127,7 @@ class TwitterAdapter extends AbstractPlatformAdapter
             ];
             $filename = $this->filenameFromMediaUrl($url);
             $mimeType = $this->mimeTypeFromMediaUrl($url);
+            $mediaCategory = $this->mediaCategoryFromMimeType($mimeType);
 
             foreach ($uploadEndpoints as $endpoint) {
                 try {
@@ -135,7 +136,10 @@ class TwitterAdapter extends AbstractPlatformAdapter
                         ->timeout(60)
                         ->acceptJson()
                         ->attach('media', $mediaContent, $filename, ['Content-Type' => $mimeType])
-                        ->post($endpoint);
+                        ->post($endpoint, [
+                            'media_category' => $mediaCategory,
+                            'media_type' => $mimeType,
+                        ]);
 
                     $mediaId = $this->extractMediaId($response->json());
                     if ($response->successful() && $mediaId !== null) {
@@ -151,6 +155,8 @@ class TwitterAdapter extends AbstractPlatformAdapter
                             ->asForm()
                             ->post($endpoint, [
                                 'media_data' => base64_encode($mediaContent),
+                                'media_category' => $mediaCategory,
+                                'media_type' => $mimeType,
                             ]);
 
                         $fallbackMediaId = $this->extractMediaId($fallback->json());
@@ -229,6 +235,21 @@ class TwitterAdapter extends AbstractPlatformAdapter
             'mov' => 'video/quicktime',
             default => 'application/octet-stream',
         };
+    }
+
+    private function mediaCategoryFromMimeType(string $mimeType): string
+    {
+        $lower = strtolower(trim($mimeType));
+
+        if (str_starts_with($lower, 'video/')) {
+            return 'tweet_video';
+        }
+
+        if ($lower === 'image/gif') {
+            return 'tweet_gif';
+        }
+
+        return 'tweet_image';
     }
 
     private function extractMediaId(mixed $payload): ?string
