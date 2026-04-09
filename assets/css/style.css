@@ -7701,8 +7701,6 @@ button.link-create {
 .workflows-canvas__nodes {
   position: absolute;
   inset: 0;
-  min-width: 1600px;
-  min-height: 980px;
 }
 
 .workflows-canvas__nodes {

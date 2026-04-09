@@ -38,6 +38,7 @@
     var cfgEmpty = bySel("[data-workflow-inspector-empty]", root);
     var cfgEditor = bySel("[data-workflow-node-config]", root);
     var cfgSave = bySel("[data-workflow-node-config-save]", root);
+    var lastWorkflowStorageKey = "workflows:lastSelectedId";
 
     var currentWorkflowId = null;
     var selectedNodeId = null;
@@ -48,6 +49,47 @@
     var dragOffsetX = 0;
     var dragOffsetY = 0;
     var graph = { nodes: [], edges: [] };
+    var cachedWorkflows = [];
+
+    function storeLastSelectedWorkflowId(id) {
+      try {
+        if (!global.localStorage) return;
+        if (id == null) {
+          global.localStorage.removeItem(lastWorkflowStorageKey);
+          return;
+        }
+        global.localStorage.setItem(lastWorkflowStorageKey, String(id));
+      } catch (e) {}
+    }
+
+    function readLastSelectedWorkflowId() {
+      try {
+        if (!global.localStorage) return null;
+        var raw = global.localStorage.getItem(lastWorkflowStorageKey);
+        if (!raw) return null;
+        var id = parseInt(raw, 10);
+        return isNaN(id) || id <= 0 ? null : id;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function applyWorkflowToEditor(wf) {
+      if (!wf) return;
+      currentWorkflowId = wf.id;
+      if (nameEl) nameEl.value = wf.name || "";
+      if (triggerEl) triggerEl.value = wf.trigger_type || "manual";
+      if (activeEl) activeEl.checked = String(wf.status || "").toLowerCase() === "active";
+      graph = wf.graph && typeof wf.graph === "object" ? wf.graph : { nodes: [], edges: [] };
+      graph.nodes.forEach(function (n, i) {
+        if (typeof n.x !== "number") n.x = 120 + (i * 230);
+        if (typeof n.y !== "number") n.y = 220;
+      });
+      selectedNodeId = null;
+      storeLastSelectedWorkflowId(wf.id);
+      renderCanvas();
+      refreshRuns();
+    }
 
     var nodeCatalog = [
       { type: "trigger.manual", label: "Manual trigger" },
@@ -146,13 +188,32 @@
       edgesSvg.innerHTML = "";
       if (emptyState) emptyState.hidden = graph.nodes.length > 0;
 
-      var canvasRect = canvas.getBoundingClientRect();
-      edgesSvg.setAttribute("viewBox", "0 0 " + Math.max(400, canvasRect.width) + " " + Math.max(300, canvasRect.height));
-
       graph.nodes.forEach(function (node) {
         if (typeof node.x !== "number") node.x = 80;
         if (typeof node.y !== "number") node.y = 80;
+        if (!isFinite(node.x)) node.x = 80;
+        if (!isFinite(node.y)) node.y = 80;
+        node.x = Math.max(0, node.x);
+        node.y = Math.max(0, node.y);
       });
+
+      var nodeWidth = 212;
+      var nodeHeight = 78;
+      var maxX = 0;
+      var maxY = 0;
+      graph.nodes.forEach(function (n) {
+        maxX = Math.max(maxX, n.x + nodeWidth + 120);
+        maxY = Math.max(maxY, n.y + nodeHeight + 120);
+      });
+      var contentWidth = Math.max(1400, maxX, canvas.clientWidth || 0);
+      var contentHeight = Math.max(900, maxY, canvas.clientHeight || 0);
+      nodeLayer.style.width = contentWidth + "px";
+      nodeLayer.style.height = contentHeight + "px";
+      edgesSvg.style.width = contentWidth + "px";
+      edgesSvg.style.height = contentHeight + "px";
+      edgesSvg.setAttribute("width", String(contentWidth));
+      edgesSvg.setAttribute("height", String(contentHeight));
+      edgesSvg.setAttribute("viewBox", "0 0 " + contentWidth + " " + contentHeight);
 
       graph.edges.forEach(function (edge) {
         var from = nodeById(edge.from);
@@ -296,8 +357,8 @@
         var type = e.dataTransfer.getData("text/workflow-node-type");
         if (!type) return;
         var rect = canvas.getBoundingClientRect();
-        var x = (e.clientX - rect.left) / canvasScale;
-        var y = (e.clientY - rect.top) / canvasScale;
+        var x = (e.clientX - rect.left + canvas.scrollLeft) / canvasScale;
+        var y = (e.clientY - rect.top + canvas.scrollTop) / canvasScale;
         addNode(type, x - 100, y - 32);
       });
     }
@@ -307,8 +368,8 @@
       var node = nodeById(dragNodeId);
       if (!node) return;
       var rect = canvas.getBoundingClientRect();
-      node.x = (e.clientX - rect.left - dragOffsetX) / canvasScale;
-      node.y = (e.clientY - rect.top - dragOffsetY) / canvasScale;
+      node.x = (e.clientX - rect.left + canvas.scrollLeft - dragOffsetX) / canvasScale;
+      node.y = (e.clientY - rect.top + canvas.scrollTop - dragOffsetY) / canvasScale;
       renderCanvas();
     });
 
@@ -344,8 +405,12 @@
       global.App.apiGet("/api/v1/workflows").then(function (res) {
         if (!res._ok) return;
         var list = Array.isArray(res.workflows) ? res.workflows : [];
+        cachedWorkflows = list;
         listEl.innerHTML = "";
+        var lastId = readLastSelectedWorkflowId();
+        var hasCurrent = false;
         list.forEach(function (wf) {
+          if (currentWorkflowId === wf.id) hasCurrent = true;
           var row = document.createElement("div");
           row.className = "workflows-list__item";
           var title = document.createElement("button");
@@ -353,17 +418,29 @@
           title.className = "btn btn--ghost btn--compact";
           title.textContent = (wf.name || "Untitled") + " [" + (wf.status || "draft") + "]";
           title.addEventListener("click", function () {
-            currentWorkflowId = wf.id;
-            nameEl.value = wf.name || "";
+            applyWorkflowToEditor(wf);
+          });
+          var duplicateBtn = document.createElement("button");
+          duplicateBtn.type = "button";
+          duplicateBtn.className = "btn btn--ghost btn--compact";
+          duplicateBtn.textContent = "Duplicate";
+          duplicateBtn.addEventListener("click", function () {
+            var cloned = JSON.parse(JSON.stringify(wf || {}));
+            delete cloned.id;
+            if (nameEl) nameEl.value = (wf.name || "Workflow") + " copy";
             if (triggerEl) triggerEl.value = wf.trigger_type || "manual";
-            graph = wf.graph && typeof wf.graph === "object" ? wf.graph : { nodes: [], edges: [] };
-            graph.nodes.forEach(function (n, i) {
-              if (typeof n.x !== "number") n.x = 120 + (i * 230);
-              if (typeof n.y !== "number") n.y = 220;
+            if (activeEl) activeEl.checked = false;
+            graph = cloned.graph && typeof cloned.graph === "object" ? cloned.graph : { nodes: [], edges: [] };
+            graph.nodes.forEach(function (node, i) {
+              node.id = "node_" + Date.now() + "_" + i + "_" + Math.floor(Math.random() * 1000);
+              if (typeof node.x !== "number") node.x = 120 + (i * 230);
+              if (typeof node.y !== "number") node.y = 220;
             });
+            currentWorkflowId = null;
+            storeLastSelectedWorkflowId(null);
             selectedNodeId = null;
             renderCanvas();
-            refreshRuns();
+            if (global.App.showFlash) global.App.showFlash("Workflow duplicated in editor. Save to create a new one.");
           });
           var del = document.createElement("button");
           del.type = "button";
@@ -391,17 +468,38 @@
               }
               if (currentWorkflowId === wf.id) {
                 currentWorkflowId = null;
+                storeLastSelectedWorkflowId(null);
                 graph = { nodes: [], edges: [] };
                 nameEl.value = "";
                 renderCanvas();
+                refreshRuns();
               }
               refreshList();
             });
           });
           row.appendChild(title);
+          row.appendChild(duplicateBtn);
           row.appendChild(del);
           listEl.appendChild(row);
         });
+
+        if (!list.length) {
+          currentWorkflowId = null;
+          storeLastSelectedWorkflowId(null);
+          if (runsEl) runsEl.innerHTML = '<div class="muted">No workflow runs yet.</div>';
+          return;
+        }
+
+        if (!hasCurrent) {
+          if (lastId != null) {
+            var remembered = list.find(function (wf) { return wf.id === lastId; });
+            if (remembered) {
+              applyWorkflowToEditor(remembered);
+              return;
+            }
+          }
+          applyWorkflowToEditor(list[0]);
+        }
       });
     }
 
@@ -460,11 +558,20 @@
           return;
         }
         currentWorkflowId = res.workflow.id;
+        storeLastSelectedWorkflowId(currentWorkflowId);
+        applyWorkflowToEditor(res.workflow);
         if (global.App.showFlash) global.App.showFlash("Workflow saved.");
         refreshList();
       }).catch(function () {
         if (global.App.showFlash) global.App.showFlash("Network error while saving workflow.", "error");
       });
+    }
+
+    function saveAsNewWorkflow() {
+      var originalId = currentWorkflowId;
+      currentWorkflowId = null;
+      saveCurrentWorkflow();
+      currentWorkflowId = originalId;
     }
 
     function runCurrentWorkflow() {
@@ -492,6 +599,7 @@
     var btnSave = bySel("[data-workflows-save]", root);
     var btnRun = bySel("[data-workflows-run]", root);
     var btnNew = bySel("[data-workflows-new]", root);
+    var btnSaveAsNew = bySel("[data-workflows-save-as-new]", root);
     var btnZoomOut = bySel("[data-workflow-zoom-out]", root);
     var btnZoomIn = bySel("[data-workflow-zoom-in]", root);
     var btnResetView = bySel("[data-workflow-reset-view]", root);
@@ -500,6 +608,7 @@
     var btnConnectMode = bySel("[data-workflow-connect-mode]", root);
     var btnClearConnections = bySel("[data-workflow-clear-connections]", root);
     if (btnSave) btnSave.addEventListener("click", saveCurrentWorkflow);
+    if (btnSaveAsNew) btnSaveAsNew.addEventListener("click", saveAsNewWorkflow);
     if (btnRun) btnRun.addEventListener("click", runCurrentWorkflow);
     if (btnZoomOut) btnZoomOut.addEventListener("click", function () {
       canvasScale = Math.max(0.6, +(canvasScale - 0.1).toFixed(2));
@@ -542,6 +651,7 @@
     if (btnNew) {
       btnNew.addEventListener("click", function () {
         currentWorkflowId = null;
+        storeLastSelectedWorkflowId(null);
         selectedNodeId = null;
         connectFromNodeId = null;
         connectMode = false;

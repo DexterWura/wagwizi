@@ -32,6 +32,7 @@
           <input type="checkbox" data-workflow-active />
         </label>
         <button class="btn btn--ghost btn--compact" type="button" data-workflows-new>New</button>
+        <button class="btn btn--ghost btn--compact" type="button" data-workflows-save-as-new>Save as new</button>
         <button class="btn btn--outline btn--compact" type="button" data-workflows-run>Run</button>
         <button class="btn btn--primary btn--compact" type="button" data-workflows-save>Save</button>
       </div>
