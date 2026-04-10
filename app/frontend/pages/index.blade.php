@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    @section('meta-description', 'AI-powered social media scheduler and management platform for teams. Plan, create, schedule, and publish posts across multiple social networks from one dashboard.')
+    @section('social-description', 'Manage your social media workflow in one place: content planning, scheduling, publishing, analytics, and team collaboration.')
+    @section('meta-keywords', 'social media scheduler, social media management platform, content calendar tool, multi platform social posting, team social media management, AI social media assistant')
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     @include('seo-meta', [
@@ -283,8 +286,8 @@
 
       <section class="lp-section" id="product">
         <div class="lp-section__head" data-lp-reveal>
-          <h2>Your unique flow on every channel</h2>
-          <p>Tailor copy per network, see real previews, and keep tone consistent — without tab sprawl.</p>
+          <h2>Multi-platform social media scheduling, built for teams</h2>
+          <p>Create once, tailor per network, preview before publishing, and keep brand voice consistent across every channel.</p>
         </div>
         <div class="lp-wrap">
           <div class="lp-channels">
@@ -301,23 +304,23 @@
       <section class="lp-section" id="why">
         <div class="lp-section__head" data-lp-reveal>
           <h2>Why {{ config('app.name') }}?</h2>
-          <p>Built for teams who outgrew spreadsheets and five browser tabs.</p>
+          <p>A social media management platform for brands, agencies, and creators who need faster publishing with less manual work.</p>
         </div>
         <div class="lp-wrap lp-why">
           <article class="lp-why-card" data-lp-reveal>
             <div class="lp-why-card__icon"><i class="fa-solid fa-pen-nib" aria-hidden="true"></i></div>
-            <h3>Compose faster</h3>
-            <p>Master draft plus per-platform overrides, with AI assist when you want a second pass.</p>
+            <h3>Write once, optimize by platform</h3>
+            <p>Use a master draft with per-platform copy and AI assist so every post matches channel best practices.</p>
           </article>
           <article class="lp-why-card" data-lp-reveal>
             <div class="lp-why-card__icon"><i class="fa-solid fa-clock" aria-hidden="true"></i></div>
-            <h3>Schedule visually</h3>
-            <p>Drag posts on the calendar or pull from an unscheduled queue — times respect your timezone.</p>
+            <h3>Schedule with a visual content calendar</h3>
+            <p>Drag and drop posts, queue drafts, and publish at the best times in your preferred timezone.</p>
           </article>
           <article class="lp-why-card" data-lp-reveal>
             <div class="lp-why-card__icon"><i class="fa-solid fa-arrow-trend-up" aria-hidden="true"></i></div>
-            <h3>Measure clearly</h3>
-            <p>Insights roll up by workspace so you see what actually moved the needle.</p>
+            <h3>Measure performance and improve</h3>
+            <p>Track outcomes with workspace-level insights so your team can focus on content that drives growth.</p>
           </article>
         </div>
       </section>
@@ -394,8 +397,8 @@
 
       <section class="lp-section" id="resources">
         <div class="lp-section__head" data-lp-reveal>
-          <h2>Active on all your favorite channels</h2>
-          <p>Link the networks your team uses and manage them from one place—so your brand stays consistent everywhere your audience already spends time.</p>
+          <h2>Connect your social channels in one dashboard</h2>
+          <p>Link the networks your team uses and manage multi-account publishing from a single social media command center.</p>
         </div>
         <div class="lp-wrap">
           <div class="lp-int-grid">
@@ -408,8 +411,8 @@
 
       <section class="lp-section lp-pricing" id="pricing">
         <div class="lp-section__head" data-lp-reveal>
-          <h2>Pricing</h2>
-          <p>Find the right plan for your needs(select monthly or yearly)</p>
+          <h2>Social media management pricing</h2>
+          <p>Choose the plan that fits your team size, posting volume, and automation needs.</p>
         </div>
         <div class="lp-wrap">
           <div class="lp-billing-toggle-wrap" data-lp-reveal data-lp-currency-symbol="{{ $currencyDisplay->symbol($currencyDisplay->defaultCurrency()) }}">
@@ -494,14 +497,14 @@
       </section>
 
       <section class="lp-cta-band" data-lp-reveal>
-        <h2>Ready to get started?</h2>
+        <h2>Ready to scale your social media workflow?</h2>
         <a class="lp-btn lp-btn--light lp-btn--lg" href="{{ route('signup') }}">Join now</a>
       </section>
 
       <section class="lp-section" id="love">
         <div class="lp-section__head" data-lp-reveal>
-          <h2>Wall of love</h2>
-          <p>Teams who switched from duct-tape workflows.</p>
+          <h2>Customer success stories</h2>
+          <p>How teams replaced manual social media workflows with a faster scheduling system.</p>
         </div>
         <div class="lp-wrap">
           @forelse($testimonials as $testimonial)
@@ -541,7 +544,7 @@
       @if($faqs->isNotEmpty())
       <section class="lp-section" id="faq">
         <div class="lp-section__head" data-lp-reveal>
-          <h2>Frequently asked questions</h2>
+          <h2>Social media scheduling FAQ</h2>
         </div>
         <div class="lp-faq" data-lp-faq data-lp-reveal>
           @foreach($faqs as $faq)
@@ -552,6 +555,42 @@
           @endforeach
         </div>
       </section>
+      <script type="application/ld+json">
+      {!! json_encode([
+        '@context' => 'https://schema.org',
+        '@type' => 'FAQPage',
+        'mainEntity' => $faqs->map(static fn ($faq) => [
+          '@type' => 'Question',
+          'name' => (string) $faq->question,
+          'acceptedAnswer' => [
+            '@type' => 'Answer',
+            'text' => (string) $faq->answer,
+          ],
+        ])->values()->all(),
+      ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+      </script>
+      @endif
+
+      @if($plans->isNotEmpty())
+      <script type="application/ld+json">
+      {!! json_encode([
+        '@context' => 'https://schema.org',
+        '@type' => 'ItemList',
+        'name' => config('app.name') . ' pricing plans',
+        'itemListElement' => $plans->values()->map(static fn ($plan, $idx) => [
+          '@type' => 'ListItem',
+          'position' => $idx + 1,
+          'item' => [
+            '@type' => 'Offer',
+            'name' => (string) $plan->name,
+            'price' => $plan->monthly_price_cents !== null ? number_format(((int) $plan->monthly_price_cents) / 100, 2, '.', '') : '0.00',
+            'priceCurrency' => 'USD',
+            'availability' => 'https://schema.org/InStock',
+            'url' => route('plans'),
+          ],
+        ])->all(),
+      ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+      </script>
       @endif
     </main>
 

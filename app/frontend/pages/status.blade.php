@@ -15,7 +15,7 @@
     @include('seo-meta', [
       'seoCanonicalOverride' => route('status'),
       'seoTypeOverride' => 'website',
-      'seoRobotsOverride' => 'index,follow',
+      'seoRobotsOverride' => 'noindex,follow',
     ])
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

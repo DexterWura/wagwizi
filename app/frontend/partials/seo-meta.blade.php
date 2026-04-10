@@ -80,6 +80,7 @@
 <meta property="og:url" content="{{ $seoCanonical }}" />
 @if($seoImage !== '')
 <meta property="og:image" content="{{ $seoImage }}" />
+<meta property="og:image:alt" content="{{ $seoTitle }}" />
 @endif
 
 <meta name="twitter:card" content="{{ $twitterCard }}" />
@@ -90,6 +91,7 @@
 @endif
 @if($seoImage !== '')
 <meta name="twitter:image" content="{{ $seoImage }}" />
+<meta name="twitter:image:alt" content="{{ $seoTitle }}" />
 @endif
 
 @if(stripos($seoRobots, 'noindex') === false)

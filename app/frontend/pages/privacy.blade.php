@@ -1,6 +1,7 @@
 @extends('legal')
 
 @section('title', 'Privacy Policy — ' . config('app.name'))
+@section('meta-description', 'Read the Privacy Policy for ' . config('app.name') . ' to understand what data is collected, how it is used, and your privacy rights.')
 
 @section('content')
         <h1 class="legal-page__title">Privacy Policy</h1>

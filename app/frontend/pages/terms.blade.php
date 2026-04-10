@@ -1,6 +1,7 @@
 @extends('legal')
 
 @section('title', 'Terms of Service — ' . config('app.name'))
+@section('meta-description', 'Read the Terms of Service for ' . config('app.name') . ', including acceptable use, billing terms, and account responsibilities.')
 
 @section('content')
         <h1 class="legal-page__title">Terms of Service</h1>
