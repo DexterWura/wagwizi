@@ -17,9 +17,10 @@ final class PaynowCheckoutService
         private CurrencyDisplayService $currency
     ) {}
 
-    public function startHostedCheckout(User $user, Plan $plan, string $returnUrl, string $resultUrl): array
+    public function startHostedCheckout(User $user, Plan $plan, string $returnUrl, string $resultUrl, string $billingInterval = 'monthly'): array
     {
-        $amountCents = $this->fulfillment->planChargeAmountCents($plan);
+        $billingInterval = $billingInterval === 'yearly' ? 'yearly' : 'monthly';
+        $amountCents = $this->fulfillment->planChargeAmountCents($plan, $billingInterval);
         if ($amountCents === null || $amountCents < 1) {
             throw new \InvalidArgumentException('Plan has no billable amount.');
         }
@@ -46,6 +47,7 @@ final class PaynowCheckoutService
             'meta'        => [
                 'base_amount_cents' => $amountCents,
                 'base_currency'     => $this->currency->baseCurrency(),
+                'billing_interval'  => $billingInterval,
             ],
         ]);
 
@@ -54,7 +56,7 @@ final class PaynowCheckoutService
         if (config('services.paynow.send_currency_field', true)) {
             $payment->setCurrency($checkoutCurrency);
         }
-        $payment->add($this->fulfillment->planCheckoutProductTitle($plan), $amountFloat);
+        $payment->add($this->fulfillment->planCheckoutProductTitle($plan, $billingInterval), $amountFloat);
 
         $response = $paynow->send($payment);
 

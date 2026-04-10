@@ -78,11 +78,25 @@
               @endforeach
             </div>
           @endif
+          @if($anyYearlyOffers ?? false)
+            @php
+              $billMonthlySelected = ($currentPlanBillingInterval ?? 'monthly') !== 'yearly';
+            @endphp
+            <div class="plans-billing-toolbar" style="margin-bottom: 1rem;">
+              <p class="prose-muted" style="font-size:0.85rem;margin:0 0 0.5rem;">Billing period</p>
+              <div class="segmented plans-billing-segmented" data-app-plans-billing role="tablist" aria-label="Billing period">
+                <button type="button" role="tab" data-billing-value="monthly" aria-selected="{{ $billMonthlySelected ? 'true' : 'false' }}">Monthly</button>
+                <button type="button" role="tab" data-billing-value="yearly" aria-selected="{{ $billMonthlySelected ? 'false' : 'true' }}">Yearly</button>
+              </div>
+            </div>
+          @endif
           <div
             class="plans-grid"
             data-app-plans
             data-app-plans-server="1"
             data-current-plan-slug="{{ $currentPlanSlug ?? '' }}"
+            data-billing-interval="{{ $currentPlanBillingInterval ?? 'monthly' }}"
+            data-any-yearly="{{ ($anyYearlyOffers ?? false) ? '1' : '0' }}"
             data-checkout-available="{{ $paynowCheckoutAvailable ? '1' : '0' }}"
             data-checkout-mode="{{ ($checkoutRequiresGatewayChoice ?? false) ? 'choose' : 'single' }}"
             data-default-gateway="{{ $defaultCheckoutGateway ?? 'none' }}"
@@ -94,9 +108,38 @@
                 $isCurrent = $currentPlanSlug === $plan->slug;
                 $sameActive = $subscriptionAccess->userHasActiveAccessToPlan($user, $plan);
                 $needsRenew = $subscriptionAccess->userMustRenewSamePlan($user, $plan);
-                $price = $currencyDisplay->formatBaseMinorForDisplay($plan->monthly_price_cents);
+                $offersYearly = ! $plan->is_free && ! $plan->is_lifetime && $plan->yearly_price_cents !== null && (int) $plan->yearly_price_cents > 0;
+                $effectiveMonthlyCents = $plan->monthly_price_cents;
+                if (! $plan->is_free && ! $plan->is_lifetime) {
+                    if (($effectiveMonthlyCents === null || (int) $effectiveMonthlyCents < 1) && $plan->yearly_price_cents !== null && (int) $plan->yearly_price_cents > 0) {
+                        $effectiveMonthlyCents = (int) round((int) $plan->yearly_price_cents / 12);
+                    }
+                }
+                $priceMonthlyStr = $currencyDisplay->formatBaseMinorForDisplay($plan->is_free ? 0 : $effectiveMonthlyCents);
+                $priceYearlyStr = $offersYearly ? $currencyDisplay->formatBaseMinorForDisplay((int) $plan->yearly_price_cents) : '';
+                $showYearlyFirst = ($anyYearlyOffers ?? false) && ($currentPlanBillingInterval ?? 'monthly') === 'yearly' && $offersYearly;
+                $price = $showYearlyFirst ? $priceYearlyStr : $priceMonthlyStr;
+                $cycleText = '/ month';
+                if ($plan->is_free) {
+                    $cycleText = '/ month';
+                } elseif ($plan->is_lifetime && $plan->monthly_price_cents !== null) {
+                    $cycleText = '/ month';
+                } elseif ($showYearlyFirst) {
+                    $cycleText = '/ year';
+                } elseif (! $plan->is_lifetime && ($plan->monthly_price_cents === null || (int) $plan->monthly_price_cents < 1) && ($plan->yearly_price_cents !== null && (int) $plan->yearly_price_cents > 0)) {
+                    $cycleText = '/ month';
+                }
             @endphp
-            <article class="plan-card{{ $isCurrent ? ' plan-card--current' : '' }}{{ $plan->is_most_popular ? ' plan-card--featured' : '' }}" data-plan-id="{{ $plan->slug }}" data-plan-sort="{{ $plan->sort_order }}">
+            <article
+              class="plan-card{{ $isCurrent ? ' plan-card--current' : '' }}{{ $plan->is_most_popular ? ' plan-card--featured' : '' }}"
+              data-plan-id="{{ $plan->slug }}"
+              data-plan-sort="{{ $plan->sort_order }}"
+              data-plan-is-free="{{ $plan->is_free ? '1' : '0' }}"
+              data-plan-is-lifetime="{{ $plan->is_lifetime ? '1' : '0' }}"
+              data-plan-offers-yearly="{{ $offersYearly ? '1' : '0' }}"
+              data-price-monthly="{{ $priceMonthlyStr }}"
+              data-price-yearly="{{ $priceYearlyStr }}"
+            >
               @if($plan->is_most_popular)
               <div class="plan-card__popular-strip">
                 <span class="plan-card__popular-line" aria-hidden="true"></span>
@@ -104,7 +147,7 @@
               </div>
               @endif
               <h2 class="plan-card__name">{{ $plan->name }}</h2>
-              <span class="plan-card__price">{{ $price }} @if($plan->monthly_price_cents !== null)<span class="plan-card__cycle">/ month</span>@endif</span>
+              <span class="plan-card__price"><span data-plan-price-line>{{ $price }}</span>@if($plan->slug !== 'enterprise')<span class="plan-card__cycle" data-plan-cycle-line>{{ $cycleText }}</span>@endif</span>
               @if($plan->freeTrialSummary())
               <p class="plan-card__trial"><i class="fa-solid fa-gift" aria-hidden="true"></i> {{ $plan->freeTrialSummary() }}</p>
               @endif
@@ -128,9 +171,9 @@
             @endforeach
 
             @if($plans->isEmpty())
-            <article class="plan-card" data-plan-id="starter" data-plan-sort="0">
+            <article class="plan-card" data-plan-id="starter" data-plan-sort="0" data-plan-is-free="1" data-plan-is-lifetime="0" data-plan-offers-yearly="0" data-price-monthly="$0" data-price-yearly="">
               <h2 class="plan-card__name">Starter</h2>
-              <span class="plan-card__price">$0 <span class="plan-card__cycle">/ month</span></span>
+              <span class="plan-card__price"><span data-plan-price-line>$0</span><span class="plan-card__cycle" data-plan-cycle-line>/ month</span></span>
               <ul class="plan-card__list">
                 <li>3 social profiles</li>
                 <li>30 scheduled posts / month</li>

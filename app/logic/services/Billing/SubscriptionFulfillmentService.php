@@ -39,16 +39,26 @@ final class SubscriptionFulfillmentService
                 throw new \RuntimeException('Lifetime plan is full.');
             }
 
+            $metaArr  = is_array($locked->meta) ? $locked->meta : [];
+            $interval = ($metaArr['billing_interval'] ?? 'monthly') === 'yearly' ? 'yearly' : 'monthly';
+            $periodEnd = null;
+            $billingIntervalCol = null;
+            if (! $newPlan->is_lifetime) {
+                $billingIntervalCol = $interval;
+                $periodEnd = $interval === 'yearly' ? now()->addYear() : now()->addMonth();
+            }
+
             $subscription = Subscription::updateOrCreate(
                 ['user_id' => $user->id],
                 [
                     'plan_id'                 => $newPlan->id,
                     'plan'                    => $newPlan->slug,
+                    'billing_interval'        => $billingIntervalCol,
                     'gateway'                 => $transaction->gateway,
                     'gateway_subscription_id' => $transaction->reference,
                     'status'                  => 'active',
                     'current_period_start'    => now(),
-                    'current_period_end'      => $newPlan->is_lifetime ? null : now()->addMonth(),
+                    'current_period_end'      => $periodEnd,
                     'trial_ends_at'           => null,
                 ]
             );
@@ -133,8 +143,13 @@ final class SubscriptionFulfillmentService
         });
     }
 
-    public function planChargeAmountCents(Plan $plan): ?int
+    /**
+     * @param 'monthly'|'yearly' $billingInterval Recurring plans: charge monthly total or full annual amount. Lifetime ignores this.
+     */
+    public function planChargeAmountCents(Plan $plan, string $billingInterval = 'monthly'): ?int
     {
+        $billingInterval = $billingInterval === 'yearly' ? 'yearly' : 'monthly';
+
         if ($plan->is_free) {
             return null;
         }
@@ -143,6 +158,14 @@ final class SubscriptionFulfillmentService
             if ($plan->monthly_price_cents !== null && $plan->monthly_price_cents > 0) {
                 return (int) $plan->monthly_price_cents;
             }
+            if ($plan->yearly_price_cents !== null && $plan->yearly_price_cents > 0) {
+                return (int) $plan->yearly_price_cents;
+            }
+
+            return null;
+        }
+
+        if ($billingInterval === 'yearly') {
             if ($plan->yearly_price_cents !== null && $plan->yearly_price_cents > 0) {
                 return (int) $plan->yearly_price_cents;
             }
@@ -163,8 +186,10 @@ final class SubscriptionFulfillmentService
 
     /**
      * Line item title for hosted checkouts (Stripe, PayPal, Paynow, etc.).
+     *
+     * @param 'monthly'|'yearly' $billingInterval
      */
-    public function planCheckoutProductTitle(Plan $plan): string
+    public function planCheckoutProductTitle(Plan $plan, string $billingInterval = 'monthly'): string
     {
         if ($plan->is_free) {
             return $plan->name;
@@ -173,11 +198,25 @@ final class SubscriptionFulfillmentService
             return $plan->name . ' (lifetime — one-time payment)';
         }
 
+        $billingInterval = $billingInterval === 'yearly' ? 'yearly' : 'monthly';
+        if ($billingInterval === 'yearly') {
+            return $plan->name . ' subscription (annual billing)';
+        }
+
         return $plan->name . ' subscription';
     }
 
     public function requiresOnlinePayment(Plan $plan): bool
     {
-        return ! $plan->is_free && $this->planChargeAmountCents($plan) !== null;
+        if ($plan->is_free) {
+            return false;
+        }
+
+        if ($plan->isOneTimePurchase()) {
+            return $this->planChargeAmountCents($plan) !== null;
+        }
+
+        return $this->planChargeAmountCents($plan, 'monthly') !== null
+            || $this->planChargeAmountCents($plan, 'yearly') !== null;
     }
 }

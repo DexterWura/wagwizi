@@ -16,9 +16,10 @@ final class PaypalCheckoutService
         private PaymentGatewayConfigService $gatewayConfig
     ) {}
 
-    public function startHostedCheckout(User $user, Plan $plan, string $returnBaseUrl, string $cancelBaseUrl): array
+    public function startHostedCheckout(User $user, Plan $plan, string $returnBaseUrl, string $cancelBaseUrl, string $billingInterval = 'monthly'): array
     {
-        $amountCents = $this->fulfillment->planChargeAmountCents($plan);
+        $billingInterval = $billingInterval === 'yearly' ? 'yearly' : 'monthly';
+        $amountCents = $this->fulfillment->planChargeAmountCents($plan, $billingInterval);
         if ($amountCents === null || $amountCents < 1) {
             throw new \InvalidArgumentException('Plan has no billable amount.');
         }
@@ -45,6 +46,7 @@ final class PaypalCheckoutService
             'meta' => [
                 'base_amount_cents' => $amountCents,
                 'base_currency' => $this->currency->baseCurrency(),
+                'billing_interval' => $billingInterval,
             ],
         ]);
 
@@ -65,7 +67,7 @@ final class PaypalCheckoutService
 
         $transactionData = new \PayPal\Api\Transaction();
         $transactionData->setAmount($amount);
-        $transactionData->setDescription($this->fulfillment->planCheckoutProductTitle($plan));
+        $transactionData->setDescription($this->fulfillment->planCheckoutProductTitle($plan, $billingInterval));
         $transactionData->setCustom($reference);
         $transactionData->setInvoiceNumber($reference);
 

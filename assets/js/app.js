@@ -571,7 +571,8 @@
     if (!root) return;
 
     if (root.getAttribute("data-app-plans-server") === "1") {
-      renderPlansFromServer(root);
+      applyPlansBillingToCards(root);
+      initPlansBillingToggle(root);
       return;
     }
 
@@ -684,6 +685,86 @@
     render();
   }
 
+  function getPlansCheckoutBillingInterval(root) {
+    if (!root || root.getAttribute("data-any-yearly") !== "1") return "monthly";
+    return root.getAttribute("data-billing-interval") === "yearly" ? "yearly" : "monthly";
+  }
+
+  function applyPlansBillingToCards(root) {
+    if (!root) return;
+    var interval = getPlansCheckoutBillingInterval(root);
+    root.setAttribute("data-billing-interval", interval);
+    root.querySelectorAll("[data-plan-id]").forEach(function (card) {
+      var id = card.getAttribute("data-plan-id");
+      if (!id) return;
+      var priceLine = card.querySelector("[data-plan-price-line]");
+      var cycleLine = card.querySelector("[data-plan-cycle-line]");
+      var offersY = card.getAttribute("data-plan-offers-yearly") === "1";
+      var isFreePlan = card.getAttribute("data-plan-is-free") === "1";
+      var isLifetime = card.getAttribute("data-plan-is-lifetime") === "1";
+      var pm = card.getAttribute("data-price-monthly") || "";
+      var py = card.getAttribute("data-price-yearly") || "";
+      if (priceLine) {
+        if (isFreePlan || isLifetime) {
+          priceLine.textContent = pm || "—";
+          if (cycleLine) {
+            cycleLine.hidden = false;
+            cycleLine.textContent = id === "enterprise" ? "" : "/ month";
+          }
+        } else if (interval === "yearly" && offersY && py) {
+          priceLine.textContent = py;
+          if (cycleLine) {
+            cycleLine.textContent = "/ year";
+            cycleLine.hidden = false;
+          }
+        } else if (interval === "yearly" && !offersY) {
+          priceLine.textContent = "—";
+          if (cycleLine) cycleLine.hidden = true;
+        } else {
+          priceLine.textContent = pm || "—";
+          if (cycleLine) {
+            cycleLine.hidden = false;
+            cycleLine.textContent = id === "enterprise" ? "" : "/ month";
+          }
+        }
+      }
+      var btn = card.querySelector("[data-plan-select]");
+      if (btn && id !== "enterprise") {
+        if (interval === "yearly" && !offersY && !isFreePlan && !isLifetime) {
+          btn.setAttribute("data-plans-yearly-blocked", "1");
+        } else {
+          btn.removeAttribute("data-plans-yearly-blocked");
+        }
+      }
+    });
+    renderPlansFromServer(root);
+  }
+
+  function initPlansBillingToggle(root) {
+    var bar = document.querySelector("[data-app-plans-billing]");
+    if (!bar || !root) return;
+    if (bar.getAttribute("data-billing-bound") === "1") return;
+    bar.setAttribute("data-billing-bound", "1");
+    function syncTabButtons() {
+      var interval = getPlansCheckoutBillingInterval(root);
+      bar.querySelectorAll("[data-billing-value]").forEach(function (b) {
+        var v = b.getAttribute("data-billing-value");
+        var on = v === interval;
+        b.setAttribute("aria-selected", on ? "true" : "false");
+      });
+    }
+    syncTabButtons();
+    bar.addEventListener("click", function (e) {
+      var t = e.target.closest("[data-billing-value]");
+      if (!t) return;
+      var v = t.getAttribute("data-billing-value");
+      if (v !== "monthly" && v !== "yearly") return;
+      root.setAttribute("data-billing-interval", v);
+      syncTabButtons();
+      applyPlansBillingToCards(root);
+    });
+  }
+
   function renderPlansFromServer(root) {
     var current = root.getAttribute("data-current-plan-slug") || "";
     var labelEl = document.querySelector("[data-app-plan-label]");
@@ -723,6 +804,14 @@
         btn.textContent = "Contact sales";
         btn.classList.add("btn--outline");
         btn.setAttribute("aria-label", "Contact sales for Enterprise");
+        return;
+      }
+
+      if (btn.getAttribute("data-plans-yearly-blocked") === "1") {
+        btn.textContent = "Unavailable yearly";
+        btn.disabled = true;
+        btn.classList.add("btn--outline");
+        btn.setAttribute("aria-label", "Yearly billing is not available for this plan");
         return;
       }
 
@@ -2559,7 +2648,7 @@
           inp.disabled = false;
         });
       }
-      renderPlansFromServer(root);
+      applyPlansBillingToCards(root);
     }
 
     function setPlansCheckoutBusy(statusEl, message) {
@@ -2583,7 +2672,11 @@
       if (statusEl) {
         statusEl.textContent = "Redirecting to the payment gateway…";
       }
-      apiPost("/plans/checkout/start", { plan_slug: planSlug, gateway: gw })
+      apiPost("/plans/checkout/start", {
+        plan_slug: planSlug,
+        gateway: gw,
+        billing_interval: getPlansCheckoutBillingInterval(root)
+      })
         .then(function (res) {
           if (res.success && res.redirect_url) {
             global.location.href = res.redirect_url;

@@ -342,6 +342,18 @@ class PageController extends Controller
 
         $freePlanSlug = $plans->where('is_free', true)->sortBy('sort_order')->first()?->slug;
 
+        $anyYearlyOffers = $plans->contains(static function (Plan $p): bool {
+            if ($p->is_free || $p->is_lifetime) {
+                return false;
+            }
+
+            return $p->yearly_price_cents !== null && (int) $p->yearly_price_cents > 0;
+        });
+        $currentPlanBillingInterval = 'monthly';
+        if ($anyYearlyOffers && $subscription?->billing_interval === 'yearly') {
+            $currentPlanBillingInterval = 'yearly';
+        }
+
         return view('plans', [
             'currentSubscription'           => $subscription,
             'plans'                         => $plans,
@@ -354,6 +366,8 @@ class PageController extends Controller
             'currencyDisplay'               => $currencyDisplay,
             'subscriptionAccess'            => app(SubscriptionAccessService::class),
             'freePlanSlug'                  => $freePlanSlug,
+            'anyYearlyOffers'               => $anyYearlyOffers,
+            'currentPlanBillingInterval'    => $currentPlanBillingInterval,
         ]);
     }
 
@@ -456,6 +470,7 @@ class PageController extends Controller
         $directPayload = [
             'plan_id'              => $newPlan->id,
             'plan'                 => $newPlan->slug,
+            'billing_interval'     => ($newPlan->is_lifetime || $newPlan->is_free) ? null : 'monthly',
             'status'               => 'active',
             'current_period_start' => now(),
             'current_period_end'   => $newPlan->is_lifetime ? null : now()->addMonth(),

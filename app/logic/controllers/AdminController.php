@@ -230,6 +230,7 @@ class AdminController extends Controller
                 [
                     'plan_id' => $newPlan->id,
                     'plan' => $newPlan->slug,
+                    'billing_interval' => $newPlan->is_lifetime ? null : 'monthly',
                     'gateway' => $gateway,
                     'gateway_subscription_id' => $eventId,
                     'status' => $status,

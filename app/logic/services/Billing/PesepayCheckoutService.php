@@ -17,9 +17,10 @@ final class PesepayCheckoutService
         private CurrencyDisplayService $currency
     ) {}
 
-    public function startHostedCheckout(User $user, Plan $plan, string $returnUrl, string $resultUrl): array
+    public function startHostedCheckout(User $user, Plan $plan, string $returnUrl, string $resultUrl, string $billingInterval = 'monthly'): array
     {
-        $amountCents = $this->fulfillment->planChargeAmountCents($plan);
+        $billingInterval = $billingInterval === 'yearly' ? 'yearly' : 'monthly';
+        $amountCents = $this->fulfillment->planChargeAmountCents($plan, $billingInterval);
         if ($amountCents === null || $amountCents < 1) {
             throw new \InvalidArgumentException('Plan has no billable amount.');
         }
@@ -46,6 +47,7 @@ final class PesepayCheckoutService
             'meta'         => [
                 'base_amount_cents' => $amountCents,
                 'base_currency'     => $this->currency->baseCurrency(),
+                'billing_interval'  => $billingInterval,
             ],
         ]);
 
@@ -56,7 +58,7 @@ final class PesepayCheckoutService
         $pesepayTx   = $pesepay->createTransaction(
             $amountFloat,
             $checkoutCurrency,
-            $this->fulfillment->planCheckoutProductTitle($plan),
+            $this->fulfillment->planCheckoutProductTitle($plan, $billingInterval),
             $reference
         );
 

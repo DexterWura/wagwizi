@@ -28,6 +28,7 @@ final class DefaultSubscriptionService
             [
                 'plan_id'              => $plan->id,
                 'plan'                 => $plan->slug,
+                'billing_interval'     => null,
                 'status'               => 'active',
                 'current_period_start' => now(),
                 'current_period_end'   => null,

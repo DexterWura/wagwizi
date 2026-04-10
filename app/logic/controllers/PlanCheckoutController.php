@@ -32,6 +32,7 @@ class PlanCheckoutController extends Controller
         $validated = $request->validate([
             'plan_slug' => ['required', 'string', Rule::exists('plans', 'slug')->where('is_active', true)],
             'gateway'   => 'nullable|string|in:paynow,pesepay,stripe,paypal',
+            'billing_interval' => 'nullable|string|in:monthly,yearly',
         ]);
 
         $available = $cfg->availableCheckoutGateways();
@@ -57,6 +58,21 @@ class PlanCheckoutController extends Controller
         $user = Auth::user();
         $plan = Plan::where('slug', $validated['plan_slug'])->firstOrFail();
 
+        $billingInterval = (($validated['billing_interval'] ?? 'monthly') === 'yearly') ? 'yearly' : 'monthly';
+        if ($plan->is_lifetime || $plan->is_free) {
+            $billingInterval = 'monthly';
+        }
+
+        $fulfillment = app(SubscriptionFulfillmentService::class);
+        if ($fulfillment->planChargeAmountCents($plan, $billingInterval) === null) {
+            return response()->json([
+                'success' => false,
+                'message' => $billingInterval === 'yearly'
+                    ? 'Yearly billing is not available for this plan.'
+                    : 'Monthly billing is not available for this plan.',
+            ], 422);
+        }
+
         $block = $this->validatePlanForPaidCheckout($plan);
         if ($block !== null) {
             return $block;
@@ -78,16 +94,16 @@ class PlanCheckoutController extends Controller
         ]);
 
         if ($gateway === 'paynow') {
-            return $this->startPaynowBody($user, $plan, $paynow);
+            return $this->startPaynowBody($user, $plan, $paynow, $billingInterval);
         }
         if ($gateway === 'stripe') {
-            return $this->startStripeBody($user, $plan, $stripe);
+            return $this->startStripeBody($user, $plan, $stripe, $billingInterval);
         }
         if ($gateway === 'paypal') {
-            return $this->startPaypalBody($user, $plan, $paypal);
+            return $this->startPaypalBody($user, $plan, $paypal, $billingInterval);
         }
 
-        return $this->startPesepayBody($user, $plan, $pesepay);
+        return $this->startPesepayBody($user, $plan, $pesepay, $billingInterval);
     }
 
     public function startPaynow(Request $request, PaymentGatewayConfigService $cfg, PaynowCheckoutService $paynow, PesepayCheckoutService $pesepay, StripeCheckoutService $stripe, PaypalCheckoutService $paypal): JsonResponse
@@ -138,12 +154,12 @@ class PlanCheckoutController extends Controller
         return null;
     }
 
-    private function startPaynowBody(User $user, Plan $plan, PaynowCheckoutService $checkout): JsonResponse
+    private function startPaynowBody(User $user, Plan $plan, PaynowCheckoutService $checkout, string $billingInterval): JsonResponse
     {
         try {
             $returnUrl = route('plans.paynow.return');
             $resultUrl = url('/paynow/result');
-            $payload   = $checkout->startHostedCheckout($user, $plan, $returnUrl, $resultUrl);
+            $payload   = $checkout->startHostedCheckout($user, $plan, $returnUrl, $resultUrl, $billingInterval);
         } catch (\Throwable $e) {
             Log::warning('Paynow checkout start failed', [
                 'user_id'   => $user->id,
@@ -172,12 +188,12 @@ class PlanCheckoutController extends Controller
         ]);
     }
 
-    private function startPesepayBody(User $user, Plan $plan, PesepayCheckoutService $checkout): JsonResponse
+    private function startPesepayBody(User $user, Plan $plan, PesepayCheckoutService $checkout, string $billingInterval): JsonResponse
     {
         try {
             $returnUrl = route('plans.pesepay.return');
             $resultUrl = url('/pesepay/result');
-            $payload   = $checkout->startHostedCheckout($user, $plan, $returnUrl, $resultUrl);
+            $payload   = $checkout->startHostedCheckout($user, $plan, $returnUrl, $resultUrl, $billingInterval);
         } catch (\Throwable $e) {
             Log::warning('Pesepay checkout start failed', [
                 'user_id'   => $user->id,
@@ -206,12 +222,12 @@ class PlanCheckoutController extends Controller
         ]);
     }
 
-    private function startStripeBody(User $user, Plan $plan, StripeCheckoutService $checkout): JsonResponse
+    private function startStripeBody(User $user, Plan $plan, StripeCheckoutService $checkout, string $billingInterval): JsonResponse
     {
         try {
             $successUrl = route('plans.stripe.return');
             $cancelUrl = route('plans');
-            $payload = $checkout->startHostedCheckout($user, $plan, $successUrl, $cancelUrl);
+            $payload = $checkout->startHostedCheckout($user, $plan, $successUrl, $cancelUrl, $billingInterval);
         } catch (\Throwable $e) {
             Log::warning('Stripe checkout start failed', [
                 'user_id' => $user->id,
@@ -240,12 +256,12 @@ class PlanCheckoutController extends Controller
         ]);
     }
 
-    private function startPaypalBody(User $user, Plan $plan, PaypalCheckoutService $checkout): JsonResponse
+    private function startPaypalBody(User $user, Plan $plan, PaypalCheckoutService $checkout, string $billingInterval): JsonResponse
     {
         try {
             $returnUrl = route('plans.paypal.return');
             $cancelUrl = route('plans');
-            $payload = $checkout->startHostedCheckout($user, $plan, $returnUrl, $cancelUrl);
+            $payload = $checkout->startHostedCheckout($user, $plan, $returnUrl, $cancelUrl, $billingInterval);
         } catch (\Throwable $e) {
             $paypalDetail = $this->paypalCheckoutStartErrorDetail($e);
             $paypalMeta   = $this->paypalCheckoutStartErrorMeta($e);

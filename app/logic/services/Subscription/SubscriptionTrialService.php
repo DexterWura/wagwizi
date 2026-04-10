@@ -71,6 +71,7 @@ final class SubscriptionTrialService
                 [
                     'plan_id'                 => $newPlan->id,
                     'plan'                    => $newPlan->slug,
+                    'billing_interval'        => null,
                     'gateway'                 => null,
                     'gateway_subscription_id' => null,
                     'status'                  => 'trialing',

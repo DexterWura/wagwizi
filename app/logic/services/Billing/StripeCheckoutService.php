@@ -15,9 +15,10 @@ final class StripeCheckoutService
         private CurrencyDisplayService $currency
     ) {}
 
-    public function startHostedCheckout(User $user, Plan $plan, string $successBaseUrl, string $cancelBaseUrl): array
+    public function startHostedCheckout(User $user, Plan $plan, string $successBaseUrl, string $cancelBaseUrl, string $billingInterval = 'monthly'): array
     {
-        $amountCents = $this->fulfillment->planChargeAmountCents($plan);
+        $billingInterval = $billingInterval === 'yearly' ? 'yearly' : 'monthly';
+        $amountCents = $this->fulfillment->planChargeAmountCents($plan, $billingInterval);
         if ($amountCents === null || $amountCents < 1) {
             throw new \InvalidArgumentException('Plan has no billable amount.');
         }
@@ -46,6 +47,7 @@ final class StripeCheckoutService
             'meta' => [
                 'base_amount_cents' => $amountCents,
                 'base_currency' => $this->currency->baseCurrency(),
+                'billing_interval' => $billingInterval,
             ],
         ]);
 
@@ -70,6 +72,7 @@ final class StripeCheckoutService
                     'reference' => $reference,
                     'user_id' => (string) $user->id,
                     'plan_slug' => $plan->slug,
+                    'billing_interval' => $billingInterval,
                 ],
                 'line_items' => [[
                     'quantity' => 1,
@@ -77,7 +80,7 @@ final class StripeCheckoutService
                         'currency' => strtolower($checkoutCurrency),
                         'unit_amount' => $chargedMinor,
                         'product_data' => [
-                            'name' => $this->fulfillment->planCheckoutProductTitle($plan),
+                            'name' => $this->fulfillment->planCheckoutProductTitle($plan, $billingInterval),
                         ],
                     ],
                 ]],
