@@ -37,7 +37,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Socialite;
+use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Str;
 use App\Socialite\XComTwitterOAuth2Provider;
 
