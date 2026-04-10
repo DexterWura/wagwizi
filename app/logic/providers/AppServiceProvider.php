@@ -355,6 +355,14 @@ class AppServiceProvider extends ServiceProvider
             $twitterSite = '';
             $imagePath = '';
             $faviconPath = '';
+            $localBusinessName = '';
+            $localPhone = '';
+            $localEmail = '';
+            $localAddress = '';
+            $localCity = '';
+            $localRegion = '';
+            $localPostalCode = '';
+            $localCountryCode = '';
 
             try {
                 if (Schema::hasTable('site_settings')) {
@@ -367,6 +375,14 @@ class AppServiceProvider extends ServiceProvider
                     $twitterSite = trim((string) SiteSetting::get('seo_twitter_site', ''));
                     $imagePath = trim((string) SiteSetting::get('seo_image_path', ''));
                     $faviconPath = trim((string) SiteSetting::get('seo_favicon_path', ''));
+                    $localBusinessName = trim((string) SiteSetting::get('seo_local_business_name', ''));
+                    $localPhone = trim((string) SiteSetting::get('seo_local_phone', ''));
+                    $localEmail = trim((string) SiteSetting::get('seo_local_email', ''));
+                    $localAddress = trim((string) SiteSetting::get('seo_local_address', ''));
+                    $localCity = trim((string) SiteSetting::get('seo_local_city', ''));
+                    $localRegion = trim((string) SiteSetting::get('seo_local_region', ''));
+                    $localPostalCode = trim((string) SiteSetting::get('seo_local_postal_code', ''));
+                    $localCountryCode = strtoupper(trim((string) SiteSetting::get('seo_local_country_code', '')));
                 }
             } catch (\Throwable) {
             }
@@ -416,6 +432,14 @@ class AppServiceProvider extends ServiceProvider
                 'favicon_url'        => $faviconUrl,
                 'robots'             => 'index,follow',
                 'type'               => 'website',
+                'local_business_name'=> $localBusinessName,
+                'local_phone'        => $localPhone,
+                'local_email'        => $localEmail,
+                'local_address'      => $localAddress,
+                'local_city'         => $localCity,
+                'local_region'       => $localRegion,
+                'local_postal_code'  => $localPostalCode,
+                'local_country_code' => $localCountryCode,
             ];
         });
     }

@@ -88,14 +88,14 @@ Route::post('/paypal/webhook', [PaypalWebhookController::class, 'result'])->midd
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard',     [PageController::class, 'dashboard'])->name('dashboard');
-    Route::get('/composer',      [PageController::class, 'composer'])->name('composer');
-    Route::get('/posts',         [PageController::class, 'posts'])->name('posts.index');
-    Route::get('/posts/data',    [PostController::class, 'index'])->name('posts.data');
-    Route::get('/calendar',      [PageController::class, 'calendar'])->name('calendar');
+    Route::get('/composer',      [PageController::class, 'composer'])->middleware('workspace_capability:post')->name('composer');
+    Route::get('/posts',         [PageController::class, 'posts'])->middleware('workspace_capability:post')->name('posts.index');
+    Route::get('/posts/data',    [PostController::class, 'index'])->middleware('workspace_capability:post')->name('posts.data');
+    Route::get('/calendar',      [PageController::class, 'calendar'])->middleware('workspace_capability:post')->name('calendar');
     Route::get('/media-library', [PageController::class, 'mediaLibrary'])->name('media-library');
     Route::get('/accounts',      [PageController::class, 'accounts'])->name('accounts');
     Route::get('/insights',      [PageController::class, 'insights'])->name('insights');
-    Route::get('/workflows',     [PageController::class, 'workflows'])->middleware('plan_workflow')->name('workflows');
+    Route::get('/workflows',     [PageController::class, 'workflows'])->middleware(['plan_workflow', 'workspace_capability:workflow'])->name('workflows');
     Route::get('/plans',         [PageController::class, 'plans'])->name('plans');
     Route::get('/plan-history',  [PageController::class, 'planHistory'])->name('plan-history');
     Route::get('/profile',       [PageController::class, 'profile'])->name('profile');
@@ -123,7 +123,7 @@ Route::middleware('auth')->group(function () {
         ->middleware('throttle:20,1')
         ->name('settings.ai');
     Route::post('/composer/ai',            [ComposerAiController::class, 'chat'])
-        ->middleware(['throttle:30,1', 'plan_tool:ai_caption_generator'])
+        ->middleware(['throttle:30,1', 'plan_tool:ai_caption_generator', 'workspace_capability:post'])
         ->name('composer.ai');
 
     Route::get('/support-tickets',        [SupportTicketController::class, 'index'])->name('support-tickets.index');

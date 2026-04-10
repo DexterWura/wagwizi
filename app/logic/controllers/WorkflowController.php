@@ -16,6 +16,8 @@ class WorkflowController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $this->assertWorkspaceWorkflowPermission($request);
+
         $user = $request->user();
         $rows = Workflow::query()
             ->where('user_id', $user->id)
@@ -27,6 +29,8 @@ class WorkflowController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
+        $this->assertWorkspaceWorkflowPermission($request);
+
         $workflow = Workflow::query()
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
@@ -36,6 +40,8 @@ class WorkflowController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->assertWorkspaceWorkflowPermission($request);
+
         $validated = $request->validate([
             'name' => 'required|string|max:160',
             'description' => 'nullable|string|max:5000',
@@ -62,6 +68,8 @@ class WorkflowController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->assertWorkspaceWorkflowPermission($request);
+
         $workflow = Workflow::query()
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
@@ -83,6 +91,8 @@ class WorkflowController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
+        $this->assertWorkspaceWorkflowPermission($request);
+
         $workflow = Workflow::query()
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
@@ -94,6 +104,8 @@ class WorkflowController extends Controller
 
     public function run(Request $request, int $id): JsonResponse
     {
+        $this->assertWorkspaceWorkflowPermission($request);
+
         $workflow = Workflow::query()
             ->with('user')
             ->where('user_id', $request->user()->id)
@@ -115,6 +127,8 @@ class WorkflowController extends Controller
 
     public function runs(Request $request, int $id): JsonResponse
     {
+        $this->assertWorkspaceWorkflowPermission($request);
+
         $workflow = Workflow::query()
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
@@ -126,6 +140,8 @@ class WorkflowController extends Controller
 
     public function triggerEvent(Request $request, string $eventKey): JsonResponse
     {
+        $this->assertWorkspaceWorkflowPermission($request);
+
         $payload = $request->validate([
             'payload' => 'nullable|array',
         ]);
@@ -144,6 +160,28 @@ class WorkflowController extends Controller
             'success' => true,
             'templates' => app(WorkflowTemplateService::class)->templates(),
         ]);
+    }
+
+    private function assertWorkspaceWorkflowPermission(Request $request): void
+    {
+        $user = $request->user();
+        if ($user === null) {
+            abort(401);
+        }
+
+        try {
+            $membership = $user->activeWorkspaceMembership();
+        } catch (\Throwable) {
+            return;
+        }
+
+        if ($membership === null) {
+            return;
+        }
+
+        if ($membership->status !== 'active' || ! in_array($membership->role, ['admin', 'member'], true)) {
+            abort(403, 'Your workspace role does not allow workflows.');
+        }
     }
 }
 

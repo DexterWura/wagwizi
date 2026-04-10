@@ -21,6 +21,8 @@ class PostController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->assertWorkspacePostingPermission();
+
         return $this->tryServiceCall(function () use ($request) {
             $user = Auth::user();
             $cacheTtl = 20;
@@ -90,6 +92,8 @@ class PostController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
+        $this->assertWorkspacePostingPermission();
+
         $post = Auth::user()->posts()
             ->with([
                 'postPlatforms:id,post_id,social_account_id,platform,platform_content,audience,first_comment,comment_delay_minutes,status',
@@ -102,6 +106,8 @@ class PostController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->assertWorkspacePostingPermission();
+
         $validated = $request->validate([
             'content'             => 'required|string|min:1|max:40000',
             'platform_accounts'   => 'nullable|array',
@@ -133,6 +139,8 @@ class PostController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $this->assertWorkspacePostingPermission();
+
         $validated = $request->validate([
             'content'             => 'sometimes|string|min:1|max:40000',
             'scheduled_at'        => 'nullable|date|after:now',
@@ -169,6 +177,8 @@ class PostController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
+        $this->assertWorkspacePostingPermission();
+
         return $this->tryServiceCall(function () use ($id) {
             $this->schedulingService->deletePost(Auth::id(), $id);
             return response()->json(null, 204);
@@ -177,6 +187,8 @@ class PostController extends Controller
 
     public function schedule(Request $request, int $id): JsonResponse
     {
+        $this->assertWorkspacePostingPermission();
+
         $validated = $request->validate([
             'content'             => 'sometimes|string|min:1|max:40000',
             'scheduled_at'        => 'nullable|date|after:now',
@@ -210,6 +222,8 @@ class PostController extends Controller
 
     public function scheduleNew(Request $request): JsonResponse
     {
+        $this->assertWorkspacePostingPermission();
+
         $validated = $request->validate([
             'content'             => 'required|string|min:1|max:40000',
             'scheduled_at'        => 'nullable|date|after:now',
@@ -242,6 +256,8 @@ class PostController extends Controller
 
     public function publish(int $id): JsonResponse
     {
+        $this->assertWorkspacePostingPermission();
+
         return $this->tryServiceCall(function () use ($id) {
             Log::info('Post publish-now requested', [
                 'user_id' => Auth::id(),
@@ -277,6 +293,8 @@ class PostController extends Controller
 
     public function retryFailedPlatforms(int $id): JsonResponse
     {
+        $this->assertWorkspacePostingPermission();
+
         return $this->tryServiceCall(function () use ($id) {
             Log::info('Post retry failed-platforms requested', [
                 'user_id' => Auth::id(),
@@ -303,6 +321,8 @@ class PostController extends Controller
 
     public function publishSummary(int $id): JsonResponse
     {
+        $this->assertWorkspacePostingPermission();
+
         return $this->tryServiceCall(function () use ($id) {
             $post = \App\Models\Post::where('user_id', Auth::id())
                 ->with('postPlatforms:id,post_id,platform,status,error_message')
@@ -344,6 +364,8 @@ class PostController extends Controller
 
     public function cancel(int $id): JsonResponse
     {
+        $this->assertWorkspacePostingPermission();
+
         return $this->tryServiceCall(fn () =>
             response()->json(['post' => $this->schedulingService->cancelScheduled(Auth::id(), $id)])
         );
@@ -351,6 +373,8 @@ class PostController extends Controller
 
     public function reschedule(Request $request, int $id): JsonResponse
     {
+        $this->assertWorkspacePostingPermission();
+
         $validated = $request->validate([
             'scheduled_at' => 'nullable|date',
         ]);
@@ -394,6 +418,28 @@ class PostController extends Controller
             ]);
             report($e);
             return response()->json(['error' => 'Unexpected server error while processing this post action.'], 500);
+        }
+    }
+
+    private function assertWorkspacePostingPermission(): void
+    {
+        $user = Auth::user();
+        if ($user === null) {
+            abort(401);
+        }
+
+        try {
+            $membership = $user->activeWorkspaceMembership();
+        } catch (\Throwable) {
+            return;
+        }
+
+        if ($membership === null) {
+            return;
+        }
+
+        if ($membership->status !== 'active' || ! in_array($membership->role, ['admin', 'member'], true)) {
+            abort(403, 'Your workspace role does not allow posting actions.');
         }
     }
 }

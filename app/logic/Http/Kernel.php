@@ -53,5 +53,6 @@ class Kernel extends HttpKernel
         'super_admin'   => \App\Http\Middleware\EnsureSuperAdmin::class,
         'plan_tool'     => \App\Http\Middleware\EnsurePlanToolAccess::class,
         'plan_workflow' => \App\Http\Middleware\EnsurePlanWorkflowAccess::class,
+        'workspace_capability' => \App\Http\Middleware\EnsureWorkspaceCapability::class,
     ];
 }

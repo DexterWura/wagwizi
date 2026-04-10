@@ -91,6 +91,39 @@
                       <input class="input" id="seo_twitter_site" name="seo_twitter_site" value="{{ $settings['seo_twitter_site'] }}" maxlength="50" placeholder="@wagwizi" />
                     </div>
                     <div class="field">
+                      <label class="field__label" for="seo_local_business_name">Local SEO business name</label>
+                      <input class="input" id="seo_local_business_name" name="seo_local_business_name" value="{{ $settings['seo_local_business_name'] ?? '' }}" maxlength="120" placeholder="Your business or branch name" />
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="seo_local_phone">Business phone</label>
+                      <input class="input" id="seo_local_phone" name="seo_local_phone" value="{{ $settings['seo_local_phone'] ?? '' }}" maxlength="64" placeholder="+1-555-555-5555" />
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="seo_local_email">Business email</label>
+                      <input class="input" id="seo_local_email" name="seo_local_email" type="email" value="{{ $settings['seo_local_email'] ?? '' }}" maxlength="255" placeholder="hello@example.com" />
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="seo_local_address">Street address</label>
+                      <input class="input" id="seo_local_address" name="seo_local_address" value="{{ $settings['seo_local_address'] ?? '' }}" maxlength="255" placeholder="123 Main St" />
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="seo_local_city">City</label>
+                      <input class="input" id="seo_local_city" name="seo_local_city" value="{{ $settings['seo_local_city'] ?? '' }}" maxlength="120" placeholder="Harare" />
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="seo_local_region">Region / state</label>
+                      <input class="input" id="seo_local_region" name="seo_local_region" value="{{ $settings['seo_local_region'] ?? '' }}" maxlength="120" placeholder="Harare Province" />
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="seo_local_postal_code">Postal code</label>
+                      <input class="input" id="seo_local_postal_code" name="seo_local_postal_code" value="{{ $settings['seo_local_postal_code'] ?? '' }}" maxlength="32" placeholder="00000" />
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="seo_local_country_code">Country code (ISO-2)</label>
+                      <input class="input" id="seo_local_country_code" name="seo_local_country_code" value="{{ $settings['seo_local_country_code'] ?? '' }}" maxlength="2" placeholder="ZW" />
+                      <p class="field__hint">These fields power LocalBusiness structured data for local SEO.</p>
+                    </div>
+                    <div class="field">
                       <label class="field__label" for="seo_image">SEO social image</label>
                       <input class="input" type="file" id="seo_image" name="seo_image" accept="image/jpeg,image/png,image/webp" data-seo-image-input />
                       <input type="hidden" name="seo_image_existing" value="{{ $settings['seo_image_path'] }}" />

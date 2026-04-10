@@ -381,7 +381,7 @@
               </div>
               @elseif(($feature['visual'] ?? '') === 'image' && !empty($feature['image']))
               <div class="lp-feature-visual-photo">
-                <img src="{{ asset($feature['image']) }}" alt="" loading="lazy" decoding="async" width="800" height="600" />
+                <img src="{{ asset($feature['image']) }}" alt="{{ $feature['title'] !== '' ? $feature['title'] : config('app.name') }}" loading="lazy" decoding="async" width="800" height="600" />
               </div>
               @elseif(($feature['visual'] ?? '') === 'grid')
               <div class="lp-glass lp-glass--grid"></div>

@@ -25,23 +25,25 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     Route::get('/user', [ProfileController::class, 'currentUser']);
 
-    Route::post('/posts',              [PostController::class, 'store']);
-    Route::get('/posts',               [PostController::class, 'index']);
-    Route::get('/posts/{id}',          [PostController::class, 'show'])->whereNumber('id');
-    Route::post('/posts/schedule',     [PostController::class, 'scheduleNew']);
-    Route::put('/posts/{id}',          [PostController::class, 'update']);
-    Route::delete('/posts/{id}',       [PostController::class, 'destroy']);
-    Route::post('/posts/{id}/schedule', [PostController::class, 'schedule']);
-    Route::post('/posts/{id}/publish',  [PostController::class, 'publish']);
-    Route::post('/posts/{id}/retry-failed-platforms', [PostController::class, 'retryFailedPlatforms'])->whereNumber('id');
-    Route::get('/posts/{id}/publish-summary', [PostController::class, 'publishSummary'])->whereNumber('id');
-    Route::post('/posts/{id}/cancel',   [PostController::class, 'cancel']);
-    Route::patch('/posts/{id}/reschedule', [PostController::class, 'reschedule']);
+    Route::middleware('workspace_capability:post')->group(function () {
+        Route::post('/posts',              [PostController::class, 'store']);
+        Route::get('/posts',               [PostController::class, 'index']);
+        Route::get('/posts/{id}',          [PostController::class, 'show'])->whereNumber('id');
+        Route::post('/posts/schedule',     [PostController::class, 'scheduleNew']);
+        Route::put('/posts/{id}',          [PostController::class, 'update']);
+        Route::delete('/posts/{id}',       [PostController::class, 'destroy']);
+        Route::post('/posts/{id}/schedule', [PostController::class, 'schedule']);
+        Route::post('/posts/{id}/publish',  [PostController::class, 'publish']);
+        Route::post('/posts/{id}/retry-failed-platforms', [PostController::class, 'retryFailedPlatforms'])->whereNumber('id');
+        Route::get('/posts/{id}/publish-summary', [PostController::class, 'publishSummary'])->whereNumber('id');
+        Route::post('/posts/{id}/cancel',   [PostController::class, 'cancel']);
+        Route::patch('/posts/{id}/reschedule', [PostController::class, 'reschedule']);
+    });
 
     Route::get('/composer/mentions', [ComposerMentionController::class, 'index'])
         ->middleware('throttle:120,1');
 
-    Route::middleware('plan_workflow')->group(function () {
+    Route::middleware(['plan_workflow', 'workspace_capability:workflow'])->group(function () {
         Route::get('/workflows', [WorkflowController::class, 'index']);
         Route::post('/workflows', [WorkflowController::class, 'store']);
         Route::get('/workflows/templates', [WorkflowController::class, 'templates']);

@@ -773,6 +773,14 @@ class AdminController extends Controller
             'seo_twitter_site'           => SiteSetting::get('seo_twitter_site', ''),
             'seo_image_path'             => SiteSetting::get('seo_image_path', ''),
             'seo_favicon_path'           => SiteSetting::get('seo_favicon_path', ''),
+            'seo_local_business_name'    => SiteSetting::get('seo_local_business_name', ''),
+            'seo_local_phone'            => SiteSetting::get('seo_local_phone', ''),
+            'seo_local_email'            => SiteSetting::get('seo_local_email', ''),
+            'seo_local_address'          => SiteSetting::get('seo_local_address', ''),
+            'seo_local_city'             => SiteSetting::get('seo_local_city', ''),
+            'seo_local_region'           => SiteSetting::get('seo_local_region', ''),
+            'seo_local_postal_code'      => SiteSetting::get('seo_local_postal_code', ''),
+            'seo_local_country_code'     => SiteSetting::get('seo_local_country_code', ''),
             'registration_open'          => SiteSetting::get('registration_open', '1'),
             'show_floating_help'         => SiteSetting::get('show_floating_help', '1'),
             'affiliate_program_enabled'  => SiteSetting::get('affiliate_program_enabled', '0'),
@@ -914,6 +922,14 @@ class AdminController extends Controller
             'seo_social_description' => 'nullable|string|max:320',
             'seo_keywords' => 'nullable|string|max:500',
             'seo_twitter_site' => 'nullable|string|max:50',
+            'seo_local_business_name' => 'nullable|string|max:120',
+            'seo_local_phone' => 'nullable|string|max:64',
+            'seo_local_email' => 'nullable|email|max:255',
+            'seo_local_address' => 'nullable|string|max:255',
+            'seo_local_city' => 'nullable|string|max:120',
+            'seo_local_region' => 'nullable|string|max:120',
+            'seo_local_postal_code' => 'nullable|string|max:32',
+            'seo_local_country_code' => 'nullable|string|size:2',
             'affiliate_program_enabled' => 'nullable|boolean',
             'affiliate_first_subscription_percent' => 'nullable|numeric|min:0|max:100',
             'seo_image' => 'nullable|file|image|max:5120',
@@ -939,6 +955,14 @@ class AdminController extends Controller
         SiteSetting::set('seo_social_description', Str::limit(trim(strip_tags((string) $request->input('seo_social_description', ''))), 320));
         SiteSetting::set('seo_keywords', Str::limit(trim(strip_tags((string) $request->input('seo_keywords', ''))), 500));
         SiteSetting::set('seo_twitter_site', Str::limit(trim(strip_tags((string) $request->input('seo_twitter_site', ''))), 50));
+        SiteSetting::set('seo_local_business_name', Str::limit(trim(strip_tags((string) $request->input('seo_local_business_name', ''))), 120));
+        SiteSetting::set('seo_local_phone', Str::limit(trim(strip_tags((string) $request->input('seo_local_phone', ''))), 64));
+        SiteSetting::set('seo_local_email', Str::limit(trim(strip_tags((string) $request->input('seo_local_email', ''))), 255));
+        SiteSetting::set('seo_local_address', Str::limit(trim(strip_tags((string) $request->input('seo_local_address', ''))), 255));
+        SiteSetting::set('seo_local_city', Str::limit(trim(strip_tags((string) $request->input('seo_local_city', ''))), 120));
+        SiteSetting::set('seo_local_region', Str::limit(trim(strip_tags((string) $request->input('seo_local_region', ''))), 120));
+        SiteSetting::set('seo_local_postal_code', Str::limit(trim(strip_tags((string) $request->input('seo_local_postal_code', ''))), 32));
+        SiteSetting::set('seo_local_country_code', strtoupper(Str::limit(trim(strip_tags((string) $request->input('seo_local_country_code', ''))), 2)));
         SiteSetting::set('affiliate_program_enabled', $request->boolean('affiliate_program_enabled') ? '1' : '0');
         $affiliatePercent = max(0, min(100, (float) $request->input('affiliate_first_subscription_percent', 10)));
         SiteSetting::set('affiliate_first_subscription_percent', number_format($affiliatePercent, 2, '.', ''));
