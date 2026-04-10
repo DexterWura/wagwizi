@@ -6,6 +6,7 @@
     @section('meta-keywords', 'social media scheduler, social media management platform, content calendar tool, multi platform social posting, team social media management, AI social media assistant')
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
     @include('seo-meta', [
       'seoCanonicalOverride' => route('landing'),
       'seoTypeOverride' => 'website',
@@ -416,17 +417,49 @@
         </div>
         <div class="lp-wrap">
           <div class="lp-billing-toggle-wrap" data-lp-reveal data-lp-currency-symbol="{{ $currencyDisplay->symbol($currencyDisplay->defaultCurrency()) }}">
-            <div class="lp-billing-toggle" data-lp-billing-toggle role="group" aria-label="Billing period">
+            <div class="lp-billing-toggle" data-lp-billing-toggle data-lp-billing-active="monthly" role="group" aria-label="Billing period">
               <button type="button" class="lp-billing-toggle__btn is-active" data-lp-billing="monthly" aria-pressed="true">Monthly</button>
               <button type="button" class="lp-billing-toggle__btn" data-lp-billing="yearly" aria-pressed="false">Yearly <span class="lp-billing-toggle__save">Save ~20%</span></button>
             </div>
           </div>
+          @auth
+            @if(!empty($landingCheckout['hosted_available']) && ($landingCheckout['checkout_mode'] ?? '') === 'choose' && !empty($landingCheckout['gateways']))
+            <div class="lp-pay-methods" data-lp-gateway-row role="radiogroup" aria-label="Payment method">
+              <span class="lp-pay-methods__label">Pay with</span>
+              <div class="lp-pay-methods__choices">
+                @foreach($landingCheckout['gateways'] as $gateway)
+                  @php
+                    [$payLabel, $payIcon] = match ($gateway) {
+                      'paypal' => ['PayPal', 'fa-brands fa-paypal'],
+                      'stripe' => ['Stripe', 'fa-brands fa-stripe'],
+                      'paynow' => ['Paynow', 'fa-solid fa-bolt'],
+                      'pesepay' => ['Pesepay', 'fa-solid fa-building-columns'],
+                      default => [ucfirst($gateway), 'fa-solid fa-wallet'],
+                    };
+                  @endphp
+                  <label class="lp-pay-method">
+                    <input
+                      type="radio"
+                      name="lp_checkout_gateway"
+                      class="lp-pay-method__input"
+                      value="{{ $gateway }}"
+                      @checked(($landingCheckout['default_gateway'] ?? 'paynow') === $gateway)
+                    />
+                    <span class="lp-pay-method__surface"><i class="{{ $payIcon }}" aria-hidden="true"></i>{{ $payLabel }}</span>
+                  </label>
+                @endforeach
+              </div>
+            </div>
+            @endif
+            <p class="lp-checkout-status" data-lp-checkout-status hidden aria-live="polite"></p>
+          @endauth
           <div class="lp-pricing__grid">
             @forelse($plans as $plan)
             @php
               $isFeatured = $plan->is_most_popular;
               $lp = $currencyDisplay->landingPricingMajors($plan);
               $isLifetime = $plan->is_lifetime;
+              $offersYearly = ! $plan->is_free && ! $plan->is_lifetime && $plan->yearly_price_cents !== null && (int) $plan->yearly_price_cents > 0;
               if ($isLifetime) {
                   $hasYearlyCents = $plan->yearly_price_cents !== null && (int) $plan->yearly_price_cents > 0;
                   $oneTimeAmount = $hasYearlyCents
@@ -438,8 +471,13 @@
                   $monthly = (int) round($lp['monthly']);
                   $yearlyTotal = (int) round($lp['yearly_total']);
               }
+              $isCurrentLp = auth()->check() && (auth()->user()->subscription?->plan ?? null) === $plan->slug;
+              $sameActiveLp = auth()->check() && ($subscriptionAccess ?? null) && $subscriptionAccess->userHasActiveAccessToPlan(auth()->user(), $plan);
+              $needsRenewLp = auth()->check() && ($subscriptionAccess ?? null) && $subscriptionAccess->userMustRenewSamePlan(auth()->user(), $plan);
+              $hostedOk = auth()->check() && !empty($landingCheckout['hosted_available']);
+              $needsPaidCheckout = app(\App\Services\Billing\SubscriptionFulfillmentService::class)->requiresOnlinePayment($plan);
             @endphp
-            <article class="lp-pricing-card{{ $isFeatured ? ' lp-pricing-card--featured' : '' }}" data-lp-pricing-card data-monthly="{{ $monthly }}" data-yearly-total="{{ $yearlyTotal }}" @if($isLifetime) data-lp-lifetime="1" data-lp-onetime="{{ $oneTimeAmount }}" @endif data-lp-reveal>
+            <article class="lp-pricing-card{{ $isFeatured ? ' lp-pricing-card--featured' : '' }}" data-lp-pricing-card data-plan-slug="{{ $plan->slug }}" data-offers-yearly="{{ $offersYearly ? '1' : '0' }}" data-monthly="{{ $monthly }}" data-yearly-total="{{ $yearlyTotal }}" @if($isLifetime) data-lp-lifetime="1" data-lp-onetime="{{ $oneTimeAmount }}" @endif data-lp-reveal>
               @if($isFeatured)
               <div class="lp-pricing-card__popular-strip">
                 <span class="lp-pricing-card__popular-line" aria-hidden="true"></span>
@@ -475,7 +513,19 @@
                 @endforeach
               </ul>
               @auth
-              <a class="lp-btn {{ $isFeatured ? 'lp-btn--primary' : 'lp-btn--outline' }} lp-pricing-card__cta" href="{{ route('plans') }}">Choose {{ $plan->name }}</a>
+                @if($plan->slug === 'enterprise')
+                  <a class="lp-btn {{ $isFeatured ? 'lp-btn--primary' : 'lp-btn--outline' }} lp-pricing-card__cta" href="{{ route('plans') }}">Contact sales</a>
+                @elseif($needsRenewLp && $isCurrentLp && $hostedOk && $needsPaidCheckout)
+                  <button type="button" class="lp-btn lp-btn--primary lp-pricing-card__cta" data-lp-subscribe="1" data-plan-slug="{{ $plan->slug }}">Renew subscription</button>
+                @elseif($sameActiveLp && $isCurrentLp)
+                  <span class="lp-btn lp-btn--outline lp-pricing-card__cta lp-pricing-card__cta--disabled" aria-disabled="true">Current plan</span>
+                @elseif($hostedOk && $needsPaidCheckout)
+                  <button type="button" class="lp-btn {{ $isFeatured ? 'lp-btn--primary' : 'lp-btn--outline' }} lp-pricing-card__cta" data-lp-subscribe="1" data-plan-slug="{{ $plan->slug }}">Subscribe to {{ $plan->name }}</button>
+                @elseif($needsPaidCheckout)
+                  <a class="lp-btn {{ $isFeatured ? 'lp-btn--primary' : 'lp-btn--outline' }} lp-pricing-card__cta" href="{{ route('plans') }}">Subscribe to {{ $plan->name }}</a>
+                @else
+                  <button type="button" class="lp-btn {{ $isFeatured ? 'lp-btn--primary' : 'lp-btn--outline' }} lp-pricing-card__cta" data-lp-subscribe="1" data-plan-slug="{{ $plan->slug }}">Choose {{ $plan->name }}</button>
+                @endif
               @else
               <a class="lp-btn {{ $isFeatured ? 'lp-btn--primary' : 'lp-btn--outline' }} lp-pricing-card__cta" href="{{ route('signup', ['redirect' => '/plans']) }}">Choose {{ $plan->name }}</a>
               @endauth
@@ -649,6 +699,11 @@
       </div>
     </footer>
 
+    @auth
+      @if(!empty($landingCheckout))
+      <script type="application/json" id="lp-checkout-config">@json($landingCheckout)</script>
+      @endif
+    @endauth
     <script src="{{ asset('assets/js/landing.js') }}" defer></script>
   </body>
 </html>

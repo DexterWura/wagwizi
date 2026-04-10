@@ -69,6 +69,29 @@ class PageController extends Controller
 
         $currencyDisplay = app(CurrencyDisplayService::class);
 
+        $user = null;
+        $subscriptionAccess = null;
+        $landingCheckout = null;
+        if (Auth::check()) {
+            $user = Auth::user();
+            $user->loadMissing('subscription.planModel');
+            $subscriptionAccess = app(SubscriptionAccessService::class);
+            $gatewayCfg = app(PaymentGatewayConfigService::class);
+            $fulfillment = app(SubscriptionFulfillmentService::class);
+            $landingCheckout = [
+                'hosted_available'  => $gatewayCfg->hostedCheckoutAvailable(),
+                'paid_plan_slugs'     => $plans->filter(static fn (Plan $p): bool => $fulfillment->requiresOnlinePayment($p))
+                    ->pluck('slug')
+                    ->values()
+                    ->all(),
+                'free_plan_slug'      => $plans->where('is_free', true)->sortBy('sort_order')->first()?->slug,
+                'current_plan_slug'   => $user->subscription?->plan ?? '',
+                'checkout_mode'       => $gatewayCfg->checkoutRequiresGatewayChoice() ? 'choose' : 'single',
+                'default_gateway'     => $gatewayCfg->defaultCheckoutGatewayForUi(),
+                'gateways'            => $gatewayCfg->availableCheckoutGateways(),
+            ];
+        }
+
         return view('index', compact(
             'enabledPlatforms',
             'testimonials',
@@ -78,7 +101,10 @@ class PageController extends Controller
             'heroHeading',
             'heroSubheading',
             'landingFeaturesDeep',
-            'currencyDisplay'
+            'currencyDisplay',
+            'user',
+            'subscriptionAccess',
+            'landingCheckout'
         ));
     }
 

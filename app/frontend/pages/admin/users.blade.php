@@ -123,12 +123,16 @@
 
                           <form method="POST" action="{{ route('admin.users.plan', $u->id) }}" class="inline-form" style="display:grid; gap:6px;">
                             @csrf
-                            <div style="display:flex; gap:6px; align-items:center;">
+                            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                               <select class="select select--xs" name="plan_id" required>
                                 <option value="">Select plan</option>
                                 @foreach(($plans ?? collect()) as $planOption)
                                   <option value="{{ $planOption->id }}">{{ $planOption->name }}</option>
                                 @endforeach
+                              </select>
+                              <select class="select select--xs" name="billing_interval" title="Applies to Change and Gift (not Trial)">
+                                <option value="monthly">Monthly term</option>
+                                <option value="yearly">Yearly term</option>
                               </select>
                               <input class="input input--xs" name="trial_days" type="number" min="1" max="3650" placeholder="Trial days" style="width:96px;" />
                             </div>

@@ -63,9 +63,109 @@ body.lp {
   text-decoration: none;
 }
 
-/* Beat `.lp a { color: inherit }` so button variants keep correct contrast */
-.lp a.lp-btn--primary {
+/* Beat `.lp a { color: inherit }` so button / anchor variants keep correct contrast */
+.lp a.lp-btn--primary,
+.lp button.lp-btn--primary {
   color: #fff;
+}
+
+.lp-pricing-card__cta--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.lp-pay-methods {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin: 1rem 0 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--lp-radius);
+  border: 1px solid var(--lp-border);
+  background: var(--lp-bg-card);
+}
+
+.lp-pay-methods__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--lp-muted);
+}
+
+.lp-pay-methods__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.lp-pay-method {
+  display: inline-flex;
+  cursor: pointer;
+  margin: 0;
+}
+
+.lp-pay-method__input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lp-pay-method__surface {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1px solid var(--lp-border);
+  color: var(--lp-muted);
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.lp-pay-method__input:focus-visible + .lp-pay-method__surface {
+  outline: 2px solid var(--lp-purple);
+  outline-offset: 2px;
+}
+
+.lp-pay-method__input:checked + .lp-pay-method__surface {
+  border-color: var(--lp-border-strong);
+  background: rgba(168, 85, 247, 0.12);
+  color: var(--lp-text);
+}
+
+.lp-checkout-status {
+  margin: 0.85rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--lp-muted);
+  max-width: 42rem;
+}
+
+.lp-checkout-status.is-animating {
+  animation: lp-checkout-pulse 1.15s ease-in-out infinite;
+}
+
+@keyframes lp-checkout-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.lp-pricing--checkout-busy [data-lp-subscribe]:disabled {
+  opacity: 0.65;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-checkout-status.is-animating {
+    animation: none;
+    opacity: 1;
+  }
 }
 
 .lp a.lp-btn--light {

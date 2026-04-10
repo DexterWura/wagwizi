@@ -39,8 +39,7 @@ final class SubscriptionFulfillmentService
                 throw new \RuntimeException('Lifetime plan is full.');
             }
 
-            $metaArr  = is_array($locked->meta) ? $locked->meta : [];
-            $interval = ($metaArr['billing_interval'] ?? 'monthly') === 'yearly' ? 'yearly' : 'monthly';
+            $interval = $this->resolveBillingIntervalFromMeta($locked->meta);
             $periodEnd = null;
             $billingIntervalCol = null;
             if (! $newPlan->is_lifetime) {
@@ -141,6 +140,18 @@ final class SubscriptionFulfillmentService
 
             return $subscription;
         });
+    }
+
+    /**
+     * Normalizes payment transaction meta for post-payment fulfillment (defaults to monthly).
+     *
+     * @return 'monthly'|'yearly'
+     */
+    public function resolveBillingIntervalFromMeta(mixed $meta): string
+    {
+        $arr = is_array($meta) ? $meta : [];
+
+        return (($arr['billing_interval'] ?? 'monthly') === 'yearly') ? 'yearly' : 'monthly';
     }
 
     /**

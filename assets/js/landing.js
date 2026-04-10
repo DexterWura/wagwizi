@@ -442,6 +442,7 @@
     }
 
     function setMode(mode) {
+      toggleRoot.setAttribute("data-lp-billing-active", mode);
       buttons.forEach(function (btn) {
         var isSel = btn.getAttribute("data-lp-billing") === mode;
         btn.classList.toggle("is-active", isSel);
@@ -464,6 +465,175 @@
     setMode(current);
   }
 
+  function getCsrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute("content") || "" : "";
+  }
+
+  function lpApiPost(url, data) {
+    return fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "X-CSRF-TOKEN": getCsrfToken(),
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      credentials: "same-origin",
+      body: JSON.stringify(data || {})
+    }).then(function (r) {
+      return r.json().then(function (json) {
+        json._status = r.status;
+        json._ok = r.ok;
+        return json;
+      });
+    });
+  }
+
+  function readLandingCheckoutConfig() {
+    var el = document.getElementById("lp-checkout-config");
+    if (!el) return null;
+    try {
+      return JSON.parse(el.textContent || "null");
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function slugNeedsLandingCheckout(cfg, slug) {
+    return cfg && Array.isArray(cfg.paid_plan_slugs) && cfg.paid_plan_slugs.indexOf(slug) !== -1;
+  }
+
+  function billingIntervalForSubscribe(card) {
+    if (!card) return "monthly";
+    if (card.getAttribute("data-lp-lifetime") === "1") return "monthly";
+    var toggle = document.querySelector("[data-lp-billing-toggle]");
+    var mode = toggle ? toggle.getAttribute("data-lp-billing-active") || "monthly" : "monthly";
+    if (mode === "yearly") {
+      if (card.getAttribute("data-offers-yearly") !== "1") return null;
+      return "yearly";
+    }
+    return "monthly";
+  }
+
+  function resolveLandingGateway(cfg) {
+    if (!cfg) return "paynow";
+    if (cfg.checkout_mode === "choose") {
+      var row = document.querySelector("[data-lp-gateway-row]");
+      var scope = row || document;
+      var sel = scope.querySelector('input[name="lp_checkout_gateway"]:checked');
+      var gw = sel ? sel.value : null;
+      if (gw) return gw;
+      sel = document.querySelector('input[name="lp_checkout_gateway"]:checked');
+      return sel ? sel.value : null;
+    }
+    var d = (cfg.default_gateway || "paynow").toLowerCase();
+    if (d === "none") return "paynow";
+    return d;
+  }
+
+  function initLandingCheckoutLoggedIn() {
+    var cfg = readLandingCheckoutConfig();
+    var section = document.querySelector(".lp-pricing");
+    var statusEl = document.querySelector("[data-lp-checkout-status]");
+    if (!cfg || !section) return;
+
+    var busy = false;
+
+    function showStatus(msg, anim) {
+      if (!statusEl) return;
+      statusEl.hidden = false;
+      statusEl.textContent = msg;
+      statusEl.classList.toggle("is-animating", !!anim);
+    }
+
+    function clearStatus() {
+      if (!statusEl) return;
+      statusEl.hidden = true;
+      statusEl.textContent = "";
+      statusEl.classList.remove("is-animating");
+    }
+
+    function setCheckoutBusy(on) {
+      busy = on;
+      section.classList.toggle("lp-pricing--checkout-busy", on);
+      section.setAttribute("aria-busy", on ? "true" : "false");
+      document.querySelectorAll("[data-lp-subscribe]").forEach(function (b) {
+        b.disabled = !!on;
+      });
+      document.querySelectorAll("[data-lp-billing]").forEach(function (b) {
+        b.disabled = !!on;
+      });
+      document.querySelectorAll('input[name="lp_checkout_gateway"]').forEach(function (inp) {
+        inp.disabled = !!on;
+      });
+    }
+
+    section.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-lp-subscribe]");
+      if (!btn || btn.disabled) return;
+      var planSlug = btn.getAttribute("data-plan-slug");
+      if (!planSlug || planSlug === "enterprise") return;
+
+      var card = btn.closest("[data-lp-pricing-card]");
+      var billing = billingIntervalForSubscribe(card);
+      if (billing === null) {
+        showStatus("Yearly billing isn’t available for this plan. Choose Monthly above, or pick another tier.", false);
+        return;
+      }
+
+      if (cfg.free_plan_slug && planSlug === cfg.free_plan_slug && cfg.current_plan_slug && cfg.current_plan_slug !== cfg.free_plan_slug) {
+        if (!window.confirm("Switch to the free plan? You may lose paid features. You can upgrade again anytime.")) {
+          return;
+        }
+      }
+
+      setCheckoutBusy(true);
+      showStatus("Connecting you to our secure payment provider — you’ll finish checkout in a new step…", true);
+
+      function fail(msg) {
+        showStatus(msg || "Something went wrong. Please try again or open Plans from your dashboard.", false);
+        setCheckoutBusy(false);
+      }
+
+      lpApiPost("/plans/change", { plan_slug: planSlug })
+        .then(function (res) {
+          if (res.success && res.trial) {
+            window.location.reload();
+            return;
+          }
+          if (res._ok && res.success) {
+            window.location.reload();
+            return;
+          }
+          if (res.checkout_required && res._status === 402 && cfg.hosted_available && slugNeedsLandingCheckout(cfg, planSlug)) {
+            var gw = resolveLandingGateway(cfg);
+            if (!gw) {
+              fail("Choose a payment method above before subscribing.");
+              return;
+            }
+            return lpApiPost("/plans/checkout/start", {
+              plan_slug: planSlug,
+              gateway: gw,
+              billing_interval: billing
+            }).then(function (r2) {
+              if (r2.success && r2.redirect_url) {
+                window.location.href = r2.redirect_url;
+                return;
+              }
+              var m = r2.message || "Could not start checkout.";
+              if (r2.paypal_error_name) m += " (" + r2.paypal_error_name + ")";
+              fail(m);
+            });
+          }
+          fail(res.message || "This plan can’t be selected right now.");
+        })
+        .catch(function () {
+          fail("Network error. Check your connection and try again.");
+        });
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     initReveal();
     initScrollChrome();
@@ -475,5 +645,6 @@
     initMockupParallax();
     initFaq();
     initPricingBilling();
+    initLandingCheckoutLoggedIn();
   });
 })();

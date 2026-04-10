@@ -192,6 +192,7 @@ class AdminController extends Controller
             'plan_id' => 'required|integer|exists:plans,id',
             'action' => 'required|string|in:change,gift,trial',
             'trial_days' => 'nullable|integer|min:1|max:3650',
+            'billing_interval' => 'nullable|string|in:monthly,yearly',
         ]);
 
         $targetUser = User::query()->with('subscription.planModel')->findOrFail($id);
@@ -211,26 +212,42 @@ class AdminController extends Controller
             return back()->with('error', "Cannot apply {$newPlan->name}: lifetime cap reached.");
         }
 
-        DB::transaction(function () use ($targetUser, $newPlan, $oldPlanId, $oldPlan, $action, $trialDays): void {
+        if ($action !== 'trial' && ! $newPlan->is_free && ! $newPlan->is_lifetime) {
+            $pickYearly = (($validated['billing_interval'] ?? 'monthly') === 'yearly');
+            if ($pickYearly && ($newPlan->yearly_price_cents === null || (int) $newPlan->yearly_price_cents < 1)) {
+                return back()->with('error', 'Yearly billing is not available for this plan.');
+            }
+        }
+
+        $status = 'active';
+        $periodEnd = null;
+        $trialEndsAt = null;
+        $billingIntervalForSub = null;
+
+        if ($action === 'trial') {
+            $days = max(1, (int) ($trialDays ?? 0));
+            $status = 'trialing';
+            $periodEnd = now()->addDays($days)->endOfDay();
+            $trialEndsAt = $periodEnd;
+        } elseif ($newPlan->is_lifetime || $newPlan->is_free) {
+            $periodEnd = null;
+            $billingIntervalForSub = null;
+        } else {
+            $interval = (($validated['billing_interval'] ?? 'monthly') === 'yearly') ? 'yearly' : 'monthly';
+            $billingIntervalForSub = $interval;
+            $periodEnd = $interval === 'yearly' ? now()->addYear() : now()->addMonth();
+        }
+
+        DB::transaction(function () use ($targetUser, $newPlan, $oldPlanId, $oldPlan, $action, $trialDays, $status, $periodEnd, $trialEndsAt, $billingIntervalForSub): void {
             $gateway = $action === 'gift' ? 'admin_gift' : 'admin_manual';
             $eventId = 'admin:' . Auth::id() . ':' . now()->format('YmdHis');
-
-            $status = 'active';
-            $periodEnd = $newPlan->is_lifetime ? null : now()->addMonth();
-            $trialEndsAt = null;
-            if ($action === 'trial') {
-                $days = max(1, (int) ($trialDays ?? 0));
-                $status = 'trialing';
-                $periodEnd = now()->addDays($days)->endOfDay();
-                $trialEndsAt = $periodEnd;
-            }
 
             $subscription = Subscription::updateOrCreate(
                 ['user_id' => $targetUser->id],
                 [
                     'plan_id' => $newPlan->id,
                     'plan' => $newPlan->slug,
-                    'billing_interval' => $newPlan->is_lifetime ? null : 'monthly',
+                    'billing_interval' => $billingIntervalForSub,
                     'gateway' => $gateway,
                     'gateway_subscription_id' => $eventId,
                     'status' => $status,

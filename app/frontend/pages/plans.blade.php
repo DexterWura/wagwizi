@@ -43,6 +43,17 @@
                 <i class="fa-solid fa-crown" aria-hidden="true"></i>
                 <span>You are currently on <strong data-app-plan-label>{{ $currentSubscription?->planModel?->name ?? 'No plan' }}</strong>.</span>
               </div>
+              @php
+                $cadence = $currentSubscription?->billing_interval ?? null;
+                $cadencePlan = $currentSubscription?->planModel;
+                $showBillingCadence = $cadence && $cadencePlan && ! $cadencePlan->is_free && ! $cadencePlan->is_lifetime;
+              @endphp
+              @if($showBillingCadence)
+              <p class="prose-muted" style="font-size:0.88rem;margin:0.4rem 0 0;">
+                <i class="fa-solid fa-rotate" aria-hidden="true"></i>
+                {{ $cadence === 'yearly' ? 'Billed yearly — renews on the anniversary of your last payment.' : 'Billed monthly — renews each month from your last payment.' }}
+              </p>
+              @endif
               <p class="plan-status-msg" data-app-plan-status role="status" aria-live="polite"></p>
             </div>
           </div>
