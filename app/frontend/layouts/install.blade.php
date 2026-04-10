@@ -7,7 +7,7 @@
       (function () {
         var t = localStorage.getItem("app-theme") || localStorage.getItem("creem-clone-theme");
         if (t !== "light" && t !== "dark") {
-          t = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+          t = "light";
         }
         document.documentElement.setAttribute("data-theme", t);
       })();
