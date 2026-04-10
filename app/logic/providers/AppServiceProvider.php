@@ -36,6 +36,10 @@ use App\Services\Notifications\InAppNotificationService;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Socialite;
+use Illuminate\Support\Str;
+use App\Socialite\XComTwitterOAuth2Provider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -123,6 +127,28 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Socialite::extend('twitter', function ($app) {
+            $config = $app['config']['services.twitter'] ?? [];
+            if (($config['oauth'] ?? null) !== 2) {
+                throw new \InvalidArgumentException(
+                    'Twitter must use OAuth 2 (services.twitter.oauth = 2) for this application.'
+                );
+            }
+
+            $redirect = value($config['redirect'] ?? null);
+            $redirectUrl = Str::startsWith((string) $redirect, '/')
+                ? $app['url']->to($redirect)
+                : (string) $redirect;
+
+            return new XComTwitterOAuth2Provider(
+                $app['request'],
+                $config['client_id'],
+                $config['client_secret'],
+                $redirectUrl,
+                Arr::get($config, 'guzzle', [])
+            );
+        });
+
         $this->ensureLogFilesExist();
 
         Event::listen(JobFailed::class, function (JobFailed $event): void {

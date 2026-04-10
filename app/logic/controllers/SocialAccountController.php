@@ -9,6 +9,7 @@ use App\Services\Platform\Adapters\WhatsAppChannelsAdapter;
 use App\Services\Platform\Adapters\WordPressAdapter;
 use App\Services\Platform\Platform;
 use App\Services\Platform\PlatformRegistry;
+use App\Models\User;
 use App\Services\SocialAccount\AccountLinkingService;
 use App\Services\SocialAccount\SocialAccountLimitService;
 use Illuminate\Http\RedirectResponse;
@@ -76,12 +77,16 @@ class SocialAccountController extends Controller
                     ->with('error', $platformEnum->label() . ' connection is not configured. Add the OAuth client ID and secret (and callback URL) in your environment or admin settings.');
             }
 
-            return $this->socialiteForAccountLinking($platformEnum)
-                ->scopes($scopes)
-                ->redirect();
+            $driver = $this->socialiteForAccountLinking($platformEnum)->scopes($scopes);
+            $extra  = $this->oauthQueryParamsWhenLinkingAnotherAccount($platformEnum, Auth::user());
+            if ($extra !== []) {
+                $driver->with($extra);
+            }
+
+            return $driver->redirect();
         }
 
-        return $this->customOAuthRedirect($platformEnum, $scopes);
+        return $this->customOAuthRedirect($platformEnum, $scopes, Auth::user());
     }
 
     /**
@@ -577,6 +582,38 @@ class SocialAccountController extends Controller
     }
 
     /**
+     * Extra authorize URL query params when the user already has this platform linked and is adding another.
+     * Without this, many providers reuse the browser session and authorize the same profile again.
+     *
+     * LinkedIn, TikTok, Pinterest, Threads, and Reddit do not document a reliable equivalent; users may need
+     * a private window or to sign out of the provider first.
+     *
+     * @return array<string, string>
+     */
+    private function oauthQueryParamsWhenLinkingAnotherAccount(Platform $platform, ?User $user): array
+    {
+        if ($user === null) {
+            return [];
+        }
+
+        $alreadyLinked = $user->socialAccounts()
+            ->where('platform', $platform->value)
+            ->exists();
+
+        if (! $alreadyLinked) {
+            return [];
+        }
+
+        return match ($platform) {
+            Platform::Twitter => ['prompt' => 'login'],
+            Platform::Facebook => ['auth_type' => 'reauthenticate'],
+            Platform::YouTube => ['prompt' => 'select_account consent'],
+            Platform::Instagram => ['auth_type' => 'reauthenticate'],
+            default => [],
+        };
+    }
+
+    /**
      * Socialite driver with redirect URI for account linking (may differ from social login).
      * LinkedIn uses the same OpenID app as login but must redirect to /accounts/linkedin/callback.
      */
@@ -605,7 +642,7 @@ class SocialAccountController extends Controller
         return $driver;
     }
 
-    private function customOAuthRedirect(Platform $platform, array $scopes): RedirectResponse
+    private function customOAuthRedirect(Platform $platform, array $scopes, ?User $linkingUser = null): RedirectResponse
     {
         $config    = config("platforms.{$platform->value}");
         $state     = bin2hex(random_bytes(16));
@@ -619,8 +656,16 @@ class SocialAccountController extends Controller
             'state'         => $state,
         ];
 
+        $instagramParams = array_merge($params, $this->oauthQueryParamsWhenLinkingAnotherAccount(Platform::Instagram, $linkingUser));
+
+        $googleBusinessPrompt = ($linkingUser !== null && $linkingUser->socialAccounts()
+            ->where('platform', Platform::GoogleBusiness->value)
+            ->exists())
+            ? 'select_account consent'
+            : 'consent';
+
         $authUrl = match ($platform) {
-            Platform::Instagram => 'https://www.facebook.com/dialog/oauth?' . http_build_query($params),
+            Platform::Instagram => 'https://www.facebook.com/dialog/oauth?' . http_build_query($instagramParams),
             Platform::Threads   => 'https://threads.net/oauth/authorize?' . http_build_query($params),
             Platform::TikTok    => 'https://www.tiktok.com/v2/auth/authorize/?' . http_build_query(array_merge($params, ['client_key' => $config['client_id']])),
             Platform::Pinterest => 'https://www.pinterest.com/oauth/?' . http_build_query($params),
@@ -628,7 +673,7 @@ class SocialAccountController extends Controller
             Platform::GoogleBusiness => 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query(array_merge($params, [
                 'scope'       => implode(' ', $scopes),
                 'access_type' => 'offline',
-                'prompt'      => 'consent',
+                'prompt'      => $googleBusinessPrompt,
             ])),
             default             => throw new \InvalidArgumentException("No OAuth URL defined for {$platform->value}"),
         };
