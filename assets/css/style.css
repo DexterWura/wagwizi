@@ -3816,6 +3816,74 @@ button.link-create {
   cursor: default;
 }
 
+.pill-row .pill--account-tab {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0.2rem 0.45rem;
+  min-height: 30px;
+  min-width: 30px;
+}
+
+.pill__avatar-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--bg-hover);
+}
+
+.pill__avatar-wrap--fallback {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.pill__avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.platform-checklist__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--bg-hover);
+}
+
+.platform-checklist__avatar img {
+  width: 22px;
+  height: 22px;
+  object-fit: cover;
+  display: block;
+}
+
+.platform-checklist__avatar--fallback {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.platform-checklist__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 8rem;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -5484,9 +5552,28 @@ button.link-create {
 
 .preview-card__bar-label {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  line-height: 1.15;
+  align-items: flex-start;
+}
+
+.preview-card__bar-name {
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 11rem;
+}
+
+.preview-card__bar-platform {
+  font-size: 0.68rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 11rem;
 }
 
 .preview-card__body {

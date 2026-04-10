@@ -183,7 +183,7 @@ class PageController extends Controller
             fn () => $user->socialAccounts()->active()->get(['id', 'platform', 'username', 'display_name', 'avatar_url'])
         );
 
-        $composerPlatformProfiles = $socialAccounts->unique('platform')->mapWithKeys(function ($account) {
+        $composerPlatformProfiles = $socialAccounts->mapWithKeys(function ($account) {
             $plat = Platform::tryFrom($account->platform);
             $label = $plat?->label() ?? ucfirst((string) $account->platform);
             $name  = trim((string) ($account->display_name ?? ''));
@@ -195,7 +195,8 @@ class PageController extends Controller
             }
 
             return [
-                $account->platform => [
+                (string) $account->id => [
+                    'platform'  => $account->platform,
                     'avatar'    => $account->composerPreviewAvatarUrl(),
                     'name'      => $name,
                     'iconClass' => $plat?->icon() ?? 'fa-solid fa-globe',

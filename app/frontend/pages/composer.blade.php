@@ -86,12 +86,26 @@
                   @else
                   <div class="platform-checklist platform-checklist--inline">
                     @foreach($socialAccounts as $account)
-                    @php $plat = Platform::tryFrom($account->platform); @endphp
-                    <label>
-                      <input type="checkbox" name="platform_accounts[]" value="{{ $account->id }}" data-platform="{{ $account->platform }}" checked />
-                      <i class="{{ $plat?->icon() ?? 'fa-solid fa-globe' }}" aria-hidden="true"></i>
-                      {{ $plat?->label() ?? ucfirst($account->platform) }}
-                      @if($account->username)<span class="prose-muted">({{ $account->username }})</span>@endif
+                    @php
+                      $plat = Platform::tryFrom($account->platform);
+                      $chkAvatar = $account->composerPreviewAvatarUrl();
+                      $chkTitle = trim((string) ($account->display_name ?? ''));
+                      if ($chkTitle === '') { $chkTitle = trim((string) ($account->username ?? '')); }
+                      if ($chkTitle === '') { $chkTitle = $plat?->label() ?? ucfirst($account->platform); }
+                      $chkTitle .= ' — ' . ($plat?->label() ?? ucfirst($account->platform));
+                    @endphp
+                    <label class="platform-checklist__item" title="{{ e($chkTitle) }}">
+                      <input type="checkbox" name="platform_accounts[]" value="{{ $account->id }}" data-platform="{{ $account->platform }}" data-social-account-id="{{ $account->id }}" checked />
+                      @if($chkAvatar)
+                      <span class="platform-checklist__avatar" aria-hidden="true">
+                        <img src="{{ $chkAvatar }}" alt="" width="22" height="22" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+                      </span>
+                      @else
+                      <span class="platform-checklist__avatar platform-checklist__avatar--fallback" aria-hidden="true">
+                        <i class="{{ $plat?->icon() ?? 'fa-solid fa-globe' }}"></i>
+                      </span>
+                      @endif
+                      <span class="platform-checklist__text">{{ $plat?->label() ?? ucfirst($account->platform) }}</span>
                     </label>
                     @endforeach
                   </div>
@@ -198,10 +212,38 @@
 
                 <div class="composer-form-card__section composer-form-card__section--tight">
                   <div class="pill-row" data-app-tabs role="tablist" aria-label="Edit target">
-                    <button type="button" class="pill" data-app-platform-tab="master" aria-selected="true">Master</button>
-                    @foreach($socialAccounts->unique('platform') as $account)
-                    @php $plat = Platform::tryFrom($account->platform); @endphp
-                    <button type="button" class="pill" data-app-platform-tab="{{ $account->platform }}" aria-selected="false">{{ $plat?->label() ?? ucfirst($account->platform) }}</button>
+                    <button type="button" class="pill pill--account-tab" data-app-platform-tab="master" data-override-label="Master" aria-selected="true">Master</button>
+                    @foreach($socialAccounts as $account)
+                    @php
+                      $plat = Platform::tryFrom($account->platform);
+                      $pillAvatar = $account->composerPreviewAvatarUrl();
+                      $pillName = trim((string) ($account->display_name ?? ''));
+                      if ($pillName === '') { $pillName = trim((string) ($account->username ?? '')); }
+                      $pillPlat = $plat?->label() ?? ucfirst($account->platform);
+                      $pillTitle = $pillName !== '' ? $pillName.' — '.$pillPlat : $pillPlat;
+                      $pillOverrideLabel = $pillName !== '' ? $pillName.' ('.$pillPlat.')' : $pillPlat;
+                    @endphp
+                    <button
+                      type="button"
+                      class="pill pill--account-tab"
+                      data-app-platform-tab="{{ $account->id }}"
+                      data-platform="{{ $account->platform }}"
+                      data-social-account-id="{{ $account->id }}"
+                      data-override-label="{{ e($pillOverrideLabel) }}"
+                      title="{{ e($pillTitle) }}"
+                      aria-selected="false"
+                    >
+                      @if($pillAvatar)
+                      <span class="pill__avatar-wrap" aria-hidden="true">
+                        <img class="pill__avatar" src="{{ $pillAvatar }}" alt="" width="20" height="20" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+                      </span>
+                      @else
+                      <span class="pill__avatar-wrap pill__avatar-wrap--fallback" aria-hidden="true">
+                        <i class="{{ $plat?->icon() ?? 'fa-solid fa-globe' }}"></i>
+                      </span>
+                      @endif
+                      <span class="sr-only">{{ e($pillTitle) }}</span>
+                    </button>
                     @endforeach
                   </div>
                   <div class="field field--flush" data-app-composer-override-settings hidden>
@@ -384,9 +426,14 @@
                   <span class="composer-channel-card__sub">Read-only mockups</span>
                 </div>
                 <div class="preview-strip preview-strip--scroll">
-                  @foreach($socialAccounts->unique('platform') as $account)
-                  @php $plat = Platform::tryFrom($account->platform); @endphp
-                  <div class="preview-card">
+                  @foreach($socialAccounts as $account)
+                  @php
+                    $plat = Platform::tryFrom($account->platform);
+                    $pvName = trim((string) ($account->display_name ?? ''));
+                    if ($pvName === '') { $pvName = trim((string) ($account->username ?? '')); }
+                    $pvSub = $plat?->label() ?? ucfirst($account->platform);
+                  @endphp
+                  <div class="preview-card" data-preview-social-account-id="{{ $account->id }}">
                     <div class="preview-card__bar">
                       @if($url = $account->composerPreviewAvatarUrl())
                       <img
@@ -404,9 +451,16 @@
                         <i class="{{ $plat?->icon() ?? 'fa-solid fa-globe' }}"></i>
                       </span>
                       @endif
-                      <span class="preview-card__bar-label">{{ $plat?->label() ?? ucfirst($account->platform) }}</span>
+                      <span class="preview-card__bar-label">
+                        @if($pvName !== '')
+                        <span class="preview-card__bar-name">{{ $pvName }}</span>
+                        <span class="preview-card__bar-platform prose-muted">{{ $pvSub }}</span>
+                        @else
+                        {{ $pvSub }}
+                        @endif
+                      </span>
                     </div>
-                    <div class="preview-card__body" data-app-composer-preview data-platform="{{ $account->platform }}">
+                    <div class="preview-card__body" data-app-composer-preview data-platform="{{ $account->platform }}" data-social-account-id="{{ $account->id }}">
                       <div class="composer-preview-card__media" data-app-composer-preview-media hidden></div>
                       <div class="composer-preview-card__text" data-app-composer-preview-text>Your post will appear here.</div>
                       <ul class="preview-card__constraints" data-app-composer-platform-warnings="{{ $account->platform }}" hidden></ul>

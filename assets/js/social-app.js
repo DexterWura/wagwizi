@@ -46,9 +46,8 @@
 
     document.querySelectorAll('[name="platform_accounts[]"]:checked').forEach(function (cb) {
       var accountId = parseInt(cb.value, 10);
-      var platform = cb.getAttribute("data-platform");
-      if (!accountId || !platform) return;
-      var text = (overrides[platform] || "").trim();
+      if (!accountId) return;
+      var text = (overrides[String(accountId)] || "").trim();
       if (text) contentMap[accountId] = text;
     });
 
@@ -251,6 +250,33 @@
     return active ? (active.getAttribute("data-app-platform-tab") || "master") : "master";
   }
 
+  /** Platform slug for the active tailor tab (empty if Master). */
+  function composerActivePlatformSlug() {
+    var t = composerActiveTabKey();
+    if (t === "master") return "";
+    if (/^\d+$/.test(String(t))) {
+      var p = getComposerPlatformProfiles()[String(t)];
+      return p && p.platform ? String(p.platform).toLowerCase() : "";
+    }
+    return String(t).toLowerCase();
+  }
+
+  /** Social account id when a per-account tab is selected. */
+  function composerActiveSocialAccountId() {
+    var t = composerActiveTabKey();
+    if (t === "master" || !/^\d+$/.test(String(t))) return null;
+    var id = parseInt(t, 10);
+    return isNaN(id) ? null : id;
+  }
+
+  function composerTextForSocialAccount(accountIdStr, masterValue) {
+    var overrides = global.__composerPlatformOverrides || {};
+    if (!accountIdStr) return String(masterValue || "");
+    var candidate = overrides[String(accountIdStr)];
+    if (typeof candidate === "string" && candidate.trim() !== "") return candidate.trim();
+    return String(masterValue || "");
+  }
+
   function getComposerPlatformProfiles() {
     if (global.__composerPlatformProfilesParsed) {
       return global.__composerPlatformProfilesParsed;
@@ -288,7 +314,7 @@
 
     var tab = composerActiveTabKey();
     var profiles = getComposerPlatformProfiles();
-    var p = profiles[tab];
+    var p = profiles[String(tab)];
 
     function setUserAvatarImg() {
       var img = document.createElement("img");
@@ -358,6 +384,13 @@
     return masterValue;
   }
 
+  function composerAccountLabelForId(accountIdStr) {
+    var profiles = getComposerPlatformProfiles();
+    var p = profiles[String(accountIdStr)];
+    if (p && typeof p.name === "string" && p.name.trim() !== "") return p.name.trim();
+    return accountIdStr;
+  }
+
   function supportsMentionsForPlatform(platform) {
     var p = String(platform || "").toLowerCase();
     return p === "twitter" || p === "linkedin" || p === "facebook" || p === "instagram" || p === "threads";
@@ -371,10 +404,15 @@
   function findUnsupportedOverrideMention(overrides) {
     if (!overrides || typeof overrides !== "object") return null;
     var keys = Object.keys(overrides);
+    var profiles = getComposerPlatformProfiles();
     for (var i = 0; i < keys.length; i += 1) {
-      var platform = keys[i];
-      var text = overrides[platform];
+      var key = keys[i];
+      var text = overrides[key];
       if (!hasTagMention(text)) continue;
+      var platform =
+        profiles[key] && profiles[key].platform
+          ? String(profiles[key].platform).toLowerCase()
+          : String(key).toLowerCase();
       if (!supportsMentionsForPlatform(platform)) return platform;
     }
     return null;
@@ -455,26 +493,49 @@
 
   function evaluateComposerCharacterLimits(masterText) {
     var text = String(masterText || "");
-    var platforms = selectedPlatformsInComposer();
     var over = [];
     var near = [];
-    var known = [];
-    platforms.forEach(function (slug) {
+    var knownSlugs = [];
+    var seenSlug = {};
+
+    document.querySelectorAll('[name="platform_accounts[]"]:checked').forEach(function (cb) {
+      var accIdStr = String(cb.value || "").trim();
+      var slug = String(cb.getAttribute("data-platform") || "").trim().toLowerCase();
+      if (!accIdStr || !slug) return;
       var limit = COMPOSER_PLATFORM_CHAR_LIMITS[slug];
       if (typeof limit !== "number" || limit <= 0) return;
-      known.push(slug);
-      var platformText = composerTextForPlatform(slug, text);
+      if (!seenSlug[slug]) {
+        seenSlug[slug] = true;
+        knownSlugs.push(slug);
+      }
+      var platformText = composerTextForSocialAccount(accIdStr, text);
       var count = composerCountChars(platformText);
       var remaining = limit - count;
+      var accountLabel = composerAccountLabelForId(accIdStr);
       if (remaining < 0) {
-        over.push({ platform: slug, limit: limit, count: count, overBy: Math.abs(remaining) });
+        over.push({
+          platform: slug,
+          accountLabel: accountLabel,
+          limit: limit,
+          count: count,
+          overBy: Math.abs(remaining)
+        });
       } else if (remaining <= 20) {
-        near.push({ platform: slug, limit: limit, count: count, remaining: remaining });
+        near.push({
+          platform: slug,
+          accountLabel: accountLabel,
+          limit: limit,
+          count: count,
+          remaining: remaining
+        });
       }
     });
+
+    var platforms = selectedPlatformsInComposer();
+
     return {
       platforms: platforms,
-      knownPlatforms: known,
+      knownPlatforms: knownSlugs,
       over: over,
       near: near,
       isBlocking: over.length > 0
@@ -511,24 +572,24 @@
     state.over.forEach(function (item) {
       var li = document.createElement("li");
       var label = composerPlatformLabel(item.platform);
+      var who = item.accountLabel ? item.accountLabel + " (" + label + ")" : label;
       li.textContent =
-        label +
+        who +
         " limit reached (" +
         item.count +
         "/" +
         item.limit +
         "). Over by " +
         item.overBy +
-        ". Use Tailor by switching to the " +
-        label +
-        " tab and shorten the override.";
+        ". Open that account’s tab in Tailor and shorten the override.";
       listEl.appendChild(li);
     });
 
     state.near.forEach(function (item) {
       var li = document.createElement("li");
       var label = composerPlatformLabel(item.platform);
-      li.textContent = label + ": " + item.count + "/" + item.limit + " (" + item.remaining + " left).";
+      var who = item.accountLabel ? item.accountLabel + " (" + label + ")" : label;
+      li.textContent = who + ": " + item.count + "/" + item.limit + " (" + item.remaining + " left).";
       listEl.appendChild(li);
     });
 
@@ -1016,18 +1077,15 @@
   }
 
   function syncComposerPreviewVisibility() {
-    var selected = {};
+    var selectedIds = {};
     document.querySelectorAll('[name="platform_accounts[]"]:checked').forEach(function (cb) {
-      var p = cb.getAttribute("data-platform");
-      if (!p) return;
-      selected[p] = true;
+      var id = String(cb.value || "").trim();
+      if (id) selectedIds[id] = true;
     });
 
-    document.querySelectorAll("[data-app-composer-preview]").forEach(function (card) {
-      var platform = card.getAttribute("data-platform") || "";
-      var wrap = card.closest(".preview-card");
-      if (!wrap) return;
-      var show = !!selected[platform];
+    document.querySelectorAll(".preview-card[data-preview-social-account-id]").forEach(function (wrap) {
+      var id = wrap.getAttribute("data-preview-social-account-id") || "";
+      var show = !!selectedIds[id];
       wrap.hidden = !show;
       if (show) wrap.removeAttribute("hidden");
       else wrap.setAttribute("hidden", "");
@@ -1089,12 +1147,19 @@
 
       document.querySelectorAll("[data-app-composer-preview-text]").forEach(function (el) {
         var card = el.closest("[data-app-composer-preview]");
-        var platform = card ? card.getAttribute("data-platform") : "master";
-        el.textContent = composerTextForPlatform(platform, masterText);
+        var accId = card ? card.getAttribute("data-social-account-id") : null;
+        el.textContent = composerTextForSocialAccount(accId, masterText);
       });
       renderComposerCharacterLimitStatus(masterText);
       if (live) {
-        live.textContent = composerTextForPlatform(composerActiveTabKey(), masterText);
+        var tab = composerActiveTabKey();
+        if (tab === "master") {
+          live.textContent = masterText;
+        } else if (/^\d+$/.test(String(tab))) {
+          live.textContent = composerTextForSocialAccount(tab, masterText);
+        } else {
+          live.textContent = composerTextForPlatform(tab, masterText);
+        }
       }
       syncComposerPreviewVisibility();
       syncComposerPreviewMedia();
@@ -1262,9 +1327,14 @@
         tab.setAttribute("aria-selected", isActive ? "true" : "false");
       });
       overrideEl.value = active === "master" ? "" : (overrides[active] || "");
-      overrideEl.placeholder = active === "master"
-        ? "Select a platform tab to add an override…"
-        : "Write override for " + active + "…";
+      var activeTabBtn = tabsWrap.querySelector('[data-app-platform-tab][aria-selected="true"]');
+      var ovLabel = activeTabBtn && activeTabBtn.getAttribute("data-override-label");
+      overrideEl.placeholder =
+        active === "master"
+          ? "Select a platform tab to add an override…"
+          : ovLabel
+            ? "Write override for " + ovLabel + "…"
+            : "Write override…";
       overrideEl.disabled = active === "master";
       overrideWrap.hidden = active === "master";
       global.__composerActivePlatformTab = active;
@@ -1377,7 +1447,7 @@
     if (overrideEl) {
       overrideEl.addEventListener("keydown", function (e) {
         if (e.key !== "@") return;
-        var active = String(global.__composerActivePlatformTab || "master").toLowerCase();
+        var active = String(global.__composerActivePlatformTab || "master");
         if (active === "master") {
           e.preventDefault();
           if (global.App && global.App.showFlash) {
@@ -1385,10 +1455,11 @@
           }
           return;
         }
-        if (!supportsMentionsForPlatform(active)) {
+        var plat = composerActivePlatformSlug();
+        if (!supportsMentionsForPlatform(plat)) {
           e.preventDefault();
           if (global.App && global.App.showFlash) {
-            global.App.showFlash("@" + " tagging is not supported for " + active + " in composer.", "error");
+            global.App.showFlash("@" + " tagging is not supported for " + plat + " in composer.", "error");
           }
         }
       });
@@ -1444,16 +1515,22 @@
     }
 
     function fetchSuggestions(query) {
-      var active = String(global.__composerActivePlatformTab || "master").toLowerCase();
-      if (active === "master" || !supportsMentionsForPlatform(active)) {
+      var active = String(global.__composerActivePlatformTab || "master");
+      if (active === "master") {
+        hideMentionList();
+        return;
+      }
+      var plat = composerActivePlatformSlug();
+      if (!supportsMentionsForPlatform(plat)) {
         hideMentionList();
         return;
       }
       var my = ++reqToken;
-      var accId = getFirstCheckedSocialAccountIdForPlatform(active);
+      var accId = composerActiveSocialAccountId();
+      if (accId == null) accId = getFirstCheckedSocialAccountIdForPlatform(plat);
       var qs =
         "platform=" +
-        encodeURIComponent(active) +
+        encodeURIComponent(plat) +
         "&q=" +
         encodeURIComponent(query);
       if (accId != null) qs += "&social_account_id=" + encodeURIComponent(String(accId));
@@ -1489,8 +1566,9 @@
     }
 
     function onOverrideInput() {
-      var active = String(global.__composerActivePlatformTab || "master").toLowerCase();
-      if (active === "master" || !supportsMentionsForPlatform(active)) {
+      var active = String(global.__composerActivePlatformTab || "master");
+      var plat = composerActivePlatformSlug();
+      if (active === "master" || !supportsMentionsForPlatform(plat)) {
         hideMentionList();
         return;
       }
@@ -2150,8 +2228,9 @@
         if (charLimitState && charLimitState.isBlocking) {
           var first = charLimitState.over[0];
           var label = first ? composerPlatformLabel(first.platform) : "A selected platform";
+          var who = first && first.accountLabel ? first.accountLabel + " (" + label + ")" : label;
           global.App.showFlash(
-            label + " limit reached. Use Tailor for " + label + " and shorten that platform text before posting.",
+            who + " limit reached. Open that account’s tab in Tailor and shorten the override before posting.",
             "error"
           );
           return;
@@ -2876,8 +2955,8 @@
       var ovr = global.__composerPlatformOverrides;
       (post.post_platforms || []).forEach(function (pp) {
         var pc = pp.platform_content;
-        if (pc != null && String(pc).trim() !== "" && pp.platform) {
-          ovr[pp.platform] = String(pc);
+        if (pc != null && String(pc).trim() !== "" && pp.social_account_id != null) {
+          ovr[String(pp.social_account_id)] = String(pc);
         }
       });
 
