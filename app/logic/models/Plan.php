@@ -25,6 +25,9 @@ class Plan extends Model
         'is_most_popular',
         'includes_replies',
         'includes_workflows',
+        'includes_workspaces',
+        'max_workspace_members',
+        'max_accounts_per_platform',
         'is_lifetime',
         'lifetime_max_subscribers',
         'lifetime_current_count',
@@ -45,11 +48,14 @@ class Plan extends Model
             'is_most_popular'    => 'boolean',
             'includes_replies'   => 'boolean',
             'includes_workflows' => 'boolean',
+            'includes_workspaces'=> 'boolean',
             'is_lifetime'        => 'boolean',
             'is_free'            => 'boolean',
             'has_free_trial'     => 'boolean',
             'free_trial_days'                 => 'integer',
             'platform_ai_tokens_per_period'   => 'integer',
+            'max_workspace_members'            => 'integer',
+            'max_accounts_per_platform'        => 'integer',
         ];
     }
 

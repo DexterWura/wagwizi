@@ -35,7 +35,6 @@ class User extends Authenticatable
         'timezone',
         'locale',
         'workspace_name',
-        'workspace_slug',
         'default_posting_time',
         'notification_preferences',
         'marketing_email_opt_in',
@@ -130,6 +129,31 @@ class User extends Authenticatable
     public function notificationDeliveries(): HasMany
     {
         return $this->hasMany(NotificationDelivery::class);
+    }
+
+    public function ownedWorkspaces(): HasMany
+    {
+        return $this->hasMany(Workspace::class, 'owner_user_id');
+    }
+
+    public function workspaceMemberships(): HasMany
+    {
+        return $this->hasMany(WorkspaceMembership::class);
+    }
+
+    public function activeWorkspaceMembership(): ?WorkspaceMembership
+    {
+        return $this->workspaceMemberships()
+            ->where('status', 'active')
+            ->with('workspace')
+            ->orderByRaw("CASE WHEN role = 'admin' THEN 0 ELSE 1 END")
+            ->orderBy('id')
+            ->first();
+    }
+
+    public function activeWorkspace(): ?Workspace
+    {
+        return $this->activeWorkspaceMembership()?->workspace;
     }
 
     public function marketingCampaignsCreated(): HasMany

@@ -28,12 +28,60 @@
                     <label class="field__label" for="ws-name">Display name</label>
                     <input class="input" id="ws-name" type="text" value="{{ $workspaceName }}" autocomplete="organization" />
                   </div>
-                  <div class="field">
-                    <label class="field__label" for="ws-slug">URL slug</label>
-                    <input class="input" id="ws-slug" type="text" value="{{ $workspaceSlug }}" autocomplete="off" />
-                    <p class="field__hint">Used in shared approval links and API webhooks.</p>
-                  </div>
                   <button type="button" class="btn btn--primary" data-app-modal-open="modal-settings-saved">Save workspace</button>
+
+                  @if($workspaceRole === 'admin')
+                  <hr style="margin: 16px 0; border: 0; border-top: 1px solid var(--line, #e5e7eb);" />
+                  <h4 style="margin: 0 0 10px;">Team members</h4>
+                  <form method="POST" action="{{ route('workspace.invite.send') }}" style="display:grid;gap:10px;">
+                    @csrf
+                    <div class="field">
+                      <label class="field__label" for="invite-email">Invite by email</label>
+                      <input class="input" id="invite-email" type="email" name="email" placeholder="teammate@example.com" required />
+                    </div>
+                    <div class="field">
+                      <label class="field__label" for="invite-role">Role</label>
+                      <select class="input" id="invite-role" name="role">
+                        <option value="member" selected>Member</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <button type="submit" class="btn btn--outline">Send invite</button>
+                  </form>
+                  @endif
+                </div>
+              </div>
+              <div class="card">
+                <div class="card__head">Workspace access</div>
+                <div class="card__body">
+                  <table class="table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    @foreach($workspaceMembers as $member)
+                      <tr>
+                        <td>{{ $member->user?->name ?? 'User' }}</td>
+                        <td>{{ $member->user?->email ?? '-' }}</td>
+                        <td>{{ ucfirst($member->role) }}</td>
+                        <td>{{ ucfirst($member->status) }}</td>
+                      </tr>
+                    @endforeach
+                    @foreach($workspaceInvites as $invite)
+                      <tr>
+                        <td>-</td>
+                        <td>{{ $invite->email }}</td>
+                        <td>{{ ucfirst($invite->role) }}</td>
+                        <td>Pending invite</td>
+                      </tr>
+                    @endforeach
+                    </tbody>
+                  </table>
                 </div>
               </div>
               <div class="card card--settings-notifications">

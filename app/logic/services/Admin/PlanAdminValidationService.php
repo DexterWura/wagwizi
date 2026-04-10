@@ -40,5 +40,11 @@ final class PlanAdminValidationService
                 ]);
             }
         }
+
+        if ($request->boolean('includes_workspaces') && ! $request->filled('max_workspace_members')) {
+            throw ValidationException::withMessages([
+                'max_workspace_members' => ['Set a max workspace members value when workspaces are enabled for this plan.'],
+            ]);
+        }
     }
 }

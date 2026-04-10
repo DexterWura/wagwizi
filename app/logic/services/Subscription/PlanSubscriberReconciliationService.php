@@ -119,6 +119,22 @@ final class PlanSubscriberReconciliationService
             }
         }
 
+        $platformCap = $plan->max_accounts_per_platform;
+        if ($platformCap !== null && $platformCap >= 1) {
+            $kept = $kept->filter(
+                static fn (SocialAccount $a): bool => ! isset($disconnectIds[$a->id])
+            )->values();
+            $kept->groupBy('platform')->each(function (Collection $accounts) use (&$disconnectIds, $platformCap): void {
+                if ($accounts->count() <= $platformCap) {
+                    return;
+                }
+
+                foreach ($accounts->slice($platformCap) as $account) {
+                    $disconnectIds[$account->id] = true;
+                }
+            });
+        }
+
         return $orderedActiveAccounts
             ->filter(static fn (SocialAccount $a): bool => isset($disconnectIds[$a->id]))
             ->values();

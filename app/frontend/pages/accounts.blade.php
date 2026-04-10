@@ -66,65 +66,86 @@
           </div>
           @endif
 
+          @if($socialAccountPerPlatformLimit !== null)
+          <p class="accounts-plan-cap prose-muted">
+            Per-platform cap: <strong>{{ $socialAccountPerPlatformLimit }}</strong> account(s) per network.
+          </p>
+          @endif
+
           <div class="social-connect-grid">
             @foreach($enabledPlatforms as $platform)
             @php
                 $slug = $platform->value;
                 $connected = $connectedMap->get($slug, collect());
-                $activeAccount = $connected->firstWhere('status', 'active');
-                $hasPendingPublishing = $activeAccount
-                    ? $activeAccount->postPlatforms()
-                        ->whereIn('status', ['pending', 'publishing'])
-                        ->whereNull('published_at')
-                        ->exists()
-                    : false;
             @endphp
-            <div class="social-connect-card{{ $activeAccount ? ' social-connect-card--connected' : '' }}">
+            <div class="social-connect-card{{ $connected->where('status', 'active')->count() > 0 ? ' social-connect-card--connected' : '' }}">
               <div class="social-connect-card__icon"><i class="{{ $platform->icon() }}" aria-hidden="true"></i></div>
               <div class="social-connect-card__body">
                 <h3>{{ $platform->label() }}</h3>
-                @if($activeAccount)
-                <p class="social-connect-card__user">
-                  <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
-                  {{ $activeAccount->display_name ?? $activeAccount->username ?? 'Connected' }}
-                  @if($slug === 'wordpress' && !empty($activeAccount->metadata['site_url']))
-                    <span class="social-connect-card__site">{{ $activeAccount->metadata['site_url'] }}</span>
-                  @endif
-                  @if($slug === 'bluesky' && !empty($activeAccount->username))
-                    <span class="social-connect-card__site">{{ '@' . ltrim($activeAccount->username, '@') }}</span>
-                  @endif
-                  @if($slug === 'google_business' && !empty($activeAccount->metadata['location_name']))
-                    <span class="social-connect-card__site">{{ $activeAccount->metadata['location_name'] }}</span>
-                  @endif
-                  @if($slug === 'whatsapp_channels')
-                    <span class="social-connect-card__site">{{ $activeAccount->platform_user_id }}</span>
-                  @endif
-                </p>
-                <form method="POST" action="{{ route('accounts.disconnect', $activeAccount->id) }}" data-app-force-disconnect="{{ $hasPendingPublishing ? '1' : '0' }}">
-                  @csrf
-                  <button type="submit" class="btn btn--ghost social-connect-card__btn">Disconnect</button>
-                </form>
-                @else
                 <p>{{ $platform->description() }}</p>
-                  @if(!($canAddSocialAccounts ?? true))
+                @if(!($canAddSocialAccounts ?? true))
                   <button type="button" class="btn btn--primary social-connect-card__btn" disabled title="Account limit reached for your plan. Disconnect an account or upgrade.">Connect</button>
-                  @elseif($slug === 'telegram')
+                @elseif($slug === 'telegram')
                   <button type="button" class="btn btn--primary social-connect-card__btn" data-app-modal-open="modal-telegram-connect">Connect</button>
-                  @elseif($slug === 'wordpress')
+                @elseif($slug === 'wordpress')
                   <button type="button" class="btn btn--primary social-connect-card__btn" data-app-modal-open="modal-wordpress-connect">Connect</button>
-                  @elseif($slug === 'discord')
+                @elseif($slug === 'discord')
                   <button type="button" class="btn btn--primary social-connect-card__btn" data-app-modal-open="modal-discord-connect">Connect</button>
-                  @elseif($slug === 'bluesky')
+                @elseif($slug === 'bluesky')
                   <button type="button" class="btn btn--primary social-connect-card__btn" data-app-modal-open="modal-bluesky-connect">Connect</button>
-                  @elseif($slug === 'whatsapp_channels')
+                @elseif($slug === 'whatsapp_channels')
                   <button type="button" class="btn btn--primary social-connect-card__btn" data-app-modal-open="modal-whatsapp-channels-connect">Connect</button>
-                  @else
+                @else
                   <a class="btn btn--primary social-connect-card__btn" href="{{ route('accounts.connect', $slug) }}">Connect</a>
-                  @endif
                 @endif
               </div>
             </div>
             @endforeach
+          </div>
+
+          <div class="card" style="margin-top:16px;">
+            <div class="card__head">Connected accounts</div>
+            <div class="card__body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Platform</th>
+                    <th>Account</th>
+                    <th>Status</th>
+                    <th>Connected</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                @forelse($connectedAccounts as $account)
+                  @php
+                    $hasPendingPublishing = $account->postPlatforms()
+                      ->whereIn('status', ['pending', 'publishing'])
+                      ->whereNull('published_at')
+                      ->exists();
+                  @endphp
+                  <tr>
+                    <td>{{ \App\Services\Platform\Platform::tryFrom($account->platform)?->label() ?? ucfirst($account->platform) }}</td>
+                    <td>{{ $account->display_name ?? $account->username ?? $account->platform_user_id }}</td>
+                    <td>{{ ucfirst($account->status) }}</td>
+                    <td>{{ optional($account->created_at)->format('Y-m-d') }}</td>
+                    <td>
+                      @if($account->status === 'active')
+                      <form method="POST" action="{{ route('accounts.disconnect', $account->id) }}" data-app-force-disconnect="{{ $hasPendingPublishing ? '1' : '0' }}">
+                        @csrf
+                        <button type="submit" class="btn btn--ghost btn--compact">Disconnect</button>
+                      </form>
+                      @endif
+                    </td>
+                  </tr>
+                @empty
+                  <tr>
+                    <td colspan="5" class="prose-muted">No connected accounts yet.</td>
+                  </tr>
+                @endforelse
+                </tbody>
+              </table>
+            </div>
           </div>
         </main>
 @endsection

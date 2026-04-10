@@ -24,6 +24,7 @@ use App\Services\Media\MediaLibraryService;
 use App\Services\Notifications\InAppNotificationService;
 use App\Services\Platform\PlatformRegistry;
 use App\Services\Workflow\WorkflowTemplateService;
+use App\Services\Workspace\WorkspaceAccessService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -262,11 +263,12 @@ class PageController extends Controller
         $limits = app(SocialAccountLimitService::class)->summary($user);
 
         return view('accounts', [
-            'connectedAccounts' => $user->socialAccounts()->get(['id', 'platform', 'username', 'display_name', 'status', 'metadata']),
+            'connectedAccounts' => $user->socialAccounts()->get(['id', 'platform', 'platform_user_id', 'username', 'display_name', 'status', 'metadata', 'created_at']),
             'enabledPlatforms'  => $enabledPlatforms,
             'canAddSocialAccounts'     => $limits['canAdd'],
             'socialAccountLimit'        => $limits['max'],
             'socialAccountActiveTotal'  => $limits['active'],
+            'socialAccountPerPlatformLimit' => $limits['maxPerPlatform'],
         ]);
     }
 
@@ -375,12 +377,18 @@ class PageController extends Controller
     public function settings(): View
     {
         $user = Auth::user();
+        $membership = app(WorkspaceAccessService::class)->activeMembership($user);
+        $workspace = $membership?->workspace;
+        $members = $workspace?->memberships()->with('user:id,name,email')->orderBy('id')->get() ?? collect();
+        $pendingInvites = $workspace?->invites()->where('status', 'pending')->where('expires_at', '>', now())->orderByDesc('id')->get() ?? collect();
 
         return view('settings', [
-            'workspaceName'        => $user->workspace_name ?? 'Personal brand',
-            'workspaceSlug'        => $user->workspace_slug ?? 'personal-brand',
+            'workspaceName'        => $workspace?->name ?? $user->workspace_name ?? 'Personal brand',
             'defaultPostingTime'   => $user->default_posting_time ?? '09:00',
             'marketingEmailOptIn'  => (bool) ($user->marketing_email_opt_in ?? false),
+            'workspaceRole'        => $membership?->role ?? 'member',
+            'workspaceMembers'     => $members,
+            'workspaceInvites'     => $pendingInvites,
             'notifPreferences'     => $user->notification_preferences ?? [
                 'email_on_failure' => true,
                 'weekly_digest'    => true,

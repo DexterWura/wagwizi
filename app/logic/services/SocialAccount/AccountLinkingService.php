@@ -15,8 +15,6 @@ use InvalidArgumentException;
 
 class AccountLinkingService
 {
-    private const MAX_ACCOUNTS_PER_PLATFORM = 10;
-
     public function __construct(
         private readonly SocialAccountLimitService $socialAccountLimit,
     ) {}
@@ -52,18 +50,7 @@ class AccountLinkingService
 
         if ($existing === null) {
             $this->socialAccountLimit->assertCanAddAccount($user);
-
-            $activeCount = SocialAccount::where('user_id', $user->id)
-                ->where('platform', $platform->value)
-                ->where('status', 'active')
-                ->count();
-
-            if ($activeCount >= self::MAX_ACCOUNTS_PER_PLATFORM) {
-                throw new InvalidArgumentException(
-                    "You can connect up to " . self::MAX_ACCOUNTS_PER_PLATFORM
-                    . " {$platform->label()} accounts. Please disconnect one first."
-                );
-            }
+            $this->socialAccountLimit->assertCanAddPlatformAccount($user, $platform->value);
         }
 
         $account = DB::transaction(function () use (

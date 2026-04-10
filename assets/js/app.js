@@ -2082,8 +2082,7 @@
     wsBtn.removeAttribute("data-app-modal-open");
     wsBtn.addEventListener("click", function () {
       var data = {
-        workspace_name: (document.getElementById("ws-name").value || "").trim(),
-        workspace_slug: (document.getElementById("ws-slug").value || "").trim()
+        workspace_name: (document.getElementById("ws-name").value || "").trim()
       };
       wsBtn.disabled = true;
       apiPost("/settings/workspace", data).then(function (res) {

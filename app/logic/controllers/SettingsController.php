@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Services\Ai\AiOutboundUrlValidator;
 use App\Services\Ai\PlatformAiQuotaService;
+use App\Services\Workspace\WorkspaceAccessService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,18 +12,31 @@ use Illuminate\Validation\ValidationException;
 
 class SettingsController extends Controller
 {
+    public function __construct(
+        private readonly WorkspaceAccessService $workspaceAccess,
+    ) {}
+
     public function updateWorkspace(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'workspace_name' => 'required|string|max:255',
-            'workspace_slug' => 'required|string|max:100|regex:/^[a-z0-9\-]+$/',
         ]);
 
         $user = Auth::user();
-        $user->update([
-            'workspace_name' => $validated['workspace_name'],
-            'workspace_slug' => $validated['workspace_slug'],
-        ]);
+        try {
+            $this->workspaceAccess->ensureAdmin($user);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        $workspace = $this->workspaceAccess->activeWorkspace($user);
+        if ($workspace !== null) {
+            $workspace->update(['name' => $validated['workspace_name']]);
+        }
+        $user->update(['workspace_name' => $validated['workspace_name']]);
 
         return response()->json([
             'success' => true,

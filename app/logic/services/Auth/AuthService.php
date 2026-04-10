@@ -3,6 +3,8 @@
 namespace App\Services\Auth;
 
 use App\Models\User;
+use App\Models\Workspace;
+use App\Models\WorkspaceMembership;
 use App\Services\Notifications\InAppNotificationService;
 use App\Services\Subscription\DefaultSubscriptionService;
 use Illuminate\Support\Facades\Auth;
@@ -62,6 +64,16 @@ class AuthService
             Auth::login($user);
 
             app(DefaultSubscriptionService::class)->assignFreePlanToUser($user);
+            $workspace = Workspace::create([
+                'owner_user_id' => $user->id,
+                'name' => trim($name) !== '' ? $name : 'Personal workspace',
+            ]);
+            WorkspaceMembership::create([
+                'workspace_id' => $workspace->id,
+                'user_id' => $user->id,
+                'role' => 'admin',
+                'status' => 'active',
+            ]);
 
             Log::info('New user registered', ['user_id' => $user->id, 'email' => $email]);
 
@@ -123,6 +135,16 @@ class AuthService
             Auth::login($user, true);
 
             app(DefaultSubscriptionService::class)->assignFreePlanToUser($user);
+            $workspace = Workspace::create([
+                'owner_user_id' => $user->id,
+                'name' => trim((string) $user->name) !== '' ? (string) $user->name : 'Personal workspace',
+            ]);
+            WorkspaceMembership::create([
+                'workspace_id' => $workspace->id,
+                'user_id' => $user->id,
+                'role' => 'admin',
+                'status' => 'active',
+            ]);
 
             Log::info('New user registered via social auth', [
                 'user_id'  => $user->id,

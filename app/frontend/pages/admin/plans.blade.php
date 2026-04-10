@@ -134,6 +134,14 @@
                       <label class="field__label">Max posts/month</label>
                       <input class="input input--sm" name="max_scheduled_posts_per_month" type="number" value="{{ $plan->max_scheduled_posts_per_month }}" placeholder="Unlimited" />
                     </div>
+                    <div class="field">
+                      <label class="field__label">Max accounts / platform</label>
+                      <input class="input input--sm" name="max_accounts_per_platform" type="number" value="{{ $plan->max_accounts_per_platform }}" placeholder="Unlimited" />
+                    </div>
+                    <div class="field">
+                      <label class="field__label">Max workspace members</label>
+                      <input class="input input--sm" name="max_workspace_members" type="number" value="{{ $plan->max_workspace_members }}" placeholder="Required if workspaces enabled" />
+                    </div>
                     <div class="field field--full">
                       <label class="field__label">Platform AI tokens / billing period</label>
                       <input class="input input--sm" name="platform_ai_tokens_per_period" type="number" min="0" max="999999999999" value="{{ (int) ($plan->platform_ai_tokens_per_period ?? 0) }}" required />
@@ -211,6 +219,14 @@
                         <span>Includes workflows automation</span>
                       </label>
                       <p class="field__hint">If unchecked, subscribers cannot access the Workflows builder and execution features.</p>
+                    </div>
+                    <div class="field">
+                      <label class="check-line">
+                        <input type="hidden" name="includes_workspaces" value="0" />
+                        <input type="checkbox" name="includes_workspaces" value="1" {{ ($plan->includes_workspaces ?? false) ? 'checked' : '' }} />
+                        <span>Includes workspace teams</span>
+                      </label>
+                      <p class="field__hint">Enable to allow admins to invite teammates into their workspace.</p>
                     </div>
                     <div class="field">
                       <label class="check-line">
@@ -322,6 +338,14 @@
                 <label class="field__label">Max posts/month</label>
                 <input class="input" name="max_scheduled_posts_per_month" type="number" placeholder="Unlimited" />
               </div>
+              <div class="field">
+                <label class="field__label">Max accounts / platform</label>
+                <input class="input" name="max_accounts_per_platform" type="number" placeholder="Unlimited" />
+              </div>
+              <div class="field">
+                <label class="field__label">Max workspace members</label>
+                <input class="input" name="max_workspace_members" type="number" placeholder="Required if workspaces enabled" />
+              </div>
               <div class="field field--full">
                 <label class="field__label">Platform AI tokens / billing period</label>
                 <input class="input" name="platform_ai_tokens_per_period" type="number" min="0" max="999999999999" value="0" required />
@@ -399,6 +423,14 @@
                   <span>Includes workflows automation</span>
                 </label>
                 <p class="field__hint">Enable this when the plan should access the Workflows builder and automation runs.</p>
+              </div>
+              <div class="field">
+                <label class="check-line">
+                  <input type="hidden" name="includes_workspaces" value="0" />
+                  <input type="checkbox" name="includes_workspaces" value="1" />
+                  <span>Includes workspace teams</span>
+                </label>
+                <p class="field__hint">Enable this when the plan should allow member invites for workspaces.</p>
               </div>
               <div class="field">
                 <label class="check-line">

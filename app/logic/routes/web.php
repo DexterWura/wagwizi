@@ -15,6 +15,7 @@ use App\Controllers\SettingsController;
 use App\Controllers\SocialAccountController;
 use App\Controllers\StatusController;
 use App\Controllers\SupportTicketController;
+use App\Controllers\WorkspaceController;
 use App\Controllers\PaynowWebhookController;
 use App\Controllers\PesepayWebhookController;
 use App\Controllers\PlanCheckoutController;
@@ -114,6 +115,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
 
     Route::post('/settings/workspace',     [SettingsController::class, 'updateWorkspace'])->name('settings.workspace');
+    Route::post('/settings/workspace/invite', [WorkspaceController::class, 'invite'])->name('workspace.invite.send');
+    Route::post('/workspace/invite/confirm', [WorkspaceController::class, 'confirmInviteAcceptance'])->name('workspace.invite.confirm');
     Route::post('/settings/notifications', [SettingsController::class, 'updateNotifications'])->name('settings.notifications');
     Route::post('/settings/default-time',  [SettingsController::class, 'updateDefaultTime'])->name('settings.default-time');
     Route::post('/settings/ai',            [SettingsController::class, 'updateAiSettings'])
@@ -240,3 +243,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/marketing-campaigns/{id}/send', [AdminMarketingController::class, 'startSend'])->name('marketing-campaigns.send');
     });
 });
+
+Route::get('/workspace/invite/accept', [WorkspaceController::class, 'showInviteAcceptance'])
+    ->middleware('signed')
+    ->name('workspace.invite.accept');

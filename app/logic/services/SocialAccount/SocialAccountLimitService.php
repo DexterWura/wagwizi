@@ -54,6 +54,37 @@ final class SocialAccountLimitService
             ->count();
     }
 
+    public function maxAccountsAllowedPerPlatform(User $user): ?int
+    {
+        if ($user->isSuperAdmin()) {
+            return null;
+        }
+
+        return $this->effectivePlan($user)?->max_accounts_per_platform;
+    }
+
+    public function activeAccountCountForPlatform(User $user, string $platform): int
+    {
+        return SocialAccount::query()
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->where('platform', $platform)
+            ->count();
+    }
+
+    public function assertCanAddPlatformAccount(User $user, string $platform): void
+    {
+        $max = $this->maxAccountsAllowedPerPlatform($user);
+        if ($max === null) {
+            return;
+        }
+
+        $activeForPlatform = $this->activeAccountCountForPlatform($user, $platform);
+        if ($activeForPlatform >= $max) {
+            throw new InvalidArgumentException("Your plan allows up to {$max} accounts for this platform.");
+        }
+    }
+
     public function canAddAnotherAccount(User $user): bool
     {
         if ($user->isSuperAdmin()) {
@@ -88,7 +119,7 @@ final class SocialAccountLimitService
     }
 
     /**
-     * @return array{canAdd: bool, max: int|null, active: int}
+     * @return array{canAdd: bool, max: int|null, active: int, maxPerPlatform: int|null}
      */
     public function summary(User $user): array
     {
@@ -100,6 +131,7 @@ final class SocialAccountLimitService
             'canAdd' => $canAdd,
             'max'    => $max,
             'active' => $active,
+            'maxPerPlatform' => $this->maxAccountsAllowedPerPlatform($user),
         ];
     }
 }

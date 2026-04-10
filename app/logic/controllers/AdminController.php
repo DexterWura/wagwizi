@@ -313,6 +313,9 @@ class AdminController extends Controller
             'is_most_popular'               => 'boolean',
             'includes_replies'              => 'boolean',
             'includes_workflows'            => 'boolean',
+            'includes_workspaces'           => 'boolean',
+            'max_workspace_members'         => 'nullable|integer|min:1',
+            'max_accounts_per_platform'     => 'nullable|integer|min:1',
             'is_free'                       => 'boolean',
             'is_lifetime'                   => 'boolean',
             'lifetime_max_subscribers'      => 'nullable|integer|min:1',
@@ -327,6 +330,7 @@ class AdminController extends Controller
         $validated['is_most_popular'] = $request->boolean('is_most_popular');
         $validated['includes_replies'] = $request->boolean('includes_replies');
         $validated['includes_workflows'] = $request->boolean('includes_workflows');
+        $validated['includes_workspaces'] = $request->boolean('includes_workspaces');
         $validated['is_free'] = $request->boolean('is_free');
         $validated['is_lifetime'] = $request->boolean('is_lifetime');
         $validated['has_free_trial'] = $request->boolean('has_free_trial');
@@ -392,6 +396,9 @@ class AdminController extends Controller
             'is_most_popular'               => 'boolean',
             'includes_replies'              => 'boolean',
             'includes_workflows'            => 'boolean',
+            'includes_workspaces'           => 'boolean',
+            'max_workspace_members'         => 'nullable|integer|min:1',
+            'max_accounts_per_platform'     => 'nullable|integer|min:1',
             'is_free'                       => 'boolean',
             'is_lifetime'                   => 'boolean',
             'lifetime_max_subscribers'      => 'nullable|integer|min:1',
@@ -406,6 +413,7 @@ class AdminController extends Controller
         $validated['is_most_popular'] = $request->boolean('is_most_popular');
         $validated['includes_replies'] = $request->boolean('includes_replies');
         $validated['includes_workflows'] = $request->boolean('includes_workflows');
+        $validated['includes_workspaces'] = $request->boolean('includes_workspaces');
         $validated['is_free'] = $request->boolean('is_free');
         $validated['is_lifetime'] = $request->boolean('is_lifetime');
         $validated['has_free_trial'] = $request->boolean('has_free_trial');
