@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\DB;
 
 final class SubscriptionTrialService
 {
+    public function __construct(
+        private readonly DefaultSubscriptionService $defaultSubscriptionService,
+    ) {}
+
     public function canStartTrial(User $user, Plan $plan): bool
     {
         if ($plan->is_free || $plan->is_lifetime) {
@@ -125,14 +129,40 @@ final class SubscriptionTrialService
             return;
         }
 
-        Subscription::query()
+        $expired = Subscription::query()
             ->where('user_id', $user->id)
             ->where('status', 'trialing')
             ->whereNotNull('trial_ends_at')
             ->where('trial_ends_at', '<=', now())
-            ->update([
-                'status'             => 'past_due',
-                'current_period_end' => now(),
-            ]);
+            ->get();
+
+        if ($expired->isEmpty()) {
+            return;
+        }
+
+        foreach ($expired as $sub) {
+            $fromPlanId = $sub->plan_id;
+            $this->defaultSubscriptionService->assignFreePlanToUser($user);
+            $user->refresh();
+            $toPlanId = $user->subscription?->plan_id;
+
+            if ($toPlanId !== null && $toPlanId !== $fromPlanId) {
+                PlanChange::create([
+                    'user_id' => $user->id,
+                    'from_plan_id' => $fromPlanId,
+                    'to_plan_id' => $toPlanId,
+                    'change_type' => 'downgrade',
+                ]);
+
+                QueueTemplatedEmailForUserJob::dispatch($user->id, 'subscription.downgrade', [
+                    'planName' => $user->subscription?->planModel?->name ?? 'Free',
+                ]);
+            } elseif ($toPlanId === $fromPlanId || $toPlanId === null) {
+                $sub->update([
+                    'status' => 'past_due',
+                    'current_period_end' => now(),
+                ]);
+            }
+        }
     }
 }

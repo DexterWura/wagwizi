@@ -75,7 +75,13 @@ class AdminController extends Controller
             $query->where('role', $role);
         }
         if ($status = $request->input('status')) {
-            $query->where('status', $status);
+            if ($status === 'trialing') {
+                $query->whereHas('subscription', function ($q): void {
+                    $q->where('status', 'trialing');
+                });
+            } else {
+                $query->where('status', $status);
+            }
         }
 
         $users = $query->with('subscription.planModel')
@@ -89,7 +95,14 @@ class AdminController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'slug', 'is_free', 'is_lifetime']);
 
-        return view('admin.users', compact('users', 'plans'));
+        $trialingUsersCount = Subscription::query()
+            ->where('status', 'trialing')
+            ->whereNotNull('trial_ends_at')
+            ->where('trial_ends_at', '>', now())
+            ->distinct('user_id')
+            ->count('user_id');
+
+        return view('admin.users', compact('users', 'plans', 'trialingUsersCount'));
     }
 
     public function updateUserRole(Request $request, int $id): RedirectResponse
@@ -177,12 +190,14 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'plan_id' => 'required|integer|exists:plans,id',
-            'action' => 'required|string|in:change,gift',
+            'action' => 'required|string|in:change,gift,trial',
+            'trial_days' => 'nullable|integer|min:1|max:3650',
         ]);
 
         $targetUser = User::query()->with('subscription.planModel')->findOrFail($id);
         $newPlan = Plan::query()->where('is_active', true)->findOrFail((int) $validated['plan_id']);
         $action = (string) $validated['action'];
+        $trialDays = isset($validated['trial_days']) ? (int) $validated['trial_days'] : null;
 
         $oldSub = $targetUser->subscription;
         $oldPlanId = $oldSub?->plan_id;
@@ -196,9 +211,19 @@ class AdminController extends Controller
             return back()->with('error', "Cannot apply {$newPlan->name}: lifetime cap reached.");
         }
 
-        DB::transaction(function () use ($targetUser, $newPlan, $oldPlanId, $oldPlan, $action): void {
+        DB::transaction(function () use ($targetUser, $newPlan, $oldPlanId, $oldPlan, $action, $trialDays): void {
             $gateway = $action === 'gift' ? 'admin_gift' : 'admin_manual';
             $eventId = 'admin:' . Auth::id() . ':' . now()->format('YmdHis');
+
+            $status = 'active';
+            $periodEnd = $newPlan->is_lifetime ? null : now()->addMonth();
+            $trialEndsAt = null;
+            if ($action === 'trial') {
+                $days = max(1, (int) ($trialDays ?? 0));
+                $status = 'trialing';
+                $periodEnd = now()->addDays($days)->endOfDay();
+                $trialEndsAt = $periodEnd;
+            }
 
             $subscription = Subscription::updateOrCreate(
                 ['user_id' => $targetUser->id],
@@ -207,10 +232,10 @@ class AdminController extends Controller
                     'plan' => $newPlan->slug,
                     'gateway' => $gateway,
                     'gateway_subscription_id' => $eventId,
-                    'status' => 'active',
+                    'status' => $status,
                     'current_period_start' => now(),
-                    'current_period_end' => $newPlan->is_lifetime ? null : now()->addMonth(),
-                    'trial_ends_at' => null,
+                    'current_period_end' => $periodEnd,
+                    'trial_ends_at' => $trialEndsAt,
                 ]
             );
 
@@ -232,13 +257,24 @@ class AdminController extends Controller
                 'gateway_event_id' => $eventId,
             ]);
 
-            DB::afterCommit(function () use ($targetUser, $newPlan, $oldPlan, $action): void {
+            DB::afterCommit(function () use ($targetUser, $newPlan, $oldPlan, $action, $trialDays): void {
                 if ($action === 'gift') {
                     QueueTemplatedEmailForUserJob::dispatch($targetUser->id, 'subscription.gifted', [
                         'planName' => $newPlan->name,
                         'previousPlanName' => $oldPlan?->name ?? '',
                     ]);
                     app(InAppNotificationService::class)->notifyUserPlanGiftedByAdmin($targetUser, $newPlan);
+                    return;
+                }
+
+                if ($action === 'trial') {
+                    QueueTemplatedEmailForUserJob::dispatch($targetUser->id, 'subscription.updated', [
+                        'planName' => $newPlan->name,
+                        'previousPlanName' => $oldPlan?->name ?? '',
+                        'trialStarted' => true,
+                        'trialDays' => (int) ($trialDays ?? 0),
+                    ]);
+                    app(InAppNotificationService::class)->notifyUserPlanChangedByAdmin($targetUser, $newPlan);
                     return;
                 }
 
@@ -250,7 +286,11 @@ class AdminController extends Controller
             });
         });
 
-        $actionLabel = $action === 'gift' ? 'gifted' : 'changed';
+        $actionLabel = match ($action) {
+            'gift' => 'gifted',
+            'trial' => 'set to trial',
+            default => 'changed',
+        };
 
         return back()->with('success', "Plan {$actionLabel} to {$newPlan->name} for {$targetUser->name}.");
     }
