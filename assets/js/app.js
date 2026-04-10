@@ -2148,14 +2148,19 @@
       }
 
       submitBtn.disabled = true;
-      apiPost("/support-tickets", {
+      var includeContext = context ? context.checked : false;
+      var payload = {
         subject: subject,
         category: category,
         message: message,
-        include_context: context ? context.checked : false,
-        page_url: window.location.href,
-        user_agent: navigator.userAgent
-      }).then(function (res) {
+        include_context: includeContext
+      };
+      if (includeContext) {
+        payload.page_url = window.location.href;
+        payload.user_agent = navigator.userAgent;
+      }
+
+      apiPost("/support-tickets", payload).then(function (res) {
         submitBtn.disabled = false;
         if (res._ok) {
           showFlash(res.message || "Ticket submitted.");

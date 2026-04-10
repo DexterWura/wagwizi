@@ -48,7 +48,7 @@
                   </div>
                   <span class="prose-muted">{{ $ticket->user?->name }} &middot; {{ $ticket->created_at->diffForHumans() }}</span>
                 </div>
-                <p class="admin-ticket__message">{{ $ticket->message }}</p>
+                <p class="admin-ticket__message">{!! nl2br(e($ticket->message)) !!}</p>
 
                 @if($ticket->replies->count())
                 <div class="admin-ticket__replies">

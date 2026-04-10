@@ -39,7 +39,7 @@
                 <div class="admin-ticket__reply">
                   <strong>You</strong>
                   <span class="prose-muted">{{ $ticket->created_at->diffForHumans() }}</span>
-                  <p class="admin-ticket__message">{{ $ticket->message }}</p>
+                  <p class="admin-ticket__message">{!! nl2br(e($ticket->message)) !!}</p>
                 </div>
 
                 @foreach($ticket->replies as $reply)

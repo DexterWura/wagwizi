@@ -83,11 +83,28 @@ class SupportTicketController extends Controller
             'user_agent'      => 'nullable|string|max:500',
         ]);
 
+        $message = $validated['message'];
+        $includeContext = (bool) ($validated['include_context'] ?? false);
+        if ($includeContext) {
+            $contextParts = [];
+            $pageUrl = trim((string) ($validated['page_url'] ?? ''));
+            $userAgent = trim((string) ($validated['user_agent'] ?? ''));
+            if ($pageUrl !== '') {
+                $contextParts[] = 'URL: ' . $pageUrl;
+            }
+            if ($userAgent !== '') {
+                $contextParts[] = 'Browser: ' . $userAgent;
+            }
+            if ($contextParts !== []) {
+                $message .= "\n\n[Context attached]\n" . implode("\n", $contextParts);
+            }
+        }
+
         $ticket = SupportTicket::create([
             'user_id'  => Auth::id(),
             'subject'  => $validated['subject'],
             'category' => $validated['category'],
-            'message'  => $validated['message'],
+            'message'  => $message,
             'status'   => 'open',
             'priority' => 'normal',
         ]);
