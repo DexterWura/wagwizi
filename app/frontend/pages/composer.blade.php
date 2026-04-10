@@ -115,6 +115,8 @@
                         <i class="fa-regular fa-face-smile" aria-hidden="true"></i>
                       </button>
                     </div>
+                    <div class="field__hint" data-app-composer-charlimit-summary aria-live="polite"></div>
+                    <ul class="preview-card__constraints" data-app-composer-charlimit-list hidden aria-live="polite"></ul>
                     <div class="composer-emoji-dock composer-ai-dock" id="composer-emoji-dock" data-app-composer-emoji-dock hidden aria-hidden="true" role="dialog" aria-modal="false" aria-label="Emoji picker">
                       <div class="composer-emoji-dock__panel card card--composer">
                         <div class="composer-assistant-card__head composer-assistant-card__head--row">

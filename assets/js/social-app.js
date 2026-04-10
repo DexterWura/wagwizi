@@ -2,6 +2,22 @@
   "use strict";
 
   var composerConstraintProbeToken = 0;
+  var COMPOSER_PLATFORM_CHAR_LIMITS = {
+    twitter: 280,
+    threads: 500,
+    bluesky: 300,
+    linkedin: 3000,
+    facebook: 63206,
+    instagram: 2200,
+    tiktok: 2200,
+    youtube: 5000,
+    pinterest: 500,
+    reddit: 40000,
+    telegram: 4096,
+    discord: 2000,
+    google_business: 1500,
+    whatsapp_channels: 1024
+  };
 
   function insertAtCursor(textarea, text) {
     if (!textarea) return;
@@ -419,6 +435,112 @@
   function composerPlatformLabel(slug) {
     var lab = global.__composerPlatformLabels && global.__composerPlatformLabels[slug];
     return lab || slug;
+  }
+
+  function composerCountChars(text) {
+    return Array.from(String(text || "")).length;
+  }
+
+  function selectedPlatformsInComposer() {
+    var seen = {};
+    var out = [];
+    document.querySelectorAll('[name="platform_accounts[]"]:checked').forEach(function (cb) {
+      var slug = String(cb.getAttribute("data-platform") || "").trim().toLowerCase();
+      if (!slug || seen[slug]) return;
+      seen[slug] = true;
+      out.push(slug);
+    });
+    return out;
+  }
+
+  function evaluateComposerCharacterLimits(masterText) {
+    var text = String(masterText || "");
+    var platforms = selectedPlatformsInComposer();
+    var over = [];
+    var near = [];
+    var known = [];
+    platforms.forEach(function (slug) {
+      var limit = COMPOSER_PLATFORM_CHAR_LIMITS[slug];
+      if (typeof limit !== "number" || limit <= 0) return;
+      known.push(slug);
+      var platformText = composerTextForPlatform(slug, text);
+      var count = composerCountChars(platformText);
+      var remaining = limit - count;
+      if (remaining < 0) {
+        over.push({ platform: slug, limit: limit, count: count, overBy: Math.abs(remaining) });
+      } else if (remaining <= 20) {
+        near.push({ platform: slug, limit: limit, count: count, remaining: remaining });
+      }
+    });
+    return {
+      platforms: platforms,
+      knownPlatforms: known,
+      over: over,
+      near: near,
+      isBlocking: over.length > 0
+    };
+  }
+
+  function renderComposerCharacterLimitStatus(masterText) {
+    var summaryEl = document.querySelector("[data-app-composer-charlimit-summary]");
+    var listEl = document.querySelector("[data-app-composer-charlimit-list]");
+    if (!summaryEl || !listEl) return evaluateComposerCharacterLimits(masterText);
+
+    var state = evaluateComposerCharacterLimits(masterText);
+    var totalChars = composerCountChars(masterText);
+
+    if (!state.platforms.length) {
+      summaryEl.textContent = "Select at least one platform to show character limits.";
+      listEl.innerHTML = "";
+      listEl.hidden = true;
+      listEl.setAttribute("hidden", "");
+      return state;
+    }
+
+    if (!state.knownPlatforms.length) {
+      summaryEl.textContent = "Live character checks are not configured for the selected platform yet.";
+      listEl.innerHTML = "";
+      listEl.hidden = true;
+      listEl.setAttribute("hidden", "");
+      return state;
+    }
+
+    summaryEl.textContent = "Characters: " + totalChars + ". Real-time limits are checked for selected platforms.";
+    listEl.innerHTML = "";
+
+    state.over.forEach(function (item) {
+      var li = document.createElement("li");
+      var label = composerPlatformLabel(item.platform);
+      li.textContent =
+        label +
+        " limit reached (" +
+        item.count +
+        "/" +
+        item.limit +
+        "). Over by " +
+        item.overBy +
+        ". Use Tailor by switching to the " +
+        label +
+        " tab and shorten the override.";
+      listEl.appendChild(li);
+    });
+
+    state.near.forEach(function (item) {
+      var li = document.createElement("li");
+      var label = composerPlatformLabel(item.platform);
+      li.textContent = label + ": " + item.count + "/" + item.limit + " (" + item.remaining + " left).";
+      listEl.appendChild(li);
+    });
+
+    if (listEl.children.length) {
+      listEl.hidden = false;
+      listEl.removeAttribute("hidden");
+    } else {
+      listEl.hidden = true;
+      listEl.setAttribute("hidden", "");
+    }
+
+    return state;
   }
 
   /** @returns {'video'|'image'|null} */
@@ -970,6 +1092,7 @@
         var platform = card ? card.getAttribute("data-platform") : "master";
         el.textContent = composerTextForPlatform(platform, masterText);
       });
+      renderComposerCharacterLimitStatus(masterText);
       if (live) {
         live.textContent = composerTextForPlatform(composerActiveTabKey(), masterText);
       }
@@ -1998,7 +2121,8 @@
     actionButtons.forEach(function (btn) {
       btn.addEventListener("click", function () {
         var action = btn.getAttribute("data-app-composer-action");
-        var content = (document.getElementById("composer-master").value || "").trim();
+        var rawContent = document.getElementById("composer-master").value || "";
+        var content = rawContent.trim();
         var accounts = getSelectedAccountIds();
         var platformContent = collectPlatformContentByAccount();
         var commentPayload = buildCommentDelayMinutesPayload();
@@ -2019,6 +2143,17 @@
         var unsupportedMentionPlatform = findUnsupportedOverrideMention(global.__composerPlatformOverrides || {});
         if (unsupportedMentionPlatform) {
           global.App.showFlash("@" + " tagging is not supported for " + unsupportedMentionPlatform + ". Remove the @ mention from that platform override.", "error");
+          return;
+        }
+
+        var charLimitState = renderComposerCharacterLimitStatus(rawContent);
+        if (charLimitState && charLimitState.isBlocking) {
+          var first = charLimitState.over[0];
+          var label = first ? composerPlatformLabel(first.platform) : "A selected platform";
+          global.App.showFlash(
+            label + " limit reached. Use Tailor for " + label + " and shorten that platform text before posting.",
+            "error"
+          );
           return;
         }
 
