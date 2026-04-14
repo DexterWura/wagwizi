@@ -6167,6 +6167,7 @@ button.link-create {
 .plan-card__platforms {
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 0.4rem;
   margin: 0 0 0.55rem;
