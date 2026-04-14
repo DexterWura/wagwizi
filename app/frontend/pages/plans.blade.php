@@ -162,6 +162,17 @@
                 $supportedPlatforms = $planSupportedPlatforms[$plan->slug] ?? [];
                 $visiblePlatforms = array_slice($supportedPlatforms, 0, 6);
               @endphp
+              <span class="plan-card__price"><span data-plan-price-line>{{ $price }}</span>@if($plan->slug !== 'enterprise')<span class="plan-card__cycle" data-plan-cycle-line>{{ $cycleText }}</span>@endif</span>
+              @if($plan->freeTrialSummary())
+              <p class="plan-card__trial"><i class="fa-solid fa-gift" aria-hidden="true"></i> {{ $plan->freeTrialSummary() }}</p>
+              @endif
+              @if(is_array($plan->features))
+              <ul class="plan-card__list">
+                @foreach($plan->features as $feature)
+                <li>{{ $feature }}</li>
+                @endforeach
+              </ul>
+              @endif
               @if(count($visiblePlatforms) > 0)
               <div class="plan-card__platforms" aria-label="Supported platforms">
                 @foreach($visiblePlatforms as $platform)
@@ -173,17 +184,6 @@
                 <span class="plan-card__platform plan-card__platform--more">+{{ count($supportedPlatforms) - count($visiblePlatforms) }}</span>
                 @endif
               </div>
-              @endif
-              <span class="plan-card__price"><span data-plan-price-line>{{ $price }}</span>@if($plan->slug !== 'enterprise')<span class="plan-card__cycle" data-plan-cycle-line>{{ $cycleText }}</span>@endif</span>
-              @if($plan->freeTrialSummary())
-              <p class="plan-card__trial"><i class="fa-solid fa-gift" aria-hidden="true"></i> {{ $plan->freeTrialSummary() }}</p>
-              @endif
-              @if(is_array($plan->features))
-              <ul class="plan-card__list">
-                @foreach($plan->features as $feature)
-                <li>{{ $feature }}</li>
-                @endforeach
-              </ul>
               @endif
               @if($needsRenew && $isCurrent)
               <button type="button" class="btn btn--primary" data-plan-select>Renew subscription</button>

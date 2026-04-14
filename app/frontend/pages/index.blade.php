@@ -490,18 +490,6 @@
                 $supportedPlatforms = $planSupportedPlatforms[$plan->slug] ?? [];
                 $visiblePlatforms = array_slice($supportedPlatforms, 0, 6);
               @endphp
-              @if(count($visiblePlatforms) > 0)
-              <div class="lp-pricing-card__platforms" aria-label="Supported platforms">
-                @foreach($visiblePlatforms as $platform)
-                <span class="lp-pricing-card__platform" title="{{ $platform->label() }}">
-                  <i class="{{ $platform->icon() }}" aria-hidden="true"></i>
-                </span>
-                @endforeach
-                @if(count($supportedPlatforms) > count($visiblePlatforms))
-                <span class="lp-pricing-card__platform lp-pricing-card__platform--more">+{{ count($supportedPlatforms) - count($visiblePlatforms) }}</span>
-                @endif
-              </div>
-              @endif
               <p class="lp-pricing-card__price">
                 <span class="lp-pricing-card__amount">
                   <span class="lp-pricing-card__currency">{{ $currencyDisplay->symbol($currencyDisplay->defaultCurrency()) }}</span><span data-lp-price-amount>{{ $isLifetime ? $oneTimeAmount : $monthly }}</span>
@@ -529,6 +517,18 @@
                 <li>{{ $feature }}</li>
                 @endforeach
               </ul>
+              @if(count($visiblePlatforms) > 0)
+              <div class="lp-pricing-card__platforms" aria-label="Supported platforms">
+                @foreach($visiblePlatforms as $platform)
+                <span class="lp-pricing-card__platform" title="{{ $platform->label() }}">
+                  <i class="{{ $platform->icon() }}" aria-hidden="true"></i>
+                </span>
+                @endforeach
+                @if(count($supportedPlatforms) > count($visiblePlatforms))
+                <span class="lp-pricing-card__platform lp-pricing-card__platform--more">+{{ count($supportedPlatforms) - count($visiblePlatforms) }}</span>
+                @endif
+              </div>
+              @endif
               @auth
                 @if($plan->slug === 'enterprise')
                   <a class="lp-btn {{ $isFeatured ? 'lp-btn--primary' : 'lp-btn--outline' }} lp-pricing-card__cta" href="{{ route('plans') }}">Contact sales</a>
