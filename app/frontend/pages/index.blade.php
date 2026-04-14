@@ -25,7 +25,7 @@
     <link rel="preload" href="{{ $lpFaCss }}" as="style" crossorigin="anonymous" />
     <link href="{{ $lpFaCss }}" rel="stylesheet" media="print" onload="this.media='all'" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <noscript><link href="{{ $lpFaCss }}" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer" /></noscript>
-    <link rel="stylesheet" href="{{ asset('assets/css/landing.css') }}" />
+    <link rel="stylesheet" href="{{ asset('assets/css/landing.css') }}?v={{ file_exists(public_path('assets/css/landing.css')) ? filemtime(public_path('assets/css/landing.css')) : '1' }}" />
   </head>
   <body class="lp">
     <header id="lp-header">
@@ -721,6 +721,6 @@
       <script type="application/json" id="lp-checkout-config">@json($landingCheckout)</script>
       @endif
     @endauth
-    <script src="{{ asset('assets/js/landing.js') }}" defer></script>
+    <script src="{{ asset('assets/js/landing.js') }}?v={{ file_exists(public_path('assets/js/landing.js')) ? filemtime(public_path('assets/js/landing.js')) : '1' }}" defer></script>
   </body>
 </html>

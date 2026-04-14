@@ -27,7 +27,7 @@
     <link rel="preload" href="{{ $faCss }}" as="style" crossorigin="anonymous" />
     <link href="{{ $faCss }}" rel="stylesheet" media="print" onload="this.media='all'" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <noscript><link href="{{ $faCss }}" rel="stylesheet" crossorigin="anonymous" referrerpolicy="no-referrer" /></noscript>
-    <link rel="stylesheet" href="{{ asset(app_bundle_css_path()) }}" />
+    <link rel="stylesheet" href="{{ asset(app_bundle_css_path()) }}?v={{ app_bundle_asset_version(app_bundle_css_path()) }}" />
   </head>
   <body class="login-page">
     @yield('content')

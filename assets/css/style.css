@@ -2879,6 +2879,17 @@ a.pill {
   color: var(--text-muted);
 }
 
+.tool-card__form {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.tool-card__label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .tool-card__foot {
   margin-top: auto;
 }

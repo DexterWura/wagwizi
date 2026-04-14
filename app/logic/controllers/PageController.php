@@ -3,10 +3,12 @@
 namespace App\Controllers;
 
 use App\Jobs\QueueTemplatedEmailForUserJob;
+use App\Models\MediaFile;
 use App\Models\Plan;
 use App\Models\PlanChange;
 use App\Models\SiteSetting;
 use App\Models\Subscription;
+use App\Services\Ai\AiOutboundUrlValidator;
 use App\Services\Billing\CurrencyDisplayService;
 use App\Services\Billing\PaymentGatewayConfigService;
 use App\Services\Billing\SubscriptionFulfillmentService;
@@ -28,10 +30,13 @@ use App\Services\Workspace\WorkspaceAccessService;
 use App\Services\Tools\ToolAccessService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -175,6 +180,7 @@ class PageController extends Controller
             $actionUrl = null;
             $actionLabel = null;
             $implemented = false;
+            $isDownload = (string) ($meta['category'] ?? '') === 'Downloads';
 
             if ($slug === 'ai_caption_generator') {
                 $actionUrl = route('composer');
@@ -186,11 +192,6 @@ class PageController extends Controller
                 $implemented = true;
             }
 
-            if (! $implemented) {
-                $actionUrl = route('support-tickets.index', ['tool' => $slug]);
-                $actionLabel = 'Request setup';
-            }
-
             $tools[] = [
                 'slug' => $slug,
                 'label' => (string) ($meta['label'] ?? $slug),
@@ -198,6 +199,7 @@ class PageController extends Controller
                 'enabled' => (bool) ($decision['allowed'] ?? false),
                 'message' => (string) ($decision['message'] ?? ''),
                 'implemented' => $implemented,
+                'is_download' => $isDownload,
                 'action_url' => $actionUrl,
                 'action_label' => $actionLabel,
             ];
@@ -216,6 +218,142 @@ class PageController extends Controller
         return view('tools', [
             'tools' => $tools,
         ]);
+    }
+
+    public function toolDownload(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'tool_slug' => 'required|string|max:120',
+            'media_url' => 'required|url|max:2000',
+        ]);
+
+        $user = Auth::user();
+        $toolAccess = app(ToolAccessService::class);
+        $toolSlug = trim(strtolower($validated['tool_slug']));
+        $catalog = $toolAccess->catalog();
+        $meta = $catalog[$toolSlug] ?? null;
+        if (! is_array($meta) || (($meta['category'] ?? '') !== 'Downloads')) {
+            return back()->with('error', 'This download tool is not available.');
+        }
+
+        $decision = $toolAccess->evaluateUserAccess($user, $toolSlug);
+        if (! ($decision['allowed'] ?? false)) {
+            return back()->with('error', (string) ($decision['message'] ?? 'Your plan does not allow this tool.'));
+        }
+
+        $mediaUrl = (string) $validated['media_url'];
+        try {
+            app(AiOutboundUrlValidator::class)->assertSafeForServerSideHttp($mediaUrl);
+        } catch (\InvalidArgumentException $e) {
+            return back()->withErrors(['media_url' => $e->getMessage()])->withInput();
+        }
+
+        $resp = Http::timeout(45)
+            ->withOptions(['allow_redirects' => true])
+            ->get($mediaUrl);
+
+        if (! $resp->successful()) {
+            return back()->with('error', 'Could not fetch that URL. Please check the link and try again.');
+        }
+
+        $contentLength = (int) ($resp->header('Content-Length') ?? 0);
+        $maxBytes = 50 * 1024 * 1024;
+        if ($contentLength > $maxBytes) {
+            return back()->with('error', 'The file is too large. Maximum size is 50 MB.');
+        }
+
+        $body = $resp->body();
+        $sizeBytes = strlen($body);
+        if ($sizeBytes < 1) {
+            return back()->with('error', 'No media file was returned by that URL.');
+        }
+        if ($sizeBytes > $maxBytes) {
+            return back()->with('error', 'The file is too large. Maximum size is 50 MB.');
+        }
+
+        $rawType = strtolower(trim((string) $resp->header('Content-Type', '')));
+        $mimeType = explode(';', $rawType)[0] ?? '';
+        [$mediaType, $extension] = $this->detectDownloadMediaType($mediaUrl, $mimeType);
+        if ($mediaType === null || $extension === null) {
+            return back()->with('error', 'Unsupported file format. Use a direct image/video URL.');
+        }
+
+        $subDir = $mediaType === 'video' ? 'videos' : 'images';
+        $destinationDir = public_path('assets/uploads/' . $subDir);
+        if (! is_dir($destinationDir)) {
+            @mkdir($destinationDir, 0775, true);
+        }
+        if (! is_dir($destinationDir)) {
+            return back()->with('error', 'Upload directory is not writable.');
+        }
+
+        $fileName = (string) Str::uuid() . '.' . $extension;
+        $fullPath = $destinationDir . DIRECTORY_SEPARATOR . $fileName;
+        if (file_put_contents($fullPath, $body) === false) {
+            return back()->with('error', 'Could not save downloaded media.');
+        }
+
+        $path = 'assets/uploads/' . $subDir . '/' . $fileName;
+        $sourcePath = (string) parse_url($mediaUrl, PHP_URL_PATH);
+        $originalName = basename($sourcePath);
+        if (! is_string($originalName) || trim($originalName) === '' || $originalName === '/' || $originalName === '.') {
+            $originalName = $toolSlug . '-' . now()->format('Ymd-His') . '.' . $extension;
+        }
+
+        MediaFile::create([
+            'user_id' => $user->id,
+            'file_name' => $fileName,
+            'original_name' => $originalName,
+            'disk' => 'local',
+            'path' => $path,
+            'mime_type' => $mimeType !== '' ? $mimeType : ($mediaType === 'video' ? 'video/mp4' : 'image/jpeg'),
+            'size_bytes' => $sizeBytes,
+            'type' => $mediaType,
+            'metadata' => [
+                'source_url' => $mediaUrl,
+                'imported_via_tool' => $toolSlug,
+            ],
+        ]);
+
+        app(UserCacheVersionService::class)->bump((int) $user->id);
+
+        return redirect()->route('media-library')->with('success', 'Media downloaded and added to your library.');
+    }
+
+    /**
+     * @return array{0: ('image'|'video')|null, 1: string|null}
+     */
+    private function detectDownloadMediaType(string $mediaUrl, string $mimeType): array
+    {
+        $mimeMap = [
+            'image/jpeg' => ['image', 'jpg'],
+            'image/png' => ['image', 'png'],
+            'image/gif' => ['image', 'gif'],
+            'image/webp' => ['image', 'webp'],
+            'video/mp4' => ['video', 'mp4'],
+            'video/webm' => ['video', 'webm'],
+            'video/quicktime' => ['video', 'mov'],
+            'video/x-msvideo' => ['video', 'avi'],
+        ];
+        if (isset($mimeMap[$mimeType])) {
+            return $mimeMap[$mimeType];
+        }
+
+        $path = strtolower((string) parse_url($mediaUrl, PHP_URL_PATH));
+        $ext = pathinfo($path, PATHINFO_EXTENSION);
+        $extMap = [
+            'jpg' => ['image', 'jpg'],
+            'jpeg' => ['image', 'jpg'],
+            'png' => ['image', 'png'],
+            'gif' => ['image', 'gif'],
+            'webp' => ['image', 'webp'],
+            'mp4' => ['video', 'mp4'],
+            'webm' => ['video', 'webm'],
+            'mov' => ['video', 'mov'],
+            'avi' => ['video', 'avi'],
+        ];
+
+        return $extMap[$ext] ?? [null, null];
     }
 
     public function composer(): View
