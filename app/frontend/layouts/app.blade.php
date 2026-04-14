@@ -6,7 +6,10 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script>
       (function () {
-        var t = localStorage.getItem("app-theme") || localStorage.getItem("creem-clone-theme");
+        var t = @json(($currentUser ?? null)?->theme_preference);
+        if (t !== "light" && t !== "dark") {
+          t = localStorage.getItem("app-theme") || localStorage.getItem("creem-clone-theme");
+        }
         if (t !== "light" && t !== "dark") {
           t = "light";
         }
@@ -109,6 +112,8 @@
     <script>
       window.__appDisplayTimezones = @json($displayTimezonesMeta ?? []);
       window.__appDefaultDisplayTimezone = @json($defaultDisplayTimezoneIdentifier ?? 'UTC');
+      window.__appThemeFromServer = @json(($currentUser ?? null)?->theme_preference);
+      window.__appThemePersistUrl = @json(($currentUser ?? null) ? route('settings.theme') : null);
     </script>
     <script src="{{ asset(app_bundle_js_path()) }}?v={{ app_bundle_asset_version(app_bundle_js_path()) }}"></script>
     @stack('scripts')

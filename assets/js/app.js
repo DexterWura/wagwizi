@@ -137,23 +137,55 @@
 
   var LEGACY_DISPLAY_TIMEZONE_KEYS = { utc: "UTC", est: "America/New_York", cet: "Europe/Paris" };
 
+  function readServerTheme() {
+    var t = global.__appThemeFromServer;
+    return t === "light" || t === "dark" ? t : null;
+  }
+
+  function hasServerThemePersistence() {
+    return typeof global.__appThemePersistUrl === "string" && !!global.__appThemePersistUrl;
+  }
+
   function readStoredTheme() {
+    var serverTheme = readServerTheme();
+    if (serverTheme) return serverTheme;
     var t = localStorage.getItem(STORAGE.theme) || localStorage.getItem(STORAGE.legacyTheme);
     if (t === "light" || t === "dark") return t;
     if (global.matchMedia && global.matchMedia("(prefers-color-scheme: light)").matches) return "light";
     return "dark";
   }
 
-  function applyTheme(theme) {
+  function persistThemeToServer(theme) {
+    if (theme !== "light" && theme !== "dark") return;
+    var url = hasServerThemePersistence() ? global.__appThemePersistUrl : "";
+    if (!url) return;
+    apiPost(url, { theme_preference: theme })
+      .then(function (res) {
+        if (res && res._ok) {
+          global.__appThemeFromServer = theme;
+        }
+      })
+      .catch(function () {});
+  }
+
+  function applyTheme(theme, options) {
+    options = options || {};
+    var persist = options.persist !== false;
     document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem(STORAGE.theme, theme);
+    if (!hasServerThemePersistence()) {
+      localStorage.setItem(STORAGE.theme, theme);
+    }
     var btn = document.querySelector("[data-app-theme-toggle]");
-    if (!btn) return;
-    btn.setAttribute("aria-label", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
-    var label = btn.querySelector("[data-app-theme-label]");
-    if (label) label.textContent = theme === "dark" ? "Dark" : "Light";
-    var icon = btn.querySelector("[data-app-theme-icon]");
-    if (icon) icon.className = theme === "dark" ? "fa-solid fa-moon" : "fa-solid fa-sun";
+    if (btn) {
+      btn.setAttribute("aria-label", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
+      var label = btn.querySelector("[data-app-theme-label]");
+      if (label) label.textContent = theme === "dark" ? "Dark" : "Light";
+      var icon = btn.querySelector("[data-app-theme-icon]");
+      if (icon) icon.className = theme === "dark" ? "fa-solid fa-moon" : "fa-solid fa-sun";
+    }
+    if (persist && hasServerThemePersistence()) {
+      persistThemeToServer(theme);
+    }
   }
 
   function initTopbarDate() {
@@ -166,7 +198,7 @@
   }
 
   function initTheme() {
-    applyTheme(readStoredTheme());
+    applyTheme(readStoredTheme(), { persist: false });
     var btn = document.querySelector("[data-app-theme-toggle]");
     if (btn) {
       btn.addEventListener("click", function () {
@@ -176,7 +208,7 @@
     }
     if (global.matchMedia) {
       global.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function (e) {
-        if (!localStorage.getItem(STORAGE.theme) && !localStorage.getItem(STORAGE.legacyTheme)) {
+        if (!readServerTheme() && !localStorage.getItem(STORAGE.theme) && !localStorage.getItem(STORAGE.legacyTheme)) {
           applyTheme(e.matches ? "dark" : "light");
         }
       });
@@ -2430,7 +2462,7 @@
 
     var done = {};
     var timers = {};
-    var delayMs = 40;
+    var delayMs = 110;
 
     function prefetchHref(href) {
       if (!href || done[href]) return;
@@ -2475,15 +2507,6 @@
       }, { passive: true });
 
       a.addEventListener("mousedown", function () {
-        prefetchHref(href);
-      });
-    });
-
-    var scheduleIdle = global.requestIdleCallback || function (cb) { return global.setTimeout(cb, 250); };
-    scheduleIdle(function () {
-      links.forEach(function (a) {
-        var href = a.getAttribute("href");
-        if (!href || href.charAt(0) !== "/" || href.charAt(1) === "/") return;
         prefetchHref(href);
       });
     });
@@ -2767,11 +2790,17 @@
             if (global.App && global.App.showFlash) {
               global.App.showFlash(res.message || "Trial started.", "success");
             }
+            if (currentSlug && currentSlug !== planSlug) {
+              appendPlanChangeHistory(currentSlug, planSlug);
+            }
             global.location.reload();
             return;
           }
           if (res._ok) {
             if (status) status.textContent = res.message || "Plan updated.";
+            if (currentSlug && currentSlug !== planSlug) {
+              appendPlanChangeHistory(currentSlug, planSlug);
+            }
             root.setAttribute("data-current-plan-slug", planSlug);
             if (global.App && global.App.showFlash) global.App.showFlash(res.message || "Plan updated.");
             clearPlansCheckoutBusy();

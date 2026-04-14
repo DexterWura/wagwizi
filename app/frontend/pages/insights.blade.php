@@ -100,8 +100,30 @@
                 <span>Reach &amp; impressions</span>
                 <button type="button" class="btn btn--ghost btn--compact" data-app-modal-open="modal-insights-range">Adjust range</button>
               </div>
+              @php
+                $trendScores = array_values($audienceInsights->weekdayScores ?? []);
+                if (count($trendScores) !== 7) {
+                    $trendScores = array_fill(0, 7, 0);
+                }
+                $chartWidth = 480;
+                $chartHeight = 168;
+                $chartBaseline = 140;
+                $chartTop = 36;
+                $chartRange = $chartBaseline - $chartTop;
+                $pointCount = count($trendScores);
+                $stepX = $pointCount > 1 ? $chartWidth / ($pointCount - 1) : 0;
+                $trendPoints = [];
+                foreach ($trendScores as $idx => $score) {
+                    $score = max(0, min(100, (int) $score));
+                    $x = (int) round($idx * $stepX);
+                    $y = (int) round($chartBaseline - (($score / 100) * $chartRange));
+                    $trendPoints[] = $x . ',' . $y;
+                }
+                $trendPolyline = implode(' ', $trendPoints);
+                $trendArea = 'M0,' . $chartBaseline . ' L' . implode(' L', $trendPoints) . ' L' . $chartWidth . ',' . $chartBaseline . ' Z';
+              @endphp
               <div class="insights-chart-area">
-                <svg class="insights-chart-area__svg" viewBox="0 0 480 168" role="img" aria-label="Reach and impressions trend (sample data)">
+                <svg class="insights-chart-area__svg" viewBox="0 0 480 168" role="img" aria-label="Reach and impressions trend">
                   <defs>
                     <linearGradient id="insights-reach-fill" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stop-color="#6366f1" stop-opacity="0.45" />
@@ -113,13 +135,13 @@
                     </linearGradient>
                   </defs>
                   <line class="insights-chart-area__baseline" x1="0" y1="140" x2="480" y2="140" stroke-width="1" />
-                  <path fill="url(#insights-reach-fill)" d="M0,140 L0,102 L40,88 L80,96 L120,72 L160,86 L200,58 L240,68 L280,52 L320,62 L360,44 L400,50 L440,38 L480,42 L480,140 Z" />
-                  <polyline fill="none" stroke="url(#insights-imp-stroke)" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" points="0,102 40,88 80,96 120,72 160,86 200,58 240,68 280,52 320,62 360,44 400,50 440,38 480,42" />
+                  <path fill="url(#insights-reach-fill)" d="{{ $trendArea }}" />
+                  <polyline fill="none" stroke="url(#insights-imp-stroke)" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" points="{{ $trendPolyline }}" />
                 </svg>
                 <div class="insights-chart-area__axis">
-                  <span>Week 1</span><span>Week 2</span><span>Week 3</span><span>Week 4</span>
+                  <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
                 </div>
-                <p class="insights-chart-footnote">Sample trend — connect accounts for live series.</p>
+                <p class="insights-chart-footnote">Trend is based on your activity in the selected range.</p>
               </div>
             </div>
             <div class="card">

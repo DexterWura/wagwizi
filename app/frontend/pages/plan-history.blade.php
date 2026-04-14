@@ -13,7 +13,7 @@
                 </div>
                 <div>
                   <h1>Plan history</h1>
-                  <p>Recorded tier changes from this browser. Invoices and payment receipts require your billing backend.</p>
+                  <p>View your plan change history here. For invoices and payment receipts, visit your billing settings.</p>
                 </div>
               </div>
             </div>
@@ -48,7 +48,7 @@
             <div class="table-empty" data-app-plan-history-empty>
               <i class="fa-solid fa-receipt" aria-hidden="true"></i>
               <h3>No plan changes yet</h3>
-              <p>When you switch tiers on the Plans page, your history will show up here. This demo stores rows in local storage only.</p>
+              <p>When you switch tiers on the Plans page, your history will show up here.</p>
               <a class="btn btn--primary" href="{{ route('plans') }}">Go to Plans</a>
             </div>
           </div>

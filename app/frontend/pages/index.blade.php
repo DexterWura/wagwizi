@@ -43,7 +43,8 @@
             <a class="lp-btn lp-btn--primary" href="{{ route('dashboard') }}">Dashboard</a>
           @else
             <a class="lp-btn lp-btn--ghost" href="{{ route('login') }}">Sign in</a>
-            <a class="lp-btn lp-btn--primary" href="{{ route('signup') }}">Get started</a>
+            <a class="lp-btn lp-btn--primary lp-header__cta-mobile" href="{{ route('login') }}">Log in</a>
+            <a class="lp-btn lp-btn--primary lp-header__cta-desktop" href="{{ route('signup') }}">Get started</a>
           @endauth
           <button type="button" class="lp-nav-toggle" data-lp-nav-toggle aria-expanded="false" aria-controls="lp-nav-panel" aria-label="Open menu">
             <i class="fa-solid fa-bars" aria-hidden="true"></i>
@@ -485,6 +486,22 @@
               </div>
               @endif
               <h3 class="lp-pricing-card__name">{{ $plan->name }}</h3>
+              @php
+                $supportedPlatforms = $planSupportedPlatforms[$plan->slug] ?? [];
+                $visiblePlatforms = array_slice($supportedPlatforms, 0, 6);
+              @endphp
+              @if(count($visiblePlatforms) > 0)
+              <div class="lp-pricing-card__platforms" aria-label="Supported platforms">
+                @foreach($visiblePlatforms as $platform)
+                <span class="lp-pricing-card__platform" title="{{ $platform->label() }}">
+                  <i class="{{ $platform->icon() }}" aria-hidden="true"></i>
+                </span>
+                @endforeach
+                @if(count($supportedPlatforms) > count($visiblePlatforms))
+                <span class="lp-pricing-card__platform lp-pricing-card__platform--more">+{{ count($supportedPlatforms) - count($visiblePlatforms) }}</span>
+                @endif
+              </div>
+              @endif
               <p class="lp-pricing-card__price">
                 <span class="lp-pricing-card__amount">
                   <span class="lp-pricing-card__currency">{{ $currencyDisplay->symbol($currencyDisplay->defaultCurrency()) }}</span><span data-lp-price-amount>{{ $isLifetime ? $oneTimeAmount : $monthly }}</span>

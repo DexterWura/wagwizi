@@ -33,6 +33,7 @@ class User extends Authenticatable
         'phone',
         'bio',
         'timezone',
+        'theme_preference',
         'locale',
         'workspace_name',
         'default_posting_time',

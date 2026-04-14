@@ -158,6 +158,22 @@
               </div>
               @endif
               <h2 class="plan-card__name">{{ $plan->name }}</h2>
+              @php
+                $supportedPlatforms = $planSupportedPlatforms[$plan->slug] ?? [];
+                $visiblePlatforms = array_slice($supportedPlatforms, 0, 6);
+              @endphp
+              @if(count($visiblePlatforms) > 0)
+              <div class="plan-card__platforms" aria-label="Supported platforms">
+                @foreach($visiblePlatforms as $platform)
+                <span class="plan-card__platform" title="{{ $platform->label() }}">
+                  <i class="{{ $platform->icon() }}" aria-hidden="true"></i>
+                </span>
+                @endforeach
+                @if(count($supportedPlatforms) > count($visiblePlatforms))
+                <span class="plan-card__platform plan-card__platform--more">+{{ count($supportedPlatforms) - count($visiblePlatforms) }}</span>
+                @endif
+              </div>
+              @endif
               <span class="plan-card__price"><span data-plan-price-line>{{ $price }}</span>@if($plan->slug !== 'enterprise')<span class="plan-card__cycle" data-plan-cycle-line>{{ $cycleText }}</span>@endif</span>
               @if($plan->freeTrialSummary())
               <p class="plan-card__trial"><i class="fa-solid fa-gift" aria-hidden="true"></i> {{ $plan->freeTrialSummary() }}</p>

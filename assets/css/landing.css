@@ -136,11 +136,12 @@ body.lp {
 }
 
 .lp-checkout-status {
-  margin: 0.85rem 0 0;
+  margin: 0.85rem auto 0;
   font-size: 0.92rem;
   line-height: 1.45;
   color: var(--lp-muted);
   max-width: 42rem;
+  text-align: center;
 }
 
 .lp-checkout-status.is-animating {
@@ -286,6 +287,10 @@ body.lp {
   padding: 0.45rem 0.9rem;
 }
 
+.lp-header__cta-desktop {
+  display: none;
+}
+
 @media (min-width: 960px) {
   .lp-header__actions {
     gap: 0.75rem;
@@ -298,6 +303,14 @@ body.lp {
   .lp-header__actions .lp-btn--primary {
     font-size: 0.9rem;
     padding: 0.55rem 1.1rem;
+  }
+
+  .lp-header__cta-mobile {
+    display: none;
+  }
+
+  .lp-header__cta-desktop {
+    display: inline-flex;
   }
 }
 
@@ -2063,6 +2076,34 @@ section#resources .lp-wrap {
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.lp-pricing-card__platforms {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.55rem;
+}
+
+.lp-pricing-card__platform {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--lp-border);
+  color: var(--lp-muted);
+  background: rgba(15, 23, 42, 0.35);
+  font-size: 0.8rem;
+}
+
+.lp-pricing-card__platform--more {
+  width: auto;
+  padding: 0 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 
 .lp-pricing-card__price {

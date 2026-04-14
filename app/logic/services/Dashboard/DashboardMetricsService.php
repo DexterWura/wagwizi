@@ -203,7 +203,9 @@ final class DashboardMetricsService
     }
 
     /**
-     * Engagement rate = (likes + comments + reposts) / impressions on published posts in the dashboard window.
+     * Engagement card metric for published posts in the dashboard window.
+     * Prefers classic engagement rate when impressions exist, and falls back
+     * to average interactions/post when APIs omit impression fields.
      *
      * @return array{0: string|null, 1: string}
      */
@@ -241,29 +243,50 @@ final class DashboardMetricsService
 
         $row = $q->selectRaw(
             'SUM(COALESCE(post_platforms.impressions_count, 0)) as imp, '
-            . 'SUM(COALESCE(post_platforms.likes_count, 0) + COALESCE(post_platforms.comments_count, 0) + COALESCE(post_platforms.reposts_count, 0)) as eng'
+            . 'SUM(COALESCE(post_platforms.likes_count, 0) + COALESCE(post_platforms.comments_count, 0) + COALESCE(post_platforms.reposts_count, 0)) as eng, '
+            . 'COUNT(*) as row_count, '
+            . 'SUM(CASE WHEN post_platforms.impressions_count IS NOT NULL THEN 1 ELSE 0 END) as rows_with_impressions, '
+            . 'SUM(CASE WHEN post_platforms.likes_count IS NOT NULL OR post_platforms.comments_count IS NOT NULL OR post_platforms.reposts_count IS NOT NULL THEN 1 ELSE 0 END) as rows_with_interaction_fields'
         )->first();
 
         $impressions = (int) ($row->imp ?? 0);
         $engagement = (int) ($row->eng ?? 0);
+        $rowCount = max(0, (int) ($row->row_count ?? 0));
+        $rowsWithImpressions = max(0, (int) ($row->rows_with_impressions ?? 0));
+        $rowsWithInteractionFields = max(0, (int) ($row->rows_with_interaction_fields ?? 0));
 
         $periodHint = $this->engagementRatePeriodHint($range);
 
-        if ($impressions <= 0 && $engagement <= 0) {
+        if ($rowCount <= 0) {
             return [null, 'No analytics yet for published posts '.$periodHint];
         }
 
-        if ($impressions <= 0) {
-            return [null, 'Engagement recorded; impression counts needed for a rate '.$periodHint];
+        if ($impressions > 0) {
+            $pct = round(($engagement / $impressions) * 100, 1);
+            $display = $this->formatEngagementRatePercent($pct);
+
+            return [
+                $display,
+                'Reactions ÷ impressions on published posts '.$periodHint,
+            ];
         }
 
-        $pct = round(($engagement / $impressions) * 100, 1);
-        $display = $this->formatEngagementRatePercent($pct);
+        // Fallback for platforms/APIs that return likes/comments/reposts but no impressions.
+        if ($rowsWithImpressions === 0 && $rowsWithInteractionFields > 0) {
+            $avgInteractions = $rowCount > 0 ? round($engagement / $rowCount, 1) : 0.0;
+            $display = $this->formatInteractionsPerPost($avgInteractions);
 
-        return [
-            $display,
-            'Reactions ÷ impressions on published posts '.$periodHint,
-        ];
+            return [
+                $display,
+                'Avg interactions per published post (impressions unavailable) '.$periodHint,
+            ];
+        }
+
+        if ($rowsWithImpressions > 0) {
+            return ['0%', 'Reactions ÷ impressions on published posts '.$periodHint];
+        }
+
+        return [null, 'Analytics fields are not available from connected networks '.$periodHint];
     }
 
     private function engagementRatePeriodHint(string $range): string
@@ -287,6 +310,18 @@ final class DashboardMetricsService
         }
 
         return rtrim(rtrim(number_format($pct, 1, '.', ''), '0'), '.').'%';
+    }
+
+    private function formatInteractionsPerPost(float $value): string
+    {
+        if (! is_finite($value)) {
+            return '0 / post';
+        }
+        if (abs($value - round($value)) < 0.05) {
+            return ((int) round($value)).' / post';
+        }
+
+        return rtrim(rtrim(number_format($value, 1, '.', ''), '0'), '.').' / post';
     }
 
     /**

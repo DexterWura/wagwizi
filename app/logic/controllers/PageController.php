@@ -42,6 +42,12 @@ class PageController extends Controller
         $enabledPlatforms = $registry->enabledPlatforms();
         $testimonials = PublicCatalogCache::activeTestimonials();
         $plans        = PublicCatalogCache::activePlans();
+        $planSupportedPlatforms = [];
+        foreach ($plans as $plan) {
+            $planSupportedPlatforms[$plan->slug] = array_values(
+                array_filter($enabledPlatforms, static fn (Platform $p): bool => $plan->allowsPlatform($p->value))
+            );
+        }
         $faqs         = PublicCatalogCache::activeFaqs();
 
         $heroEyebrow = trim((string) SiteSetting::get('hero_eyebrow', ''));
@@ -104,7 +110,8 @@ class PageController extends Controller
             'currencyDisplay',
             'user',
             'subscriptionAccess',
-            'landingCheckout'
+            'landingCheckout',
+            'planSupportedPlatforms'
         ));
     }
 
@@ -357,8 +364,16 @@ class PageController extends Controller
         $user->loadMissing('subscription.planModel');
         $subscription = $user->subscription;
         $plans        = PublicCatalogCache::activePlans();
+        $registry     = app(PlatformRegistry::class);
+        $enabledPlatforms = $registry->enabledPlatforms();
         $gatewayCfg   = app(PaymentGatewayConfigService::class);
         $fulfillment  = app(SubscriptionFulfillmentService::class);
+        $planSupportedPlatforms = [];
+        foreach ($plans as $plan) {
+            $planSupportedPlatforms[$plan->slug] = array_values(
+                array_filter($enabledPlatforms, static fn (Platform $p): bool => $plan->allowsPlatform($p->value))
+            );
+        }
 
         $paidPlanSlugs = $plans->filter(static fn (Plan $p): bool => $fulfillment->requiresOnlinePayment($p))
             ->pluck('slug')
@@ -395,6 +410,7 @@ class PageController extends Controller
             'freePlanSlug'                  => $freePlanSlug,
             'anyYearlyOffers'               => $anyYearlyOffers,
             'currentPlanBillingInterval'    => $currentPlanBillingInterval,
+            'planSupportedPlatforms'        => $planSupportedPlatforms,
         ]);
     }
 

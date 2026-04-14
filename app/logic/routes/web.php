@@ -121,6 +121,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/workspace/invite/confirm', [WorkspaceController::class, 'confirmInviteAcceptance'])->name('workspace.invite.confirm');
     Route::post('/settings/notifications', [SettingsController::class, 'updateNotifications'])->name('settings.notifications');
     Route::post('/settings/default-time',  [SettingsController::class, 'updateDefaultTime'])->name('settings.default-time');
+    Route::post('/settings/theme',         [SettingsController::class, 'updateTheme'])->name('settings.theme');
     Route::post('/settings/ai',            [SettingsController::class, 'updateAiSettings'])
         ->middleware('throttle:20,1')
         ->name('settings.ai');

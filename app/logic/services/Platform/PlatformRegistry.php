@@ -10,6 +10,8 @@ class PlatformRegistry
 {
     /** @var array<string, PlatformAdapterInterface> */
     private array $adapters = [];
+    /** @var string[]|null */
+    private ?array $cachedAdminEnabledSlugs = null;
 
     public function register(PlatformAdapterInterface $adapter): void
     {
@@ -94,10 +96,16 @@ class PlatformRegistry
     /** @return string[] */
     private function adminEnabledSlugs(): array
     {
-        try {
-            return SiteSetting::getJson('enabled_platforms', []);
-        } catch (\Throwable) {
-            return [];
+        if (is_array($this->cachedAdminEnabledSlugs)) {
+            return $this->cachedAdminEnabledSlugs;
         }
+
+        try {
+            $this->cachedAdminEnabledSlugs = SiteSetting::getJson('enabled_platforms', []);
+        } catch (\Throwable) {
+            $this->cachedAdminEnabledSlugs = [];
+        }
+
+        return $this->cachedAdminEnabledSlugs;
     }
 }

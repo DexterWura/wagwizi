@@ -86,6 +86,23 @@ class SettingsController extends Controller
         ]);
     }
 
+    public function updateTheme(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'theme_preference' => 'required|string|in:light,dark',
+        ]);
+
+        $user = Auth::user();
+        $user->update([
+            'theme_preference' => $validated['theme_preference'],
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Theme preference saved.',
+        ]);
+    }
+
     public function updateAiSettings(Request $request): JsonResponse
     {
         $validated = $request->validate([

@@ -6164,6 +6164,34 @@ button.link-create {
   letter-spacing: -0.02em;
 }
 
+.plan-card__platforms {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.55rem;
+}
+
+.plan-card__platform {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: var(--bg-soft);
+  font-size: 0.8rem;
+}
+
+.plan-card__platform--more {
+  width: auto;
+  padding: 0 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
 .plan-card__price {
   display: block;
   margin-bottom: 0.5rem;
