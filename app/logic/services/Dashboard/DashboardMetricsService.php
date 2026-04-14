@@ -500,12 +500,23 @@ final class DashboardMetricsService
 
     private function facebookAudience(SocialAccount $account): ?int
     {
+        $metadata = is_array($account->metadata) ? $account->metadata : [];
+        $accountType = strtolower(trim((string) ($metadata['account_type'] ?? 'page')));
+        if ($accountType !== 'page') {
+            return $this->metadataAudience($account);
+        }
+
         $pageId = trim((string) $account->platform_user_id);
         if ($pageId === '') {
             return $this->metadataAudience($account);
         }
 
-        $resp = Http::withToken($account->access_token)
+        $pageToken = trim((string) ($metadata['page_access_token'] ?? ''));
+        if ($pageToken === '') {
+            $pageToken = (string) $account->access_token;
+        }
+
+        $resp = Http::withToken($pageToken)
             ->timeout(12)
             ->acceptJson()
             ->get("https://graph.facebook.com/v21.0/{$pageId}", [
@@ -570,6 +581,33 @@ final class DashboardMetricsService
 
     private function linkedinAudience(SocialAccount $account): ?int
     {
+        $metadata = is_array($account->metadata) ? $account->metadata : [];
+        $accountType = strtolower(trim((string) ($metadata['account_type'] ?? 'person')));
+        $authorUrn = trim((string) ($metadata['author_urn'] ?? ''));
+        if ($authorUrn === '') {
+            $id = trim((string) $account->platform_user_id);
+            $authorUrn = $accountType === 'organization'
+                ? "urn:li:organization:{$id}"
+                : "urn:li:person:{$id}";
+        }
+
+        if ($accountType === 'organization') {
+            $resp = Http::withToken($account->access_token)
+                ->timeout(12)
+                ->acceptJson()
+                ->withHeaders($this->linkedInHeaders())
+                ->get('https://api.linkedin.com/v2/networkSizes/' . rawurlencode($authorUrn), [
+                    'edgeType' => 'CompanyFollowedByMember',
+                ]);
+
+            if ($resp->successful()) {
+                $count = $resp->json('firstDegreeSize');
+                if (is_numeric($count)) {
+                    return (int) $count;
+                }
+            }
+        }
+
         $resp = Http::withToken($account->access_token)
             ->timeout(12)
             ->acceptJson()

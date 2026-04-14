@@ -17,7 +17,7 @@ class CronController extends Controller
 
     public function run(Request $request): JsonResponse
     {
-        $secret = $request->header('X-Cron-Secret') ?? $request->input('token');
+        $secret = $request->header('X-Cron-Secret');
 
         $expected = $this->cronSecretResolver->get();
 

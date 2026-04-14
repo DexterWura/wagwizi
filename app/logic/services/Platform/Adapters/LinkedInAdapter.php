@@ -33,7 +33,11 @@ class LinkedInAdapter extends AbstractPlatformAdapter
         if ($error = $this->validateAccount($account)) return $error;
 
         $text     = $this->resolveContent($content, $platformContent);
-        $authorId = $account->platform_user_id;
+        $authorUrn = $this->linkedInAuthorUrn($account);
+        if ($authorUrn === null) {
+            return PublishResult::fail('LinkedIn destination is misconfigured. Reconnect this account.');
+        }
+        $ownerUrn = $this->linkedInOwnerUrn($account, $authorUrn);
 
         if (trim($text) === '' && empty($mediaUrls)) {
             return PublishResult::fail('LinkedIn post cannot be empty.');
@@ -48,7 +52,7 @@ class LinkedInAdapter extends AbstractPlatformAdapter
             }
         }
 
-        $payload = $this->buildUgcPostPayload($authorId, $text, $mediaUrls, $account, $audience);
+        $payload = $this->buildUgcPostPayload($authorUrn, $ownerUrn, $text, $mediaUrls, $account, $audience);
 
         $response = $this->httpClient($account)
             ->withHeaders($this->linkedInHeaders())
@@ -70,7 +74,7 @@ class LinkedInAdapter extends AbstractPlatformAdapter
         return $this->failFromResponse($response);
     }
 
-    private function buildUgcPostPayload(string $authorId, string $text, array $mediaUrls, SocialAccount $account, ?string $audience): array
+    private function buildUgcPostPayload(string $authorUrn, string $ownerUrn, string $text, array $mediaUrls, SocialAccount $account, ?string $audience): array
     {
         $shareMediaCategory = 'NONE';
         $mediaPayload = [];
@@ -79,7 +83,7 @@ class LinkedInAdapter extends AbstractPlatformAdapter
             $shareMediaCategory = 'IMAGE';
 
             foreach ($mediaUrls as $url) {
-                $asset = $this->registerAndUploadImage($account, $authorId, $url);
+                $asset = $this->registerAndUploadImage($account, $ownerUrn, $url);
                 if ($asset !== null) {
                     $mediaPayload[] = [
                         'status' => 'READY',
@@ -96,7 +100,7 @@ class LinkedInAdapter extends AbstractPlatformAdapter
         }
 
         $payload = [
-            'author'         => "urn:li:person:{$authorId}",
+            'author'         => $authorUrn,
             'lifecycleState' => 'PUBLISHED',
             'specificContent' => [
                 'com.linkedin.ugc.ShareContent' => [
@@ -124,14 +128,14 @@ class LinkedInAdapter extends AbstractPlatformAdapter
         };
     }
 
-    private function registerAndUploadImage(SocialAccount $account, string $authorId, string $imageUrl): ?string
+    private function registerAndUploadImage(SocialAccount $account, string $ownerUrn, string $imageUrl): ?string
     {
         $initResponse = $this->httpClient($account)
             ->withHeaders($this->linkedInHeaders())
             ->post('/v2/assets?action=registerUpload', [
                 'registerUploadRequest' => [
                     'recipes' => ['urn:li:digitalmediaRecipe:feedshare-image'],
-                    'owner' => "urn:li:person:{$authorId}",
+                    'owner' => $ownerUrn,
                     'serviceRelationships' => [[
                         'relationshipType' => 'OWNER',
                         'identifier' => 'urn:li:userGeneratedContent',
@@ -256,12 +260,10 @@ class LinkedInAdapter extends AbstractPlatformAdapter
             return false;
         }
 
-        $actorId = trim((string) $account->platform_user_id);
-        if ($actorId === '') {
+        $actorUrn = $this->linkedInAuthorUrn($account);
+        if ($actorUrn === null) {
             return false;
         }
-
-        $actorUrn = "urn:li:person:{$actorId}";
         $encodedTarget = rawurlencode($target);
 
         // LinkedIn comment APIs can vary by app/version; try known-compatible shapes.
@@ -372,5 +374,37 @@ class LinkedInAdapter extends AbstractPlatformAdapter
         }
 
         return $headers;
+    }
+
+    private function linkedInAuthorUrn(SocialAccount $account): ?string
+    {
+        $metadata = is_array($account->metadata) ? $account->metadata : [];
+        $stored = trim((string) ($metadata['author_urn'] ?? ''));
+        if ($stored !== '' && str_starts_with($stored, 'urn:li:')) {
+            return $stored;
+        }
+
+        $id = trim((string) $account->platform_user_id);
+        if ($id === '') {
+            return null;
+        }
+
+        $accountType = strtolower(trim((string) ($metadata['account_type'] ?? 'person')));
+        if ($accountType === 'organization') {
+            return "urn:li:organization:{$id}";
+        }
+
+        return "urn:li:person:{$id}";
+    }
+
+    private function linkedInOwnerUrn(SocialAccount $account, string $fallback): string
+    {
+        $metadata = is_array($account->metadata) ? $account->metadata : [];
+        $stored = trim((string) ($metadata['owner_urn'] ?? ''));
+        if ($stored !== '' && str_starts_with($stored, 'urn:li:')) {
+            return $stored;
+        }
+
+        return $fallback;
     }
 }

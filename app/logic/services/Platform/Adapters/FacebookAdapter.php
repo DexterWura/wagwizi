@@ -31,9 +31,13 @@ class FacebookAdapter extends AbstractPlatformAdapter
         ?string       $audience = null,
     ): PublishResult {
         if ($error = $this->validateAccount($account)) return $error;
+        $publishingAccount = $this->facebookPublishingAccount($account);
+        if ($publishingAccount === null) {
+            return PublishResult::fail('Facebook destination must be a page. Reconnect and choose a Facebook Page.');
+        }
 
         $text   = $this->resolveContent($content, $platformContent);
-        $pageId = $account->platform_user_id;
+        $pageId = $publishingAccount->platform_user_id;
 
         if (trim($text) === '' && empty($mediaUrls)) {
             return PublishResult::fail('Facebook post cannot be empty.');
@@ -48,13 +52,13 @@ class FacebookAdapter extends AbstractPlatformAdapter
         if (!empty($mediaUrls)) {
             $firstMedia = $mediaUrls[0];
             if ($this->isVideoUrl($firstMedia)) {
-                return $this->publishWithVideo($account, $pageId, $text, $firstMedia);
+                return $this->publishWithVideo($publishingAccount, $pageId, $text, $firstMedia);
             }
 
-            return $this->publishWithPhoto($account, $pageId, $text, $firstMedia);
+            return $this->publishWithPhoto($publishingAccount, $pageId, $text, $firstMedia);
         }
 
-        $response = $this->httpClient($account)
+        $response = $this->httpClient($publishingAccount)
             ->post("/{$pageId}/feed", [
                 'message' => $text,
             ]);
@@ -166,13 +170,18 @@ class FacebookAdapter extends AbstractPlatformAdapter
 
     public function publishComment(SocialAccount $account, string $platformPostId, string $comment): bool
     {
+        $publishingAccount = $this->facebookPublishingAccount($account);
+        if ($publishingAccount === null) {
+            return false;
+        }
+
         $message = trim($comment);
-        $targetPostId = $this->normalizePostTarget($account, $platformPostId);
+        $targetPostId = $this->normalizePostTarget($publishingAccount, $platformPostId);
         if ($message === '' || $targetPostId === null) {
             return false;
         }
 
-        $response = $this->httpClient($account)->post("/{$targetPostId}/comments", [
+        $response = $this->httpClient($publishingAccount)->post("/{$targetPostId}/comments", [
             'message' => $message,
         ]);
 
@@ -217,5 +226,23 @@ class FacebookAdapter extends AbstractPlatformAdapter
     {
         $ext = strtolower(pathinfo(parse_url($url, PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
         return in_array($ext, ['mp4', 'mov', 'avi', 'wmv', 'webm', 'mkv'], true);
+    }
+
+    private function facebookPublishingAccount(SocialAccount $account): ?SocialAccount
+    {
+        $metadata = is_array($account->metadata) ? $account->metadata : [];
+        $accountType = strtolower(trim((string) ($metadata['account_type'] ?? 'page')));
+        if ($accountType !== 'page') {
+            return null;
+        }
+
+        $pageToken = trim((string) ($metadata['page_access_token'] ?? ''));
+        if ($pageToken === '') {
+            return $account;
+        }
+
+        $copy = clone $account;
+        $copy->access_token = $pageToken;
+        return $copy;
     }
 }

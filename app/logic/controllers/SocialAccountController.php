@@ -15,11 +15,15 @@ use App\Services\SocialAccount\SocialAccountLimitService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Laravel\Socialite\Facades\Socialite;
+use Illuminate\View\View;
 
 class SocialAccountController extends Controller
 {
+    private const DESTINATION_SELECTION_SESSION_KEY = 'oauth_destination_selection';
+
     public function __construct(
         private readonly AccountLinkingService $linkingService,
         private readonly PlatformRegistry      $registry,
@@ -130,7 +134,7 @@ class SocialAccountController extends Controller
                 }
 
                 if ($platformEnum === Platform::LinkedIn) {
-                    $this->handleLinkedInOAuthCallback($request);
+                    return $this->handleLinkedInOAuthCallback($request);
                 } else {
                     $socialUser = $this->socialiteForAccountLinking($platformEnum)->user();
                     $platformUserId = $this->extractSocialUserId($socialUser, $platformEnum);
@@ -152,6 +156,19 @@ class SocialAccountController extends Controller
 
                     $storedScopes = config("platforms.{$platform}.scopes", []);
                     $storedScopes = is_array($storedScopes) ? $storedScopes : null;
+
+                    if ($platformEnum === Platform::Facebook) {
+                        return $this->beginFacebookDestinationSelection(
+                            accessToken: $accessToken,
+                            refreshToken: $socialUser->refreshToken ?? ($rawUser['refresh_token'] ?? null),
+                            expiresIn: isset($socialUser->expiresIn) ? (int) $socialUser->expiresIn : null,
+                            oauthUserId: $platformUserId,
+                            oauthUsername: $username,
+                            oauthDisplayName: $displayName,
+                            oauthAvatarUrl: $socialUser->getAvatar(),
+                            scopes: $storedScopes,
+                        );
+                    }
 
                     $this->linkingService->linkAccount(
                         user:           Auth::user(),
@@ -538,9 +555,126 @@ class SocialAccountController extends Controller
         }
     }
 
+    public function destinations(Request $request, string $platform): View|RedirectResponse
+    {
+        $platformEnum = $this->resolvePlatform($platform);
+        if (!in_array($platformEnum, [Platform::Facebook, Platform::LinkedIn], true)) {
+            return redirect()->route('accounts')->with('error', 'This platform does not require destination selection.');
+        }
+
+        $pending = $this->pullPendingDestinationSelection($platformEnum, false);
+        if ($pending === null) {
+            return redirect()->route('accounts')->with('error', 'No pending destination selection found. Please reconnect your account.');
+        }
+
+        return view('accounts-destinations', [
+            'platform' => $platformEnum,
+            'destinations' => $pending['destinations'],
+        ]);
+    }
+
+    public function storeDestinations(Request $request, string $platform): RedirectResponse
+    {
+        $platformEnum = $this->resolvePlatform($platform);
+        if (!in_array($platformEnum, [Platform::Facebook, Platform::LinkedIn], true)) {
+            return redirect()->route('accounts')->with('error', 'This platform does not require destination selection.');
+        }
+
+        $pending = $this->pullPendingDestinationSelection($platformEnum, false);
+        if ($pending === null) {
+            return redirect()->route('accounts')->with('error', 'Your destination selection expired. Please reconnect your account.');
+        }
+
+        $validated = $request->validate([
+            'destinations' => ['required', 'array', 'min:1'],
+            'destinations.*' => ['string'],
+        ]);
+
+        $available = [];
+        foreach ($pending['destinations'] as $destination) {
+            if (is_array($destination) && isset($destination['key']) && is_string($destination['key'])) {
+                $available[$destination['key']] = $destination;
+            }
+        }
+
+        $selected = [];
+        foreach (array_unique($validated['destinations']) as $key) {
+            if (isset($available[$key])) {
+                $selected[] = $available[$key];
+            }
+        }
+
+        if ($selected === []) {
+            return redirect()
+                ->route('accounts.destinations', ['platform' => $platformEnum->value])
+                ->with('error', 'Select at least one destination to connect.');
+        }
+
+        $linked = 0;
+        $destinationTokens = is_array($pending['destination_tokens'] ?? null) ? $pending['destination_tokens'] : [];
+        foreach ($selected as $destination) {
+            $destinationKey = trim((string) ($destination['key'] ?? ''));
+            $mappedToken = $destinationKey !== '' ? ($destinationTokens[$destinationKey] ?? null) : null;
+            $accessToken = trim((string) ($mappedToken ?? $destination['access_token'] ?? ''));
+            $platformUserId = trim((string) ($destination['platform_user_id'] ?? ''));
+
+            if ($accessToken === '' || $platformUserId === '') {
+                continue;
+            }
+
+            $this->linkingService->linkAccount(
+                user: Auth::user(),
+                platform: $platformEnum,
+                platformUserId: $platformUserId,
+                accessToken: $accessToken,
+                refreshToken: $pending['refresh_token'] ?? null,
+                username: $destination['username'] ?? null,
+                displayName: $destination['display_name'] ?? null,
+                avatarUrl: $destination['avatar_url'] ?? null,
+                scopes: is_array($pending['scopes'] ?? null) ? $pending['scopes'] : null,
+                expiresAt: isset($pending['expires_at']) && is_string($pending['expires_at'])
+                    ? \Carbon\Carbon::parse($pending['expires_at'])
+                    : null,
+                metadata: is_array($destination['metadata'] ?? null) ? $destination['metadata'] : [],
+            );
+            $linked++;
+        }
+
+        $this->pullPendingDestinationSelection($platformEnum, true);
+
+        if ($linked < 1) {
+            return redirect()->route('accounts')->with('error', 'No valid destinations were selected. Please reconnect and try again.');
+        }
+
+        return redirect()->route('accounts')->with('success', $platformEnum->label() . " connected ({$linked} destination(s)).");
+    }
+
     private function resolvePlatform(string $slug): ?Platform
     {
         return Platform::tryFrom($slug);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function pullPendingDestinationSelection(Platform $platform, bool $forget): ?array
+    {
+        $all = session(self::DESTINATION_SELECTION_SESSION_KEY, []);
+        if (!is_array($all)) {
+            return null;
+        }
+
+        $pending = $all[$platform->value] ?? null;
+        if (!is_array($pending)) {
+            return null;
+        }
+
+        if ($forget) {
+            unset($all[$platform->value]);
+            session([self::DESTINATION_SELECTION_SESSION_KEY => $all]);
+        }
+
+        return $pending;
     }
 
     private function isSocialiteSupported(Platform $platform): bool
@@ -836,7 +970,7 @@ class SocialAccountController extends Controller
      * LinkedIn callback is handled explicitly to avoid provider edge-cases where
      * token exchange may be attempted without the callback code.
      */
-    private function handleLinkedInOAuthCallback(Request $request): void
+    private function handleLinkedInOAuthCallback(Request $request): RedirectResponse
     {
         if ($request->has('error')) {
             $desc = $request->input('error_description', $request->input('error'));
@@ -922,20 +1056,294 @@ class SocialAccountController extends Controller
             throw new \InvalidArgumentException('Could not read your LinkedIn account ID from OAuth response. Please reconnect.');
         }
 
-        $this->linkingService->linkAccount(
-            user:           Auth::user(),
-            platform:       Platform::LinkedIn,
-            platformUserId: $platformUserId,
-            accessToken:    $accessToken,
-            refreshToken:   $tokenData['refresh_token'] ?? null,
-            username:       $username,
-            displayName:    $displayName !== null && trim($displayName) !== '' ? $displayName : ($username ?? 'LinkedIn Account'),
-            avatarUrl:      $avatarUrl,
-            scopes:         $storedScopes,
-            expiresAt:      isset($tokenData['expires_in'])
-                ? now()->addSeconds((int) $tokenData['expires_in'])
-                : null,
+        return $this->beginLinkedInDestinationSelection(
+            accessToken: $accessToken,
+            refreshToken: $tokenData['refresh_token'] ?? null,
+            expiresIn: isset($tokenData['expires_in']) ? (int) $tokenData['expires_in'] : null,
+            oauthUserId: $platformUserId,
+            oauthUsername: $username,
+            oauthDisplayName: $displayName !== null && trim($displayName) !== '' ? $displayName : ($username ?? 'LinkedIn Account'),
+            oauthAvatarUrl: $avatarUrl,
+            scopes: $storedScopes,
         );
+    }
+
+    private function beginFacebookDestinationSelection(
+        string $accessToken,
+        ?string $refreshToken,
+        ?int $expiresIn,
+        string $oauthUserId,
+        ?string $oauthUsername,
+        ?string $oauthDisplayName,
+        ?string $oauthAvatarUrl,
+        ?array $scopes,
+    ): RedirectResponse {
+        $destinations = $this->discoverFacebookDestinations($accessToken, $oauthUserId, $oauthUsername, $oauthDisplayName, $oauthAvatarUrl);
+        $destinationTokens = $this->facebookDestinationTokenMap($destinations);
+        $destinations = $this->stripDestinationAccessTokens($destinations);
+
+        if ($destinations === []) {
+            throw new \InvalidArgumentException('No publishable Facebook pages were found for this account.');
+        }
+
+        $all = session(self::DESTINATION_SELECTION_SESSION_KEY, []);
+        if (!is_array($all)) {
+            $all = [];
+        }
+
+        $all[Platform::Facebook->value] = [
+            'refresh_token' => $refreshToken,
+            'expires_at' => $expiresIn !== null ? now()->addSeconds($expiresIn)->toIso8601String() : null,
+            'scopes' => $scopes ?? [],
+            'destinations' => $destinations,
+            'destination_tokens' => $destinationTokens,
+        ];
+        session([self::DESTINATION_SELECTION_SESSION_KEY => $all]);
+
+        return redirect()->route('accounts.destinations', ['platform' => Platform::Facebook->value]);
+    }
+
+    private function beginLinkedInDestinationSelection(
+        string $accessToken,
+        ?string $refreshToken,
+        ?int $expiresIn,
+        string $oauthUserId,
+        ?string $oauthUsername,
+        ?string $oauthDisplayName,
+        ?string $oauthAvatarUrl,
+        ?array $scopes,
+    ): RedirectResponse {
+        $destinations = $this->discoverLinkedInDestinations($accessToken, $oauthUserId, $oauthUsername, $oauthDisplayName, $oauthAvatarUrl);
+
+        if ($destinations === []) {
+            throw new \InvalidArgumentException('No publishable LinkedIn destinations were found for this account.');
+        }
+
+        $all = session(self::DESTINATION_SELECTION_SESSION_KEY, []);
+        if (!is_array($all)) {
+            $all = [];
+        }
+
+        $all[Platform::LinkedIn->value] = [
+            'access_token' => $accessToken,
+            'refresh_token' => $refreshToken,
+            'expires_at' => $expiresIn !== null ? now()->addSeconds($expiresIn)->toIso8601String() : null,
+            'scopes' => $scopes ?? [],
+            'destinations' => $destinations,
+        ];
+        session([self::DESTINATION_SELECTION_SESSION_KEY => $all]);
+
+        return redirect()->route('accounts.destinations', ['platform' => Platform::LinkedIn->value]);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function discoverFacebookDestinations(
+        string $accessToken,
+        string $oauthUserId,
+        ?string $oauthUsername,
+        ?string $oauthDisplayName,
+        ?string $oauthAvatarUrl,
+    ): array {
+        $response = Http::withToken($accessToken)
+            ->acceptJson()
+            ->get('https://graph.facebook.com/v21.0/me/accounts', [
+                'fields' => 'id,name,access_token,picture{url}',
+                'limit' => 100,
+            ]);
+
+        if (!$response->successful()) {
+            throw new \RuntimeException('Could not fetch Facebook pages: ' . $response->body());
+        }
+
+        $pages = $response->json('data');
+        if (!is_array($pages)) {
+            return [];
+        }
+
+        $destinations = [];
+        foreach ($pages as $page) {
+            if (!is_array($page)) {
+                continue;
+            }
+            $pageId = trim((string) ($page['id'] ?? ''));
+            $pageToken = trim((string) ($page['access_token'] ?? ''));
+            if ($pageId === '' || $pageToken === '') {
+                continue;
+            }
+
+            $display = trim((string) ($page['name'] ?? ''));
+            $avatar = $page['picture']['data']['url'] ?? null;
+            if (!is_string($avatar)) {
+                $avatar = null;
+            }
+
+            $destinations[] = [
+                'key' => 'page:' . $pageId,
+                'platform_user_id' => $pageId,
+                'username' => $oauthUsername,
+                'display_name' => $display !== '' ? $display : ('Facebook Page ' . $pageId),
+                'avatar_url' => $avatar ?? $oauthAvatarUrl,
+                'metadata' => [
+                    'account_type' => 'page',
+                    'parent_user_id' => $oauthUserId,
+                    'oauth_display_name' => $oauthDisplayName,
+                ],
+                'access_token' => $pageToken,
+            ];
+        }
+
+        return $destinations;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $destinations
+     * @return array<string, string>
+     */
+    private function facebookDestinationTokenMap(array $destinations): array
+    {
+        $out = [];
+        foreach ($destinations as $destination) {
+            if (!is_array($destination)) {
+                continue;
+            }
+            $key = trim((string) ($destination['key'] ?? ''));
+            $token = trim((string) ($destination['access_token'] ?? ''));
+            if ($key !== '' && $token !== '') {
+                $out[$key] = $token;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $destinations
+     * @return array<int, array<string, mixed>>
+     */
+    private function stripDestinationAccessTokens(array $destinations): array
+    {
+        foreach ($destinations as &$destination) {
+            if (is_array($destination)) {
+                unset($destination['access_token']);
+            }
+        }
+        unset($destination);
+
+        return $destinations;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function discoverLinkedInDestinations(
+        string $accessToken,
+        string $oauthUserId,
+        ?string $oauthUsername,
+        ?string $oauthDisplayName,
+        ?string $oauthAvatarUrl,
+    ): array {
+        $safeDisplayName = trim((string) $oauthDisplayName) !== '' ? $oauthDisplayName : ($oauthUsername ?? 'LinkedIn Profile');
+
+        $destinations = [[
+            'key' => 'person:' . $oauthUserId,
+            'platform_user_id' => $oauthUserId,
+            'username' => $oauthUsername,
+            'display_name' => $safeDisplayName,
+            'avatar_url' => $oauthAvatarUrl,
+            'access_token' => $accessToken,
+            'metadata' => [
+                'account_type' => 'person',
+                'author_urn' => 'urn:li:person:' . $oauthUserId,
+                'owner_urn' => 'urn:li:person:' . $oauthUserId,
+                'parent_user_id' => $oauthUserId,
+            ],
+        ]];
+
+        $orgAclsResponse = Http::withToken($accessToken)
+            ->acceptJson()
+            ->withHeaders($this->linkedInDiscoveryHeaders())
+            ->get('https://api.linkedin.com/v2/organizationalEntityAcls', [
+                'q' => 'roleAssignee',
+                'role' => 'ADMINISTRATOR',
+                'state' => 'APPROVED',
+                'projection' => '(elements*(organizationalTarget))',
+                'count' => 100,
+            ]);
+
+        if (!$orgAclsResponse->successful()) {
+            return $destinations;
+        }
+
+        $elements = $orgAclsResponse->json('elements');
+        if (!is_array($elements)) {
+            return $destinations;
+        }
+
+        foreach ($elements as $element) {
+            if (!is_array($element)) {
+                continue;
+            }
+            $target = trim((string) ($element['organizationalTarget'] ?? ''));
+            if (!str_starts_with($target, 'urn:li:organization:')) {
+                continue;
+            }
+            $orgId = trim((string) substr($target, strlen('urn:li:organization:')));
+            if ($orgId === '') {
+                continue;
+            }
+
+            $orgName = 'LinkedIn Org ' . $orgId;
+            $orgAvatar = null;
+            $orgResponse = Http::withToken($accessToken)
+                ->acceptJson()
+                ->withHeaders($this->linkedInDiscoveryHeaders())
+                ->get('https://api.linkedin.com/v2/organizations/' . $orgId, [
+                    'projection' => '(id,localizedName,vanityName)',
+                ]);
+            if ($orgResponse->successful() && is_array($orgResponse->json())) {
+                $org = $orgResponse->json();
+                $candidate = trim((string) ($org['localizedName'] ?? $org['vanityName'] ?? ''));
+                if ($candidate !== '') {
+                    $orgName = $candidate;
+                }
+            }
+
+            $destinations[] = [
+                'key' => 'organization:' . $orgId,
+                'platform_user_id' => $orgId,
+                'username' => null,
+                'display_name' => $orgName,
+                'avatar_url' => $orgAvatar,
+                'access_token' => $accessToken,
+                'metadata' => [
+                    'account_type' => 'organization',
+                    'author_urn' => 'urn:li:organization:' . $orgId,
+                    'owner_urn' => 'urn:li:organization:' . $orgId,
+                    'parent_user_id' => $oauthUserId,
+                ],
+            ];
+        }
+
+        return $destinations;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function linkedInDiscoveryHeaders(): array
+    {
+        $headers = [
+            'X-Restli-Protocol-Version' => '2.0.0',
+        ];
+
+        $version = trim((string) config('platforms.linkedin.api_version', ''));
+        if ($version !== '') {
+            $headers['LinkedIn-Version'] = $version;
+        }
+
+        return $headers;
     }
 
     /**

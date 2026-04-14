@@ -266,6 +266,18 @@ class PublishPostToPlatformJob implements ShouldQueue
             return;
         }
 
+        if ($platform === Platform::Twitter) {
+            $cooldownError = $this->twitterCooldownError($postPlatform);
+            if ($cooldownError !== null) {
+                $postPlatform->update([
+                    'status' => 'pending',
+                    'error_message' => $cooldownError,
+                ]);
+                $this->release(30);
+                return;
+            }
+        }
+
         $mediaUrls = $this->resolveMediaUrls($post);
         Log::info('Resolved post media before publish', [
             'post_platform_id' => $postPlatform->id,
@@ -438,7 +450,16 @@ class PublishPostToPlatformJob implements ShouldQueue
         ]);
 
         $comment = trim((string) ($postPlatform->first_comment ?? ''));
-        if ($comment !== '' && $result->platformPostId !== null) {
+        if (
+            $platform === Platform::Twitter
+            && (bool) config('platforms.twitter.disable_first_comment_replies', true)
+            && $comment !== ''
+        ) {
+            $postPlatform->update([
+                'comment_status'        => 'failed',
+                'comment_error_message' => 'Twitter first-comment replies are disabled by compliance safe mode.',
+            ]);
+        } elseif ($comment !== '' && $result->platformPostId !== null) {
             $delayMinutes = $postPlatform->comment_delay_minutes;
             $delayMinutes = is_int($delayMinutes) ? $delayMinutes : (int) $delayMinutes;
             $delayMinutes = max(0, $delayMinutes);
@@ -611,5 +632,34 @@ class PublishPostToPlatformJob implements ShouldQueue
         if ($userId !== null) {
             app(UserCacheVersionService::class)->bump((int) $userId);
         }
+    }
+
+    private function twitterCooldownError(PostPlatform $postPlatform): ?string
+    {
+        $cooldownSeconds = max(0, (int) config('platforms.twitter.min_publish_interval_seconds', 0));
+        if ($cooldownSeconds < 1) {
+            return null;
+        }
+
+        $lastPublishedAt = PostPlatform::query()
+            ->where('social_account_id', $postPlatform->social_account_id)
+            ->where('platform', Platform::Twitter->value)
+            ->where('status', 'published')
+            ->whereNotNull('published_at')
+            ->where('id', '!=', $postPlatform->id)
+            ->orderByDesc('published_at')
+            ->value('published_at');
+
+        if (!is_string($lastPublishedAt) || trim($lastPublishedAt) === '') {
+            return null;
+        }
+
+        $elapsed = now()->diffInSeconds(\Carbon\Carbon::parse($lastPublishedAt), true);
+        if ($elapsed >= $cooldownSeconds) {
+            return null;
+        }
+
+        $wait = max(1, $cooldownSeconds - $elapsed);
+        return "Twitter compliance cooldown active. Retry in about {$wait} second(s).";
     }
 }

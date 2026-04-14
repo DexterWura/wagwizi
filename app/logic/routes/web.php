@@ -38,8 +38,8 @@ Route::get('/privacy', [PageController::class, 'privacy'])->name('privacy');
 Route::get('/status', [StatusController::class, 'show'])->name('status');
 
 /*
-| cPanel-friendly cron trigger: GET or POST /cron?token=YOUR_CRON_SECRET
-| (Same handler as POST /api/cron/run with X-Cron-Secret.)
+| Cron trigger: GET/POST /cron with X-Cron-Secret header.
+| Query-string secrets are intentionally not supported.
 */
 Route::match(['get', 'post'], '/cron', [CronController::class, 'run'])
     ->middleware('throttle:10,1')
@@ -103,6 +103,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/accounts/{platform}/connect',   [SocialAccountController::class, 'connect'])->name('accounts.connect');
     Route::get('/accounts/{platform}/callback',  [SocialAccountController::class, 'callback'])->name('accounts.callback');
+    Route::get('/accounts/{platform}/destinations', [SocialAccountController::class, 'destinations'])->name('accounts.destinations');
+    Route::post('/accounts/{platform}/destinations', [SocialAccountController::class, 'storeDestinations'])->name('accounts.destinations.store');
     Route::post('/accounts/telegram',            [SocialAccountController::class, 'storeTelegram'])->name('accounts.telegram');
     Route::post('/accounts/wordpress',           [SocialAccountController::class, 'storeWordPress'])->name('accounts.wordpress');
     Route::post('/accounts/discord',             [SocialAccountController::class, 'storeDiscord'])->name('accounts.discord');
