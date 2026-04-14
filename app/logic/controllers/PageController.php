@@ -155,32 +155,67 @@ class PageController extends Controller
         };
 
         $quota = app(PlatformAiQuotaService::class);
-        $toolAccess = app(ToolAccessService::class);
-        $toolCatalog = $toolAccess->catalog();
-        $dashboardTools = [];
-        foreach ($toolCatalog as $slug => $meta) {
-            $decision = $toolAccess->evaluateUserAccess($user, $slug);
-            $dashboardTools[] = [
-                'slug' => $slug,
-                'label' => (string) ($meta['label'] ?? $slug),
-                'category' => (string) ($meta['category'] ?? 'Tools'),
-                'enabled' => (bool) ($decision['allowed'] ?? false),
-                'message' => (string) ($decision['message'] ?? ''),
-            ];
-        }
-        usort($dashboardTools, static function (array $a, array $b): int {
-            if ($a['enabled'] !== $b['enabled']) {
-                return $a['enabled'] ? -1 : 1;
-            }
-            return strcasecmp($a['label'], $b['label']);
-        });
 
         return view('dashboard', array_merge($data, compact('dashUrl'), [
             'composerAiLocked'           => ! $user->canAccessComposerAi(),
             'composerAiQuotaExhausted'     => $quota->isPlatformAiQuotaExhausted($user),
             'composerAiPlanNoPlatformAi' => $quota->isPlatformAiDisabledOnPlan($user),
-            'dashboardTools'             => $dashboardTools,
         ]));
+    }
+
+    public function tools(): View
+    {
+        $user = Auth::user();
+        $toolAccess = app(ToolAccessService::class);
+        $toolCatalog = $toolAccess->catalog();
+        $tools = [];
+
+        foreach ($toolCatalog as $slug => $meta) {
+            $decision = $toolAccess->evaluateUserAccess($user, $slug);
+            $actionUrl = null;
+            $actionLabel = null;
+            $implemented = false;
+
+            if ($slug === 'ai_caption_generator') {
+                $actionUrl = route('composer');
+                $actionLabel = 'Open Composer';
+                $implemented = true;
+            } elseif ($slug === 'bulk_media_import' || $slug === 'canva_export_import') {
+                $actionUrl = route('media-library');
+                $actionLabel = 'Open Media Library';
+                $implemented = true;
+            }
+
+            if (! $implemented) {
+                $actionUrl = route('support-tickets.index', ['tool' => $slug]);
+                $actionLabel = 'Request setup';
+            }
+
+            $tools[] = [
+                'slug' => $slug,
+                'label' => (string) ($meta['label'] ?? $slug),
+                'category' => (string) ($meta['category'] ?? 'Tools'),
+                'enabled' => (bool) ($decision['allowed'] ?? false),
+                'message' => (string) ($decision['message'] ?? ''),
+                'implemented' => $implemented,
+                'action_url' => $actionUrl,
+                'action_label' => $actionLabel,
+            ];
+        }
+
+        usort($tools, static function (array $a, array $b): int {
+            if ($a['enabled'] !== $b['enabled']) {
+                return $a['enabled'] ? -1 : 1;
+            }
+            if ($a['implemented'] !== $b['implemented']) {
+                return $a['implemented'] ? -1 : 1;
+            }
+            return strcasecmp($a['label'], $b['label']);
+        });
+
+        return view('tools', [
+            'tools' => $tools,
+        ]);
     }
 
     public function composer(): View

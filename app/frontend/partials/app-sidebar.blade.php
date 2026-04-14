@@ -43,6 +43,7 @@
       <a class="nav-link nav-link--sub {{ $activePage === 'posts-index' ? 'nav-link--active' : '' }}" href="{{ route('posts.index') }}"><i class="fa-solid fa-list-ul fa-fw" aria-hidden="true"></i>All posts</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'calendar' ? 'nav-link--active' : '' }}" href="{{ route('calendar') }}"><i class="fa-solid fa-calendar-days fa-fw" aria-hidden="true"></i>Calendar</a>
       <a class="nav-link nav-link--sub {{ $activePage === 'media-library' ? 'nav-link--active' : '' }}" href="{{ route('media-library') }}"><i class="fa-solid fa-photo-film fa-fw" aria-hidden="true"></i>Media library</a>
+      <a class="nav-link nav-link--sub {{ $activePage === 'tools' ? 'nav-link--active' : '' }}" href="{{ route('tools') }}"><i class="fa-solid fa-toolbox fa-fw" aria-hidden="true"></i>Tools</a>
       @if($currentUser?->canUseWorkflows())
       <a class="nav-link nav-link--sub {{ $activePage === 'workflows' ? 'nav-link--active' : '' }}" href="{{ route('workflows') }}"><i class="fa-solid fa-diagram-project fa-fw" aria-hidden="true"></i>Workflows</a>
       @endif

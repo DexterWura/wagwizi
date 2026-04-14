@@ -96,6 +96,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/accounts',      [PageController::class, 'accounts'])->name('accounts');
     Route::get('/insights',      [PageController::class, 'insights'])->name('insights');
     Route::get('/workflows',     [PageController::class, 'workflows'])->middleware(['plan_workflow', 'workspace_capability:workflow'])->name('workflows');
+    Route::get('/tools',         [PageController::class, 'tools'])->name('tools');
     Route::get('/plans',         [PageController::class, 'plans'])->name('plans');
     Route::get('/plan-history',  [PageController::class, 'planHistory'])->name('plan-history');
     Route::get('/profile',       [PageController::class, 'profile'])->name('profile');

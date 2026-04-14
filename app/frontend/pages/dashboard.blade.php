@@ -173,39 +173,13 @@
               </span>
               <span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
             </a>
-          </div>
-
-          <div class="card dashboard-tools-card">
-            <div class="card__head">
-              <span><i class="fa-solid fa-toolbox" aria-hidden="true"></i> Tools in your plan</span>
-            </div>
-            @if(!empty($dashboardTools))
-            <div class="dashboard-tools-list">
-              @foreach($dashboardTools as $tool)
-              <div class="dashboard-tool-item{{ $tool['enabled'] ? ' dashboard-tool-item--enabled' : '' }}">
-                <div class="dashboard-tool-item__meta">
-                  <strong>{{ $tool['label'] }}</strong>
-                  <span>{{ $tool['category'] }}</span>
-                </div>
-                <div class="dashboard-tool-item__status">
-                  @if($tool['enabled'])
-                    <span class="dashboard-tool-badge dashboard-tool-badge--enabled">Enabled</span>
-                  @else
-                    <span class="dashboard-tool-badge">Locked</span>
-                  @endif
-                </div>
-              </div>
-              @endforeach
-            </div>
-            <p class="dashboard-tools-note">
-              Enabled tools are available to your account. AI Caption Generator runs in <a href="{{ route('composer') }}">Composer</a>.
-            </p>
-            @else
-            <div class="empty-sm">
-              <i class="fa-solid fa-toolbox" aria-hidden="true"></i>
-              No tool access data available.
-            </div>
-            @endif
+            <a class="action-tile" href="{{ route('tools') }}">
+              <span class="action-tile__left">
+                <span class="action-tile__icon action-tile__icon--teal"><i class="fa-solid fa-toolbox" aria-hidden="true"></i></span>
+                Tools hub
+              </span>
+              <span><i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
+            </a>
           </div>
 
           <div class="grid-bottom">
