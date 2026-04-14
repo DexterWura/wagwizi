@@ -49,7 +49,12 @@ return [
         'client_secret' => env('LINKEDIN_CLIENT_SECRET'),
         'redirect_uri'  => env('LINKEDIN_REDIRECT_URI'),
         'api_version'   => env('LINKEDIN_API_VERSION', '202504'),
-        'scopes'        => ['openid', 'profile', 'w_member_social', 'w_organization_social', 'r_organization_social', 'rw_organization_admin'],
+        'scopes'        => array_values(array_filter(array_merge(
+            ['openid', 'profile', 'w_member_social'],
+            filter_var(env('LINKEDIN_ENABLE_ORG_SCOPES', false), FILTER_VALIDATE_BOOL)
+                ? ['w_organization_social', 'r_organization_social', 'rw_organization_admin']
+                : []
+        ))),
         'max_content_length' => 3000,
         'supports_images'    => true,
         'supports_video'     => true,
