@@ -218,7 +218,7 @@
 
                 <div class="composer-form-card__section composer-form-card__section--tight">
                   <div class="composer-tailor-cue" role="note" aria-label="Per-network tailoring hint">
-                    <span class="composer-tailor-cue__title">Tailor per network</span>
+                    <span class="composer-tailor-cue__title">Tailor per platform</span>
                   </div>
                   <div class="pill-row" data-app-tabs role="tablist" aria-label="Edit target">
                     <button type="button" class="pill pill--account-tab" data-app-platform-tab="master" data-override-label="Master" aria-selected="true">Master</button>
