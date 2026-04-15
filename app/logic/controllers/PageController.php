@@ -20,6 +20,7 @@ use App\Services\SocialAccount\SocialAccountLimitService;
 use App\Services\Subscription\SubscriptionTrialService;
 use App\Services\Insights\AudienceInsightsService;
 use App\Services\Landing\LandingFeaturesDeepService;
+use App\Services\Media\MediaStorageQuotaService;
 use App\Services\Ai\PlatformAiQuotaService;
 use App\Services\Platform\Platform;
 use App\Services\Media\MediaLibraryService;
@@ -281,6 +282,15 @@ class PageController extends Controller
             return back()->with('error', 'The file is too large. Maximum size is 50 MB.');
         }
 
+        $mediaQuota = app(MediaStorageQuotaService::class);
+        if (! $mediaQuota->userCanStoreAdditionalBytes($user, $sizeBytes)) {
+            $storage = $mediaQuota->summaryForUser($user);
+            return back()->with(
+                'error',
+                'Storage limit reached (' . number_format((float) $storage['usage_percent'], 1) . '% used). Delete media or clear storage before importing more.'
+            );
+        }
+
         $rawType = strtolower(trim((string) $resp->header('Content-Type', '')));
         $mimeType = explode(';', $rawType)[0] ?? '';
         [$mediaType, $extension] = $this->detectDownloadMediaType($mediaUrl, $mimeType);
@@ -485,6 +495,7 @@ class PageController extends Controller
     public function mediaLibrary(): View
     {
         $user = Auth::user();
+        $storageSummary = app(MediaStorageQuotaService::class)->summaryForUser($user);
 
         $media = $user->mediaFiles()
             ->orderByDesc('created_at')
@@ -492,6 +503,7 @@ class PageController extends Controller
 
         return view('media-library', [
             'mediaFiles' => $media,
+            'mediaStorageSummary' => $storageSummary,
         ]);
     }
 

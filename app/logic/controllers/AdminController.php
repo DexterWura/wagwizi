@@ -38,6 +38,7 @@ use App\Services\Auth\SocialLoginAvailability;
 use App\Services\Audit\AuditTrailService;
 use App\Services\Platform\Platform;
 use App\Services\Landing\LandingFeaturesDeepService;
+use App\Services\Media\MediaStorageQuotaService;
 use App\Services\Notifications\InAppNotificationService;
 use App\Services\Seo\PublicSeoFilesService;
 use App\Services\Cache\PublicCatalogCache;
@@ -102,7 +103,9 @@ class AdminController extends Controller
             ->distinct('user_id')
             ->count('user_id');
 
-        return view('admin.users', compact('users', 'plans', 'trialingUsersCount'));
+        $defaultMediaStorageLimitMb = app(MediaStorageQuotaService::class)->defaultLimitMb();
+
+        return view('admin.users', compact('users', 'plans', 'trialingUsersCount', 'defaultMediaStorageLimitMb'));
     }
 
     public function updateUserRole(Request $request, int $id): RedirectResponse
@@ -137,6 +140,25 @@ class AdminController extends Controller
         $user->update(['status' => $validated['status']]);
 
         return back()->with('success', "Status updated to {$validated['status']} for {$user->name}.");
+    }
+
+    public function updateUserMediaStorageLimit(Request $request, int $id): RedirectResponse
+    {
+        $validated = $request->validate([
+            'media_storage_limit_mb' => 'nullable|integer|min:100|max:524288',
+        ]);
+
+        $user = User::findOrFail($id);
+        $value = $validated['media_storage_limit_mb'] ?? null;
+        $user->update([
+            'media_storage_limit_mb' => $value !== null && $value !== '' ? (int) $value : null,
+        ]);
+
+        $applied = $user->media_storage_limit_mb !== null
+            ? ($user->media_storage_limit_mb . ' MB')
+            : ('default (' . app(MediaStorageQuotaService::class)->defaultLimitMb() . ' MB)');
+
+        return back()->with('success', "Media storage limit updated for {$user->name}: {$applied}.");
     }
 
     public function loginAsUser(Request $request, int $id): RedirectResponse

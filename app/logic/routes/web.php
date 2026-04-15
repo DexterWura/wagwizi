@@ -147,6 +147,8 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/media',  [MediaController::class, 'index'])->name('media.index');
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
+    Route::post('/media/{id}/delete', [MediaController::class, 'destroy'])->whereNumber('id')->name('media.destroy');
+    Route::post('/media/clear', [MediaController::class, 'clear'])->name('media.clear');
 
     Route::post('/plans/change', [PageController::class, 'changePlan'])->name('plans.change');
     Route::post('/plans/checkout/start', [PlanCheckoutController::class, 'startCheckout'])->name('plans.checkout.start');
@@ -170,6 +172,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/users',                [AdminController::class, 'users'])->name('users');
         Route::post('/users/{id}/role',     [AdminController::class, 'updateUserRole'])->name('users.role');
         Route::post('/users/{id}/status',   [AdminController::class, 'updateUserStatus'])->name('users.status');
+        Route::post('/users/{id}/media-storage', [AdminController::class, 'updateUserMediaStorageLimit'])->name('users.media-storage');
         Route::post('/users/{id}/login-as', [AdminController::class, 'loginAsUser'])->name('users.login-as');
         Route::post('/users/{id}/plan',     [AdminController::class, 'updateUserPlan'])->name('users.plan');
 
