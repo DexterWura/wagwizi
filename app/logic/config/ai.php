@@ -8,9 +8,16 @@ return [
     |--------------------------------------------------------------------------
     */
     'platform' => [
+        'provider' => env('AI_PLATFORM_PROVIDER', 'openai'),
         'openai_api_key' => env('OPENAI_API_KEY'),
         'openai_base_url' => rtrim((string) env('OPENAI_BASE_URL', 'https://api.openai.com/v1'), '/'),
         'openai_model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+        'anthropic_api_key' => env('ANTHROPIC_API_KEY'),
+        'anthropic_base_url' => rtrim((string) env('ANTHROPIC_BASE_URL', 'https://api.anthropic.com/v1'), '/'),
+        'anthropic_model' => env('ANTHROPIC_MODEL', 'claude-3-5-haiku-20241022'),
+        'gemini_api_key' => env('GEMINI_API_KEY'),
+        'gemini_base_url' => rtrim((string) env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'), '/'),
+        'gemini_model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
         /** Upper bound subtracted from balance before each request (concurrency-safe with finalize). */
         'max_reserve_tokens_per_request' => max(1, (int) env('AI_PLATFORM_MAX_RESERVE_TOKENS', 16000)),
         /** Hard cap on completion length for OpenAI-compatible platform calls. */
@@ -29,5 +36,7 @@ return [
         'openai_model' => env('AI_BYOK_OPENAI_MODEL', 'gpt-4o-mini'),
         'anthropic_base_url' => rtrim((string) env('AI_BYOK_ANTHROPIC_BASE_URL', 'https://api.anthropic.com/v1'), '/'),
         'anthropic_model' => env('AI_BYOK_ANTHROPIC_MODEL', 'claude-3-5-haiku-20241022'),
+        'gemini_base_url' => rtrim((string) env('AI_BYOK_GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'), '/'),
+        'gemini_model' => env('AI_BYOK_GEMINI_MODEL', 'gemini-2.0-flash'),
     ],
 ];

@@ -288,7 +288,7 @@ class AppServiceProvider extends ServiceProvider
                 }
                 $aiClientConfig = [
                     'source'    => $u->ai_source === 'byok' ? 'byok' : 'platform',
-                    'provider'  => in_array($u->ai_provider, ['openai', 'anthropic', 'custom'], true)
+                    'provider'  => in_array($u->ai_provider, ['openai', 'anthropic', 'gemini', 'custom'], true)
                         ? $u->ai_provider
                         : 'openai',
                     'baseUrl'   => (string) ($u->ai_base_url ?? ''),

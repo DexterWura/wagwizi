@@ -35,6 +35,11 @@ final class ComposerAiChatService
                     ? max(256, (int) config('ai.platform.anthropic_max_tokens', 2048))
                     : 2048;
                 [$text, $tokens] = $this->callAnthropic($creds, $system, $userMessage, $draft, $maxAnthropicOut);
+            } elseif ($creds->provider === 'gemini') {
+                $maxGeminiOut = $isPlatform
+                    ? max(256, (int) config('ai.platform.max_completion_tokens', 2048))
+                    : null;
+                [$text, $tokens] = $this->callGemini($creds, $system, $userMessage, $draft, $maxGeminiOut);
             } else {
                 $maxCompletion = $isPlatform
                     ? max(256, (int) config('ai.platform.max_completion_tokens', 2048))
@@ -195,5 +200,97 @@ TXT;
         $tokens = $in + $out > 0 ? $in + $out : 1;
 
         return [$text, $tokens];
+    }
+
+    /**
+     * @return array{0: string, 1: int}
+     */
+    private function callGemini(
+        ComposerAiCredentials $creds,
+        string $system,
+        string $userMessage,
+        string $draft,
+        ?int $maxOutputTokens,
+    ): array {
+        $model = rawurlencode($creds->model);
+        $url = $creds->apiBaseUrl.'/models/'.$model.':generateContent';
+        $payload = [
+            'system_instruction' => [
+                'parts' => [
+                    ['text' => $system],
+                ],
+            ],
+            'contents' => [[
+                'role' => 'user',
+                'parts' => [
+                    ['text' => $this->userPayload($userMessage, $draft)],
+                ],
+            ]],
+        ];
+        if ($maxOutputTokens !== null) {
+            $payload['generationConfig'] = ['maxOutputTokens' => $maxOutputTokens];
+        }
+
+        $response = Http::withOptions(['allow_redirects' => false])
+            ->acceptJson()
+            ->asJson()
+            ->timeout(60)
+            ->post($url.'?key='.rawurlencode($creds->apiKey), $payload);
+
+        if (! $response->successful()) {
+            throw new RuntimeException('Gemini API error: HTTP '.$response->status());
+        }
+
+        $json = $response->json();
+        $candidates = data_get($json, 'candidates');
+        if (! is_array($candidates)) {
+            throw new RuntimeException('Unexpected Gemini response shape.');
+        }
+
+        $text = '';
+        foreach ($candidates as $candidate) {
+            if (! is_array($candidate)) {
+                continue;
+            }
+            $parts = data_get($candidate, 'content.parts');
+            if (! is_array($parts)) {
+                continue;
+            }
+            foreach ($parts as $part) {
+                if (is_array($part) && isset($part['text'])) {
+                    $text .= (string) $part['text'];
+                }
+            }
+        }
+
+        $text = trim($text);
+        if ($text === '') {
+            throw new RuntimeException('Empty response from language model.');
+        }
+
+        $tokens = $this->parseGeminiUsage($json);
+
+        return [$text, $tokens];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $json
+     */
+    private function parseGeminiUsage(?array $json): int
+    {
+        if (! is_array($json)) {
+            return 1;
+        }
+
+        $total = data_get($json, 'usageMetadata.totalTokenCount');
+        if (is_numeric($total)) {
+            return max(1, (int) $total);
+        }
+
+        $prompt = (int) data_get($json, 'usageMetadata.promptTokenCount', 0);
+        $candidates = (int) data_get($json, 'usageMetadata.candidatesTokenCount', 0);
+        $sum = $prompt + $candidates;
+
+        return $sum > 0 ? $sum : 1;
     }
 }

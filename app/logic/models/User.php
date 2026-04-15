@@ -252,7 +252,7 @@ class User extends Authenticatable
 
     /**
      * Composer AI Assist: super admins; or BYOK with a saved key (any plan, including free);
-     * or platform AI for paid active/trialing users when OPENAI_API_KEY is configured server-side.
+     * or platform AI for paid active/trialing users when the selected platform provider key is configured server-side.
      */
     public function canAccessComposerAi(): bool
     {

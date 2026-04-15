@@ -36,7 +36,7 @@ final class ComposerAiCredentialResolver
         }
 
         $key = trim($key);
-        $provider = in_array($user->ai_provider, ['openai', 'anthropic', 'custom'], true)
+        $provider = in_array($user->ai_provider, ['openai', 'anthropic', 'gemini', 'custom'], true)
             ? $user->ai_provider
             : 'openai';
 
@@ -69,6 +69,18 @@ final class ComposerAiCredentialResolver
             );
         }
 
+        if ($provider === 'gemini') {
+            $base = (string) config('ai.byok.gemini_base_url');
+
+            return new ComposerAiCredentials(
+                'byok',
+                'gemini',
+                $key,
+                rtrim($base, '/'),
+                (string) config('ai.byok.gemini_model'),
+            );
+        }
+
         $base = (string) config('ai.byok.openai_base_url');
 
         return new ComposerAiCredentials(
@@ -83,7 +95,38 @@ final class ComposerAiCredentialResolver
     private function resolvePlatform(User $user): ComposerAiCredentials
     {
         if (! $this->platformAiConfig->isConfigured()) {
-            throw new RuntimeException('Platform AI is not configured (missing OPENAI_API_KEY).');
+            throw new RuntimeException('Platform AI is not configured for the selected provider.');
+        }
+
+        $provider = (string) config('ai.platform.provider', 'openai');
+        if (! in_array($provider, ['openai', 'anthropic', 'gemini'], true)) {
+            $provider = 'openai';
+        }
+
+        if ($provider === 'anthropic') {
+            $key = trim((string) config('ai.platform.anthropic_api_key'));
+            $base = (string) config('ai.platform.anthropic_base_url');
+
+            return new ComposerAiCredentials(
+                'platform',
+                'anthropic',
+                $key,
+                rtrim($base, '/'),
+                (string) config('ai.platform.anthropic_model'),
+            );
+        }
+
+        if ($provider === 'gemini') {
+            $key = trim((string) config('ai.platform.gemini_api_key'));
+            $base = (string) config('ai.platform.gemini_base_url');
+
+            return new ComposerAiCredentials(
+                'platform',
+                'gemini',
+                $key,
+                rtrim($base, '/'),
+                (string) config('ai.platform.gemini_model'),
+            );
         }
 
         $key = trim((string) config('ai.platform.openai_api_key'));

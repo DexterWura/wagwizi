@@ -1324,7 +1324,7 @@
       if (raw) {
         var parsed = JSON.parse(raw);
         var prov = parsed.provider;
-        if (prov !== "openai" && prov !== "anthropic" && prov !== "custom") {
+        if (prov !== "openai" && prov !== "anthropic" && prov !== "gemini" && prov !== "custom") {
           prov = "openai";
         }
         return {
@@ -1456,7 +1456,7 @@
     if (clearKeyBtn) {
       clearKeyBtn.addEventListener("click", function () {
         var provider = providerEl ? providerEl.value : "openai";
-        if (provider !== "openai" && provider !== "anthropic" && provider !== "custom") {
+        if (provider !== "openai" && provider !== "anthropic" && provider !== "gemini" && provider !== "custom") {
           provider = "openai";
         }
         var baseVal = provider === "custom" && baseInput ? (baseInput.value || "").trim() : null;
@@ -1485,7 +1485,7 @@
     if (saveBtn) {
       saveBtn.addEventListener("click", function () {
         var provider = providerEl ? providerEl.value : "openai";
-        if (provider !== "openai" && provider !== "anthropic" && provider !== "custom") {
+        if (provider !== "openai" && provider !== "anthropic" && provider !== "gemini" && provider !== "custom") {
           provider = "openai";
         }
         var baseVal = provider === "custom" && baseInput ? (baseInput.value || "").trim() : null;

@@ -107,7 +107,7 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'ai_source'         => 'required|string|in:platform,byok',
-            'ai_provider'       => 'nullable|string|in:openai,anthropic,custom',
+            'ai_provider'       => 'nullable|string|in:openai,anthropic,gemini,custom',
             'ai_base_url'       => 'nullable|url|max:500',
             'ai_api_key'        => 'nullable|string|max:8192',
             'ai_clear_api_key'  => 'sometimes|boolean',

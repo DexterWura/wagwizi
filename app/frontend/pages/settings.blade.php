@@ -159,6 +159,7 @@
                   <select class="select" id="ai-provider" data-app-ai-provider>
                     <option value="openai">OpenAI-compatible API</option>
                     <option value="anthropic">Anthropic (Messages API)</option>
+                    <option value="gemini">Google Gemini (Generative Language API)</option>
                     <option value="custom">Custom base URL</option>
                   </select>
                 </div>
