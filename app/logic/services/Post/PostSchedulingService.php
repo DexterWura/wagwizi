@@ -10,6 +10,7 @@ use App\Models\SiteSetting;
 use App\Models\User;
 use App\Services\Cache\UserCacheVersionService;
 use App\Services\Platform\PlatformRegistry;
+use App\Services\Subscription\PlanPostQuotaService;
 use App\Services\Subscription\PlanReplyFeatureService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -25,6 +26,7 @@ class PostSchedulingService
 
     public function __construct(
         private readonly PlanReplyFeatureService $replyFeature,
+        private readonly PlanPostQuotaService $planPostQuotaService,
     ) {}
 
     public function createDraft(int $userId, array $data): Post
@@ -141,6 +143,7 @@ class PostSchedulingService
     {
         $this->validateContent($data);
         $scheduledAt = $this->resolveScheduleFromInput($data, $userId);
+        $this->assertPostQuota($userId, 1);
 
         if (empty($data['platform_accounts']) || !is_array($data['platform_accounts'])) {
             throw new InvalidArgumentException('At least one platform account must be selected.');
@@ -191,6 +194,7 @@ class PostSchedulingService
     public function publishNow(int $userId, array $data): Post
     {
         $this->validateContent($data);
+        $this->assertPostQuota($userId, 1);
 
         if (empty($data['platform_accounts']) || !is_array($data['platform_accounts'])) {
             throw new InvalidArgumentException('At least one platform account must be selected.');
@@ -298,6 +302,10 @@ class PostSchedulingService
             throw new InvalidArgumentException('At least one platform account must be selected.');
         }
 
+        if ($post->status === 'draft') {
+            $this->assertPostQuota($userId, 1);
+        }
+
         $this->validatePlatformAccountsOwnership($userId, $data['platform_accounts']);
         $this->replyFeature->assertUserMayUseReplies($userId, $data);
 
@@ -342,6 +350,12 @@ class PostSchedulingService
         if (!isset($data['content']) || trim($data['content']) === '') {
             throw new InvalidArgumentException('Post content cannot be empty.');
         }
+    }
+
+    private function assertPostQuota(int $userId, int $additionalSlots): void
+    {
+        $user = User::query()->findOrFail($userId);
+        $this->planPostQuotaService->assertCanConsumeSlots($user, $additionalSlots);
     }
 
     private function validateScheduleTime(string $dateTimeString, int $userId): \Carbon\Carbon

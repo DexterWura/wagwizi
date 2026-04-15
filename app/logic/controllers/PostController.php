@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Services\Cache\UserCacheVersionService;
 use App\Services\Post\PostPublishingService;
 use App\Services\Post\PostSchedulingService;
+use App\Services\Subscription\PlanPostQuotaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -389,6 +390,12 @@ class PostController extends Controller
             }
 
             $scheduledAt = $validated['scheduled_at'] ?? null;
+            if ($scheduledAt !== null && $post->status === 'draft') {
+                $user = Auth::user();
+                if ($user !== null) {
+                    app(PlanPostQuotaService::class)->assertCanConsumeSlots($user, 1);
+                }
+            }
             $post->update([
                 'scheduled_at' => $scheduledAt,
                 'status'       => $scheduledAt ? 'scheduled' : 'draft',
