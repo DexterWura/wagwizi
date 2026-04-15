@@ -8,6 +8,11 @@
 @endphp
 
 @section('content')
+        <div
+          id="wa-embedded-signup-config"
+          data-config='@json($whatsappEmbeddedSignup ?? ['enabled' => false])'
+          hidden
+        ></div>
         <main class="app-content">
           <div class="page-head">
             <div class="page-head__row">
@@ -93,6 +98,8 @@
                   <button type="button" class="btn btn--primary social-connect-card__btn" data-app-modal-open="modal-discord-connect">Connect</button>
                 @elseif($slug === 'bluesky')
                   <button type="button" class="btn btn--primary social-connect-card__btn" data-app-modal-open="modal-bluesky-connect">Connect</button>
+                @elseif($slug === 'devto')
+                  <button type="button" class="btn btn--primary social-connect-card__btn" data-app-modal-open="modal-devto-connect">Connect</button>
                 @elseif($slug === 'whatsapp_channels')
                   <button type="button" class="btn btn--primary social-connect-card__btn" data-app-modal-open="modal-whatsapp-channels-connect">Connect</button>
                 @else
@@ -269,6 +276,22 @@
           @csrf
           <div class="app-modal__body">
             <div class="field">
+              <button
+                type="button"
+                class="btn btn--primary"
+                data-wa-embedded-start
+                @if(!($whatsappEmbeddedSignup['enabled'] ?? false)) disabled @endif
+              >
+                Start WhatsApp Embedded Signup
+              </button>
+              @if(!($whatsappEmbeddedSignup['enabled'] ?? false))
+                <p class="field__hint">Embedded Signup is not configured yet. Add WhatsApp Embedded Signup App ID, App Secret, and Config ID in server environment settings.</p>
+              @else
+                <p class="field__hint">Recommended: connect via Meta popup, then review recipient details before saving.</p>
+              @endif
+              <p class="field__hint" data-wa-embedded-status aria-live="polite"></p>
+            </div>
+            <div class="field">
               <label class="field__label" for="wa-access-token">Permanent access token</label>
               <input class="input" id="wa-access-token" name="access_token" type="password" placeholder="EAAG…" required autocomplete="off" />
               <p class="field__hint">System user or long-lived token with <code>whatsapp_business_messaging</code> (and related) permissions.</p>
@@ -296,6 +319,38 @@
           <div class="app-modal__foot">
             <button type="button" class="btn btn--ghost" data-app-modal-close>Cancel</button>
             <button type="submit" class="btn btn--primary">Connect WhatsApp</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="app-modal" id="modal-devto-connect" data-app-modal role="dialog" aria-modal="true" aria-labelledby="modal-devto-title" aria-hidden="true">
+      <div class="app-modal__backdrop" data-app-modal-close tabindex="-1" aria-hidden="true"></div>
+      <div class="app-modal__panel">
+        <div class="app-modal__head">
+          <div>
+            <h2 id="modal-devto-title">Connect Dev.to</h2>
+            <p class="app-modal__lede">Use a personal <a href="https://dev.to/settings/account" target="_blank" rel="noopener">Dev.to API key</a> to publish articles from your workspace.</p>
+          </div>
+          <button type="button" class="icon-btn" data-app-modal-close aria-label="Close dialog">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        </div>
+        <form method="POST" action="{{ route('accounts.devto') }}">
+          @csrf
+          <div class="app-modal__body">
+            <div class="field">
+              <label class="field__label" for="devto-api-key">API key</label>
+              <input class="input" id="devto-api-key" name="api_key" type="password" placeholder="Paste your Dev.to API key" required autocomplete="off" />
+            </div>
+            <div class="field">
+              <label class="field__label" for="devto-display-name">Display name <span class="prose-muted">(optional)</span></label>
+              <input class="input" id="devto-display-name" name="display_name" type="text" placeholder="My Dev.to profile" />
+            </div>
+          </div>
+          <div class="app-modal__foot">
+            <button type="button" class="btn btn--ghost" data-app-modal-close>Cancel</button>
+            <button type="submit" class="btn btn--primary">Connect Dev.to</button>
           </div>
         </form>
       </div>
@@ -336,4 +391,204 @@
         </form>
       </div>
     </div>
+@endpush
+
+@push('scripts')
+<script>
+  (function () {
+    var configNode = document.getElementById("wa-embedded-signup-config");
+    var modal = document.getElementById("modal-whatsapp-channels-connect");
+    if (!configNode || !modal) return;
+
+    var config = { enabled: false };
+    try {
+      config = JSON.parse(configNode.getAttribute("data-config") || "{}");
+    } catch (e) {}
+
+    var startButton = modal.querySelector("[data-wa-embedded-start]");
+    var statusNode = modal.querySelector("[data-wa-embedded-status]");
+    var tokenInput = modal.querySelector("#wa-access-token");
+    var phoneIdInput = modal.querySelector("#wa-phone-number-id");
+    var recipientInput = modal.querySelector("#wa-channel-recipient");
+    var channelNameInput = modal.querySelector("#wa-channel-name");
+    var csrf = (document.querySelector('meta[name="csrf-token"]') || {}).content || "";
+
+    if (!startButton || !statusNode || !tokenInput || !phoneIdInput || !recipientInput) return;
+
+    var sdkPromise = null;
+    var lastSession = null;
+
+    function setStatus(message, isError) {
+      statusNode.textContent = message || "";
+      statusNode.style.color = isError ? "var(--danger, #b42318)" : "";
+    }
+
+    function parseEmbeddedEvent(raw) {
+      if (!raw) return null;
+      var data = raw;
+      if (typeof data === "string") {
+        try {
+          data = JSON.parse(data);
+        } catch (e) {
+          return null;
+        }
+      }
+      if (!data || typeof data !== "object") return null;
+      if (data.type !== "WA_EMBEDDED_SIGNUP") return null;
+      if (!data.data || typeof data.data !== "object") return null;
+      return {
+        event: data.event || "",
+        phone_number_id: data.data.phone_number_id || "",
+        waba_id: data.data.waba_id || data.data.business_account_id || ""
+      };
+    }
+
+    function loadFacebookSdk(appId) {
+      if (sdkPromise) return sdkPromise;
+      sdkPromise = new Promise(function (resolve, reject) {
+        if (!appId) {
+          reject(new Error("Missing WhatsApp Embedded Signup App ID."));
+          return;
+        }
+
+        var finish = function () {
+          if (!window.FB || typeof window.FB.init !== "function") {
+            reject(new Error("Meta SDK did not load."));
+            return;
+          }
+          window.FB.init({
+            appId: appId,
+            autoLogAppEvents: true,
+            xfbml: false,
+            version: "v21.0"
+          });
+          resolve(window.FB);
+        };
+
+        if (window.FB && typeof window.FB.init === "function") {
+          finish();
+          return;
+        }
+
+        window.fbAsyncInit = finish;
+        var sdk = document.createElement("script");
+        sdk.async = true;
+        sdk.defer = true;
+        sdk.crossOrigin = "anonymous";
+        sdk.src = "https://connect.facebook.net/en_US/sdk.js";
+        sdk.onerror = function () {
+          reject(new Error("Failed to load Meta SDK."));
+        };
+        document.head.appendChild(sdk);
+      });
+      return sdkPromise;
+    }
+
+    function exchangeCode(payload) {
+      return fetch(config.exchangeUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "X-CSRF-TOKEN": csrf
+        },
+        body: JSON.stringify(payload || {})
+      }).then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (body) {
+          if (!res.ok) {
+            var msg = body && body.message ? body.message : "Could not finish WhatsApp Embedded Signup.";
+            throw new Error(msg);
+          }
+          return body;
+        });
+      });
+    }
+
+    function sanitizePhoneNumber(number) {
+      if (typeof number !== "string") return "";
+      var cleaned = number.replace(/[^\d+]/g, "");
+      if (cleaned && cleaned.charAt(0) !== "+") {
+        return "+" + cleaned.replace(/[^\d]/g, "");
+      }
+      return cleaned;
+    }
+
+    window.addEventListener("message", function (event) {
+      if (event.origin !== "https://www.facebook.com" && event.origin !== "https://web.facebook.com") {
+        return;
+      }
+      var embeddedEvent = parseEmbeddedEvent(event.data);
+      if (!embeddedEvent) return;
+      if (embeddedEvent.event === "FINISH") {
+        lastSession = embeddedEvent;
+      }
+    });
+
+    startButton.addEventListener("click", function () {
+      if (!config.enabled) {
+        setStatus("Embedded Signup is not configured yet. You can still paste token details manually.", true);
+        return;
+      }
+      if (!config.appId || !config.configId || !config.exchangeUrl) {
+        setStatus("Embedded Signup is partially configured. Missing required config fields.", true);
+        return;
+      }
+
+      setStatus("Opening Meta Embedded Signup…", false);
+      startButton.disabled = true;
+
+      loadFacebookSdk(config.appId)
+        .then(function (FB) {
+          return new Promise(function (resolve, reject) {
+            FB.login(function (response) {
+              if (!response || !response.authResponse || !response.authResponse.code) {
+                reject(new Error("Meta signup was cancelled or no code was returned."));
+                return;
+              }
+              resolve(response.authResponse.code);
+            }, {
+              config_id: config.configId,
+              response_type: "code",
+              override_default_response_type: true,
+              extras: {
+                sessionInfoVersion: 3
+              }
+            });
+          });
+        })
+        .then(function (code) {
+          var payload = {
+            code: code,
+            phone_number_id: (lastSession && lastSession.phone_number_id) ? String(lastSession.phone_number_id) : "",
+            waba_id: (lastSession && lastSession.waba_id) ? String(lastSession.waba_id) : null
+          };
+          if (!payload.phone_number_id) {
+            throw new Error("Signup completed but no phone number was returned. Please retry and finish the full flow.");
+          }
+          setStatus("Finalizing signup and retrieving credentials…", false);
+          return exchangeCode(payload);
+        })
+        .then(function (result) {
+          tokenInput.value = result.access_token || "";
+          phoneIdInput.value = result.phone_number_id || "";
+
+          if (!recipientInput.value && result.display_phone_number) {
+            recipientInput.value = sanitizePhoneNumber(String(result.display_phone_number));
+          }
+
+          if (channelNameInput && !channelNameInput.value && result.verified_name) {
+            channelNameInput.value = String(result.verified_name);
+          }
+
+          setStatus("Embedded Signup complete. Review fields below and click Connect WhatsApp.", false);
+        })
+        .catch(function (error) {
+          setStatus(error && error.message ? error.message : "Could not finish Embedded Signup.", true);
+        })
+        .finally(function () {
+          startButton.disabled = false;
+        });
+    });
+  })();
+</script>
 @endpush

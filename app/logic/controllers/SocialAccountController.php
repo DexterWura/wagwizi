@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Services\Platform\Adapters\BlueskyAdapter;
+use App\Services\Platform\Adapters\DevToAdapter;
 use App\Services\Platform\Adapters\DiscordAdapter;
 use App\Services\Platform\Adapters\GoogleBusinessAdapter;
 use App\Services\Platform\Adapters\WhatsAppChannelsAdapter;
@@ -12,6 +13,7 @@ use App\Services\Platform\PlatformRegistry;
 use App\Models\User;
 use App\Services\SocialAccount\AccountLinkingService;
 use App\Services\SocialAccount\SocialAccountLimitService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -65,6 +67,11 @@ class SocialAccountController extends Controller
         if ($platformEnum === Platform::Bluesky) {
             return redirect()->route('accounts')
                 ->with('info', 'Bluesky uses your handle and an App Password. Add them from the accounts page.');
+        }
+
+        if ($platformEnum === Platform::DevTo) {
+            return redirect()->route('accounts')
+                ->with('info', 'Dev.to uses personal API keys. Add your key from the accounts page.');
         }
 
         if ($platformEnum === Platform::WhatsappChannels) {
@@ -464,6 +471,157 @@ class SocialAccountController extends Controller
             return redirect()->route('accounts')
                 ->with('error', 'Failed to connect WhatsApp. Please verify your token, phone number ID, and recipient.');
         }
+    }
+
+    public function storeDevTo(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'api_key'      => ['required', 'string', 'min:20', 'max:500'],
+            'display_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $apiKey = trim((string) $validated['api_key']);
+        $displayName = trim((string) ($validated['display_name'] ?? ''));
+
+        $adapter = new DevToAdapter();
+        $check = $adapter->validateCredentials($apiKey);
+
+        if (!($check['valid'] ?? false)) {
+            return redirect()->route('accounts')
+                ->with('error', $check['error'] ?? 'Could not verify Dev.to API key.');
+        }
+
+        $platformUserId = trim((string) ($check['id'] ?? ''));
+        if ($platformUserId === '') {
+            return redirect()->route('accounts')
+                ->with('error', 'Could not determine your Dev.to account ID.');
+        }
+
+        $existingActive = \App\Models\SocialAccount::where('user_id', Auth::id())
+            ->where('platform', 'devto')
+            ->where('platform_user_id', $platformUserId)
+            ->where('status', 'active')
+            ->exists();
+
+        if ($existingActive) {
+            return redirect()->route('accounts')
+                ->with('error', 'This Dev.to account is already connected.');
+        }
+
+        try {
+            $this->linkingService->linkDevTo(
+                user: Auth::user(),
+                apiKey: $apiKey,
+                platformUserId: $platformUserId,
+                username: isset($check['username']) ? (string) $check['username'] : null,
+                displayName: $displayName !== '' ? $displayName : (isset($check['name']) ? (string) $check['name'] : null),
+                avatarUrl: isset($check['avatar']) ? (string) $check['avatar'] : null,
+            );
+
+            Log::info('Dev.to account connected', [
+                'user_id' => Auth::id(),
+                'platform_user_id' => $platformUserId,
+            ]);
+
+            return redirect()->route('accounts')
+                ->with('success', 'Dev.to account connected successfully.');
+        } catch (\InvalidArgumentException $e) {
+            return redirect()->route('accounts')
+                ->with('error', $e->getMessage());
+        } catch (\Exception $e) {
+            Log::error('Dev.to connection failed', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+            report($e);
+
+            return redirect()->route('accounts')
+                ->with('error', 'Failed to connect Dev.to account. Please verify your API key.');
+        }
+    }
+
+    public function exchangeWhatsappEmbeddedSignupCode(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'min:8'],
+            'phone_number_id' => ['required', 'string', 'regex:/^\d+$/'],
+            'waba_id' => ['nullable', 'string', 'regex:/^\d+$/'],
+        ]);
+
+        $platformConfig = config('platforms.whatsapp_channels', []);
+        $appId = trim((string) ($platformConfig['embedded_signup_app_id'] ?? ''));
+        $appSecret = trim((string) ($platformConfig['embedded_signup_app_secret'] ?? ''));
+        $graphVersion = trim((string) ($platformConfig['graph_api_version'] ?? 'v21.0'));
+        $graphVersion = $graphVersion !== '' ? ltrim($graphVersion, '/') : 'v21.0';
+
+        if ($appId === '' || $appSecret === '') {
+            return response()->json([
+                'message' => 'WhatsApp Embedded Signup is not configured on this server.',
+            ], 422);
+        }
+
+        $tokenResponse = Http::acceptJson()->get("https://graph.facebook.com/{$graphVersion}/oauth/access_token", [
+            'client_id' => $appId,
+            'client_secret' => $appSecret,
+            'code' => $validated['code'],
+        ]);
+
+        if (!$tokenResponse->successful()) {
+            Log::warning('WhatsApp embedded signup code exchange failed', [
+                'user_id' => Auth::id(),
+                'status' => $tokenResponse->status(),
+                'body' => $tokenResponse->body(),
+            ]);
+
+            return response()->json([
+                'message' => 'Could not exchange signup code with Meta. Please retry the flow.',
+            ], 422);
+        }
+
+        $accessToken = trim((string) $tokenResponse->json('access_token'));
+        if ($accessToken === '') {
+            return response()->json([
+                'message' => 'Meta did not return an access token. Please retry.',
+            ], 422);
+        }
+
+        $phoneNumberId = trim((string) $validated['phone_number_id']);
+        $phoneResponse = Http::withToken($accessToken)
+            ->acceptJson()
+            ->get("https://graph.facebook.com/{$graphVersion}/{$phoneNumberId}", [
+                'fields' => 'id,display_phone_number,verified_name,whatsapp_business_account{id,name}',
+            ]);
+
+        if (!$phoneResponse->successful()) {
+            Log::warning('WhatsApp embedded signup phone number lookup failed', [
+                'user_id' => Auth::id(),
+                'phone_number_id' => $phoneNumberId,
+                'status' => $phoneResponse->status(),
+                'body' => $phoneResponse->body(),
+            ]);
+
+            return response()->json([
+                'message' => 'Could not verify the selected WhatsApp phone number with the issued token.',
+            ], 422);
+        }
+
+        $phone = $phoneResponse->json();
+        $verifiedWabaId = trim((string) ($phone['whatsapp_business_account']['id'] ?? ''));
+        $requestedWabaId = trim((string) ($validated['waba_id'] ?? ''));
+
+        if ($requestedWabaId !== '' && $verifiedWabaId !== '' && $requestedWabaId !== $verifiedWabaId) {
+            return response()->json([
+                'message' => 'The returned phone number does not match the selected WhatsApp Business Account.',
+            ], 422);
+        }
+
+        return response()->json([
+            'access_token' => $accessToken,
+            'phone_number_id' => (string) ($phone['id'] ?? $phoneNumberId),
+            'display_phone_number' => $phone['display_phone_number'] ?? null,
+            'verified_name' => $phone['verified_name'] ?? ($phone['whatsapp_business_account']['name'] ?? null),
+            'waba_id' => $verifiedWabaId !== '' ? $verifiedWabaId : ($requestedWabaId !== '' ? $requestedWabaId : null),
+        ]);
     }
 
     public function storeDiscord(Request $request): RedirectResponse
@@ -932,6 +1090,12 @@ class SocialAccountController extends Controller
                 'username' => $data['name'] ?? null,
                 'name'     => $data['name'] ?? null,
                 'avatar'   => $data['icon_img'] ?? null,
+                'metadata' => [
+                    // Default to posting on the user's own profile feed.
+                    'subreddit' => isset($data['name']) && is_string($data['name']) && trim($data['name']) !== ''
+                        ? ('u_' . trim($data['name']))
+                        : null,
+                ],
             ],
             default => ['id' => '', 'username' => null, 'name' => null, 'avatar' => null],
         };

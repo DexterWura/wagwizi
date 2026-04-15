@@ -11,11 +11,13 @@ class PlanWorkspaceConfigTest extends TestCase
     {
         $plan = new Plan([
             'includes_workspaces' => 1,
+            'includes_webhooks' => 1,
             'max_workspace_members' => '5',
             'max_accounts_per_platform' => '3',
         ]);
 
         $this->assertTrue($plan->includes_workspaces);
+        $this->assertTrue($plan->includes_webhooks);
         $this->assertSame(5, $plan->max_workspace_members);
         $this->assertSame(3, $plan->max_accounts_per_platform);
     }

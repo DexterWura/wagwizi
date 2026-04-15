@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Services\Ai\PlatformAiConfigService;
 use App\Services\Ai\PlatformAiQuotaService;
+use App\Services\Subscription\PlanWebhookFeatureService;
 use App\Services\Subscription\PlanReplyFeatureService;
 use App\Services\Subscription\PlanWorkflowFeatureService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -44,12 +45,15 @@ class User extends Authenticatable
         'ai_provider',
         'ai_base_url',
         'ai_api_key',
+        'webhook_key_id',
+        'webhook_secret',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
         'ai_api_key',
+        'webhook_secret',
     ];
 
     protected function casts(): array
@@ -62,6 +66,7 @@ class User extends Authenticatable
             'last_login_at'            => 'datetime',
             'marketing_email_opt_in' => 'boolean',
             'ai_api_key'             => 'encrypted',
+            'webhook_secret'         => 'encrypted',
         ];
     }
 
@@ -306,5 +311,11 @@ class User extends Authenticatable
     {
         return app(PlanWorkflowFeatureService::class)
             ->userMayUseWorkflows($this->id);
+    }
+
+    public function canUseWebhooks(): bool
+    {
+        return app(PlanWebhookFeatureService::class)
+            ->userMayUseWebhooks($this->id);
     }
 }

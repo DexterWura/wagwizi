@@ -200,6 +200,38 @@ class AccountLinkingService
     }
 
     /**
+     * Dev.to: personal API key-based publishing.
+     */
+    public function linkDevTo(
+        User    $user,
+        string  $apiKey,
+        string  $platformUserId,
+        ?string $username = null,
+        ?string $displayName = null,
+        ?string $avatarUrl = null,
+    ): SocialAccount {
+        if (trim($apiKey) === '') {
+            throw new InvalidArgumentException('Dev.to API key cannot be empty.');
+        }
+        if (trim($platformUserId) === '') {
+            throw new InvalidArgumentException('Dev.to user ID cannot be empty.');
+        }
+
+        return $this->linkAccount(
+            user:           $user,
+            platform:       Platform::DevTo,
+            platformUserId: $platformUserId,
+            accessToken:    $apiKey,
+            refreshToken:   null,
+            username:       $username,
+            displayName:    $displayName ?? $username ?? 'Dev.to',
+            avatarUrl:      $avatarUrl,
+            scopes:         null,
+            expiresAt:      null,
+        );
+    }
+
+    /**
      * WhatsApp Cloud API: permanent or long-lived token, phone number ID, and API "to" recipient (channel / group / phone).
      */
     public function linkWhatsappChannels(

@@ -15,6 +15,7 @@
     reddit: 40000,
     telegram: 4096,
     discord: 2000,
+    devto: 65535,
     google_business: 1500,
     whatsapp_channels: 1024
   };

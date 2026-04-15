@@ -93,19 +93,25 @@
                       if ($chkTitle === '') { $chkTitle = trim((string) ($account->username ?? '')); }
                       if ($chkTitle === '') { $chkTitle = $plat?->label() ?? ucfirst($account->platform); }
                       $chkTitle .= ' — ' . ($plat?->label() ?? ucfirst($account->platform));
+                      $chkIcon = $plat?->icon() ?? 'fa-solid fa-globe';
                     @endphp
                     <label class="platform-checklist__item" title="{{ e($chkTitle) }}">
                       <input type="checkbox" name="platform_accounts[]" value="{{ $account->id }}" data-platform="{{ $account->platform }}" data-social-account-id="{{ $account->id }}" checked />
+                      <span class="platform-checklist__avatar-wrap" aria-hidden="true">
                       @if($chkAvatar)
-                      <span class="platform-checklist__avatar" aria-hidden="true">
-                        <img src="{{ $chkAvatar }}" alt="" width="22" height="22" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+                      <span class="platform-checklist__avatar">
+                        <img src="{{ $chkAvatar }}" alt="" width="34" height="34" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
                       </span>
                       @else
-                      <span class="platform-checklist__avatar platform-checklist__avatar--fallback" aria-hidden="true">
-                        <i class="{{ $plat?->icon() ?? 'fa-solid fa-globe' }}"></i>
+                      <span class="platform-checklist__avatar platform-checklist__avatar--fallback">
+                        <i class="{{ $chkIcon }}"></i>
                       </span>
                       @endif
-                      <span class="platform-checklist__text">{{ $plat?->label() ?? ucfirst($account->platform) }}</span>
+                        <span class="platform-checklist__platform-badge">
+                          <i class="{{ $chkIcon }}"></i>
+                        </span>
+                      </span>
+                      <span class="sr-only">{{ $chkTitle }}</span>
                     </label>
                     @endforeach
                   </div>

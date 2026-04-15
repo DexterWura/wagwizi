@@ -177,9 +177,21 @@ return [
         'rate_limit'         => 50,
     ],
 
+    'devto' => [
+        'enabled'            => true,
+        'max_content_length' => 65535,
+        'supports_images'    => true,
+        'supports_video'     => false,
+        'supports_carousel'  => false,
+        'rate_limit'         => 30,
+    ],
+
     'whatsapp_channels' => [
         'enabled'              => true,
         'graph_api_version'    => env('WHATSAPP_GRAPH_API_VERSION', 'v21.0'),
+        'embedded_signup_app_id' => env('WHATSAPP_EMBEDDED_SIGNUP_APP_ID'),
+        'embedded_signup_app_secret' => env('WHATSAPP_EMBEDDED_SIGNUP_APP_SECRET'),
+        'embedded_signup_config_id' => env('WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID'),
         'max_content_length'   => 4096,
         'max_caption_length'   => 1024,
         'supports_images'      => true,

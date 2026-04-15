@@ -4,6 +4,7 @@ use App\Controllers\ComposerMentionController;
 use App\Controllers\CronController;
 use App\Controllers\PostController;
 use App\Controllers\ProfileController;
+use App\Controllers\WebhookController;
 use App\Controllers\WorkflowController;
 use Illuminate\Support\Facades\Route;
 
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::post('/cron/run', [CronController::class, 'run'])->middleware('throttle:10,1');
+Route::post('/webhooks/inbound/{webhookKeyId}', [WebhookController::class, 'inbound'])
+    ->middleware('throttle:60,1');
 
 /*
 |--------------------------------------------------------------------------

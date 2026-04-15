@@ -28,6 +28,7 @@ use App\Services\Platform\PlatformRegistry;
 use App\Services\Workflow\WorkflowTemplateService;
 use App\Services\Workspace\WorkspaceAccessService;
 use App\Services\Tools\ToolAccessService;
+use App\Services\Webhook\UserWebhookService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -172,6 +173,7 @@ class PageController extends Controller
     {
         $user = Auth::user();
         $toolAccess = app(ToolAccessService::class);
+        $webhookService = app(UserWebhookService::class);
         $toolCatalog = $toolAccess->catalog();
         $tools = [];
 
@@ -215,8 +217,16 @@ class PageController extends Controller
             return strcasecmp($a['label'], $b['label']);
         });
 
+        $webhookEnabled = $webhookService->userMayUseWebhooks($user);
+        $webhookData = null;
+        if ($webhookEnabled) {
+            $webhookData = $webhookService->ensureCredentials($user);
+        }
+
         return view('tools', [
             'tools' => $tools,
+            'webhookEnabled' => $webhookEnabled,
+            'webhookData' => $webhookData,
         ]);
     }
 
@@ -489,6 +499,11 @@ class PageController extends Controller
         $plan = $user->subscription?->planModel;
         $enabledPlatforms = $registry->enabledForPlan($plan);
         $limits = app(SocialAccountLimitService::class)->summary($user);
+        $whatsAppConfig = config('platforms.whatsapp_channels', []);
+
+        $embeddedSignupAppId = trim((string) ($whatsAppConfig['embedded_signup_app_id'] ?? ''));
+        $embeddedSignupConfigId = trim((string) ($whatsAppConfig['embedded_signup_config_id'] ?? ''));
+        $embeddedSignupEnabled = $embeddedSignupAppId !== '' && $embeddedSignupConfigId !== '';
 
         return view('accounts', [
             'connectedAccounts' => $user->socialAccounts()->get(['id', 'platform', 'platform_user_id', 'username', 'display_name', 'status', 'metadata', 'created_at']),
@@ -497,6 +512,12 @@ class PageController extends Controller
             'socialAccountLimit'        => $limits['max'],
             'socialAccountActiveTotal'  => $limits['active'],
             'socialAccountPerPlatformLimit' => $limits['maxPerPlatform'],
+            'whatsappEmbeddedSignup' => [
+                'enabled' => $embeddedSignupEnabled,
+                'appId' => $embeddedSignupAppId,
+                'configId' => $embeddedSignupConfigId,
+                'exchangeUrl' => route('accounts.whatsapp-channels.embedded-signup'),
+            ],
         ]);
     }
 

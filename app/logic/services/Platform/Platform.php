@@ -18,6 +18,7 @@ enum Platform: string
     case GoogleBusiness = 'google_business';
     case Discord        = 'discord';
     case Bluesky        = 'bluesky';
+    case DevTo          = 'devto';
     case WhatsappChannels = 'whatsapp_channels';
 
     public function label(): string
@@ -37,6 +38,7 @@ enum Platform: string
             self::GoogleBusiness => 'Google Business',
             self::Discord        => 'Discord',
             self::Bluesky          => 'Bluesky',
+            self::DevTo            => 'Dev.to',
             self::WhatsappChannels => 'WhatsApp Channels',
         };
     }
@@ -58,6 +60,7 @@ enum Platform: string
             self::GoogleBusiness => 'fa-brands fa-google',
             self::Discord        => 'fa-brands fa-discord',
             self::Bluesky          => 'fa-brands fa-bluesky',
+            self::DevTo            => 'fa-brands fa-dev',
             self::WhatsappChannels => 'fa-brands fa-whatsapp',
         };
     }
@@ -79,6 +82,7 @@ enum Platform: string
             self::GoogleBusiness => 'Post updates to your Google Business Profile listing.',
             self::Discord        => 'Send messages to a channel via a webhook URL.',
             self::Bluesky          => 'Sign in with your handle and an App Password from Bluesky Settings.',
+            self::DevTo            => 'Publish long-form markdown articles to your Dev.to profile.',
             self::WhatsappChannels => 'Use a WhatsApp Cloud API token, your Phone number ID, and the Channel or recipient ID used as the API "to" field.',
         };
     }
@@ -90,6 +94,7 @@ enum Platform: string
             self::WordPress,
             self::Discord,
             self::Bluesky,
+            self::DevTo,
             self::WhatsappChannels,
         ]);
     }

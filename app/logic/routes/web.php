@@ -15,6 +15,7 @@ use App\Controllers\SettingsController;
 use App\Controllers\SocialAccountController;
 use App\Controllers\StatusController;
 use App\Controllers\SupportTicketController;
+use App\Controllers\WebhookController;
 use App\Controllers\WorkspaceController;
 use App\Controllers\PaynowWebhookController;
 use App\Controllers\PesepayWebhookController;
@@ -98,6 +99,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/workflows',     [PageController::class, 'workflows'])->middleware(['plan_workflow', 'workspace_capability:workflow'])->name('workflows');
     Route::get('/tools',         [PageController::class, 'tools'])->name('tools');
     Route::post('/tools/download', [PageController::class, 'toolDownload'])->middleware('throttle:20,1')->name('tools.download');
+    Route::post('/tools/webhooks/regenerate', [WebhookController::class, 'regenerate'])->name('tools.webhooks.regenerate');
     Route::get('/plans',         [PageController::class, 'plans'])->name('plans');
     Route::get('/plan-history',  [PageController::class, 'planHistory'])->name('plan-history');
     Route::get('/profile',       [PageController::class, 'profile'])->name('profile');
@@ -111,7 +113,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/accounts/wordpress',           [SocialAccountController::class, 'storeWordPress'])->name('accounts.wordpress');
     Route::post('/accounts/discord',             [SocialAccountController::class, 'storeDiscord'])->name('accounts.discord');
     Route::post('/accounts/bluesky',             [SocialAccountController::class, 'storeBluesky'])->name('accounts.bluesky');
+    Route::post('/accounts/devto',               [SocialAccountController::class, 'storeDevTo'])->name('accounts.devto');
     Route::post('/accounts/whatsapp-channels',   [SocialAccountController::class, 'storeWhatsappChannels'])->name('accounts.whatsapp-channels');
+    Route::post('/accounts/whatsapp-channels/embedded-signup', [SocialAccountController::class, 'exchangeWhatsappEmbeddedSignupCode'])->name('accounts.whatsapp-channels.embedded-signup');
     Route::post('/accounts/{accountId}/disconnect', [SocialAccountController::class, 'disconnect'])->name('accounts.disconnect');
 
     Route::post('/profile',          [ProfileController::class, 'update'])->name('profile.update');

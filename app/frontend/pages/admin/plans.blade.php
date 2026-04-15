@@ -222,6 +222,14 @@
                     </div>
                     <div class="field">
                       <label class="check-line">
+                        <input type="hidden" name="includes_webhooks" value="0" />
+                        <input type="checkbox" name="includes_webhooks" value="1" {{ ($plan->includes_webhooks ?? false) ? 'checked' : '' }} />
+                        <span>Includes inbound webhook API</span>
+                      </label>
+                      <p class="field__hint">Enable to let subscribers access a personal webhook endpoint for creating/scheduling/publishing posts.</p>
+                    </div>
+                    <div class="field">
+                      <label class="check-line">
                         <input type="hidden" name="includes_workspaces" value="0" />
                         <input type="checkbox" name="includes_workspaces" value="1" {{ ($plan->includes_workspaces ?? false) ? 'checked' : '' }} />
                         <span>Includes workspace teams</span>
@@ -423,6 +431,14 @@
                   <span>Includes workflows automation</span>
                 </label>
                 <p class="field__hint">Enable this when the plan should access the Workflows builder and automation runs.</p>
+              </div>
+              <div class="field">
+                <label class="check-line">
+                  <input type="hidden" name="includes_webhooks" value="0" />
+                  <input type="checkbox" name="includes_webhooks" value="1" />
+                  <span>Includes inbound webhook API</span>
+                </label>
+                <p class="field__hint">Enable this when subscribers on the plan should receive a personal webhook endpoint + secret.</p>
               </div>
               <div class="field">
                 <label class="check-line">

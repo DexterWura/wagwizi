@@ -5606,6 +5606,96 @@ button.link-create {
   accent-color: var(--accent-orange);
 }
 
+.app-content--composer .platform-checklist--inline {
+  gap: 0.5rem;
+}
+
+.app-content--composer .platform-checklist--inline .platform-checklist__item {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  min-height: 0;
+  min-width: 0;
+}
+
+.app-content--composer .platform-checklist--inline .platform-checklist__item input {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app-content--composer .platform-checklist--inline .platform-checklist__avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  padding: 2px;
+  border: 2px solid rgba(154, 164, 182, 0.55);
+  background: var(--bg-card);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.app-content--composer .platform-checklist--inline .platform-checklist__item:hover .platform-checklist__avatar-wrap {
+  border-color: rgba(92, 158, 255, 0.72);
+  transform: translateY(-1px);
+}
+
+.app-content--composer .platform-checklist--inline .platform-checklist__item input:checked + .platform-checklist__avatar-wrap {
+  border-color: #4b9bff;
+  box-shadow: 0 0 0 2px rgba(75, 155, 255, 0.25);
+}
+
+.app-content--composer .platform-checklist--inline .platform-checklist__item input:focus-visible + .platform-checklist__avatar-wrap {
+  outline: 2px solid rgba(75, 155, 255, 0.55);
+  outline-offset: 2px;
+}
+
+.app-content--composer .platform-checklist--inline .platform-checklist__avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-hover);
+}
+
+.app-content--composer .platform-checklist--inline .platform-checklist__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.app-content--composer .platform-checklist--inline .platform-checklist__avatar--fallback {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.app-content--composer .platform-checklist--inline .platform-checklist__platform-badge {
+  position: absolute;
+  left: -3px;
+  bottom: -3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #111827;
+  color: #f8fafc;
+  font-size: 9px;
+  line-height: 1;
+}
+
 .preview-strip {
   display: flex;
   flex-direction: column;

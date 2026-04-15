@@ -179,6 +179,13 @@ return [
         ],
     ],
 
+    'devto' => [
+        'image' => [
+            'max_long_edge' => 5000,
+            'max_file_mb'   => 10,
+        ],
+    ],
+
     'whatsapp_channels' => [
         'image' => [
             'max_long_edge' => 5000,

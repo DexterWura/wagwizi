@@ -8,6 +8,7 @@ use App\Models\Timezone;
 use App\Services\Cron\CronService;
 use App\Services\Platform\Adapters\BlueskyAdapter;
 use App\Services\Platform\Adapters\DiscordAdapter;
+use App\Services\Platform\Adapters\DevToAdapter;
 use App\Services\Platform\Adapters\FacebookAdapter;
 use App\Services\Platform\Adapters\GoogleBusinessAdapter;
 use App\Services\Platform\Adapters\InstagramAdapter;
@@ -70,6 +71,7 @@ class AppServiceProvider extends ServiceProvider
             $registry->register(new GoogleBusinessAdapter());
             $registry->register(new DiscordAdapter());
             $registry->register(new BlueskyAdapter());
+            $registry->register(new DevToAdapter());
             $registry->register(new WhatsAppChannelsAdapter());
 
             return $registry;
