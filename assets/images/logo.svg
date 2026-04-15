@@ -1,12 +1,33 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="122" height="32" viewBox="0 0 122 32" fill="none" aria-hidden="true">
-  <path fill="#612BD3" d="M4 6L8 26L12 12L16 26L20 6H16L14 20L10 9L6 20L4 6Z" />
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40" viewBox="0 0 100 40" fill="none" aria-hidden="true">
+  <path d="M7.8 30.35C7.8 29.12 8.77 28.15 10 28.15H20C21.23 28.15 22.2 29.12 22.2 30.35V32H7.8V30.35Z" fill="#5C2DBE" />
+  <path d="M8.6 31.05C8.6 30.38 9.13 29.85 9.8 29.85H20.2C20.87 29.85 21.4 30.38 21.4 31.05V32H8.6V31.05Z" fill="#6A35D2" opacity=".45" />
+  <rect x="6" y="7.4" width="18" height="22.1" rx="2" fill="#7B3FE4" />
   <text
-    x="25"
-    y="22"
-    fill="#1a1a1a"
-    font-family="DM Sans, Outfit, 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif"
-    font-size="15"
-    font-weight="700"
-    letter-spacing="-0.045em"
-  >agwizi</text>
+    x="15"
+    y="23.55"
+    text-anchor="middle"
+    fill="#FFFFFF"
+    font-family="Poppins, 'Segoe UI', Arial, sans-serif"
+    font-size="16.7"
+    font-weight="800"
+  >S</text>
+  <text
+    x="28.4"
+    y="24.9"
+    fill="#D8D8D8"
+    font-family="Poppins, 'Segoe UI', Arial, sans-serif"
+    font-size="13.55"
+    font-weight="600"
+    letter-spacing="-0.012em"
+    opacity=".55"
+  >SocialPlod</text>
+  <text
+    x="28.4"
+    y="24.25"
+    fill="#F1F1F1"
+    font-family="Poppins, 'Segoe UI', Arial, sans-serif"
+    font-size="13.55"
+    font-weight="600"
+    letter-spacing="-0.012em"
+  >SocialPlod</text>
 </svg>
