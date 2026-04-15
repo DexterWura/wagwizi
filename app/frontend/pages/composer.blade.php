@@ -217,12 +217,20 @@
                 </div>
 
                 <div class="composer-form-card__section composer-form-card__section--tight">
+                  <div class="composer-tailor-cue" role="note" aria-label="Per-network tailoring hint">
+                    <span class="composer-tailor-cue__title">
+                      <i class="fa-solid fa-sliders" aria-hidden="true"></i>
+                      Tailor per network
+                    </span>
+                    <p>Use the profile tabs below to customize copy for each account. <strong>Master</strong> applies to every selected profile.</p>
+                  </div>
                   <div class="pill-row" data-app-tabs role="tablist" aria-label="Edit target">
                     <button type="button" class="pill pill--account-tab" data-app-platform-tab="master" data-override-label="Master" aria-selected="true">Master</button>
                     @foreach($socialAccounts as $account)
                     @php
                       $plat = Platform::tryFrom($account->platform);
                       $pillAvatar = $account->composerPreviewAvatarUrl();
+                      $pillIcon = $plat?->icon() ?? 'fa-solid fa-globe';
                       $pillName = trim((string) ($account->display_name ?? ''));
                       if ($pillName === '') { $pillName = trim((string) ($account->username ?? '')); }
                       $pillPlat = $plat?->label() ?? ucfirst($account->platform);
@@ -241,11 +249,21 @@
                     >
                       @if($pillAvatar)
                       <span class="pill__avatar-wrap" aria-hidden="true">
-                        <img class="pill__avatar" src="{{ $pillAvatar }}" alt="" width="20" height="20" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+                        <span class="pill__avatar-core">
+                          <img class="pill__avatar" src="{{ $pillAvatar }}" alt="" width="20" height="20" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+                        </span>
+                        <span class="pill__platform-badge">
+                          <i class="{{ $pillIcon }}"></i>
+                        </span>
                       </span>
                       @else
                       <span class="pill__avatar-wrap pill__avatar-wrap--fallback" aria-hidden="true">
-                        <i class="{{ $plat?->icon() ?? 'fa-solid fa-globe' }}"></i>
+                        <span class="pill__avatar-core">
+                          <i class="fa-solid fa-user"></i>
+                        </span>
+                        <span class="pill__platform-badge">
+                          <i class="{{ $pillIcon }}"></i>
+                        </span>
                       </span>
                       @endif
                       <span class="sr-only">{{ e($pillTitle) }}</span>

@@ -4,6 +4,7 @@
 @section('page-id', 'calendar')
 
 @php
+    use App\Services\Platform\Platform;
     use Carbon\Carbon;
 
     $monthStart = $today->copy()->startOfMonth();
@@ -92,6 +93,12 @@
                       $timeLabel = $isPublished
                           ? $post->published_at->format('H:i') . ' posted'
                           : ($post->scheduled_at ? $post->scheduled_at->format('H:i') : '—');
+                      $postAccounts = $post->postPlatforms
+                          ->filter(fn($pp) => $pp->socialAccount !== null)
+                          ->unique('social_account_id')
+                          ->values();
+                      $visibleAccounts = $postAccounts->take(4);
+                      $overflowAccountCount = max(0, $postAccounts->count() - $visibleAccounts->count());
                   @endphp
                   <div
                     class="calendar-post-pill {{ $pillClass }}"
@@ -99,7 +106,37 @@
                     @if($isPublished) data-calendar-locked="1" @endif
                   >
                     <span class="calendar-post-pill__when">{{ $timeLabel }}</span>
-                    {{ \Illuminate\Support\Str::limit($post->content, 30) }}
+                    <span class="calendar-post-pill__text">{{ \Illuminate\Support\Str::limit($post->content, 30) }}</span>
+                    @if($visibleAccounts->isNotEmpty())
+                    <span class="calendar-post-pill__accounts" aria-hidden="true">
+                      @foreach($visibleAccounts as $pp)
+                      @php
+                        $acc = $pp->socialAccount;
+                        $accPlat = Platform::tryFrom((string) ($pp->platform ?: $acc->platform));
+                        $accIcon = $accPlat?->icon() ?? 'fa-solid fa-globe';
+                        $accAvatar = $acc->composerPreviewAvatarUrl();
+                        $accName = trim((string) ($acc->display_name ?? ''));
+                        if ($accName === '') { $accName = trim((string) ($acc->username ?? '')); }
+                        $accTitle = $accName !== '' ? $accName : ($accPlat?->label() ?? ucfirst((string) ($pp->platform ?: 'account')));
+                      @endphp
+                      <span class="calendar-post-pill__account" title="{{ e($accTitle) }}">
+                        <span class="calendar-post-pill__account-core">
+                          @if($accAvatar)
+                          <img src="{{ $accAvatar }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+                          @else
+                          <i class="fa-solid fa-user"></i>
+                          @endif
+                        </span>
+                        <span class="calendar-post-pill__account-badge">
+                          <i class="{{ $accIcon }}"></i>
+                        </span>
+                      </span>
+                      @endforeach
+                      @if($overflowAccountCount > 0)
+                      <span class="calendar-post-pill__account-more" title="+{{ $overflowAccountCount }} more attached account(s)">+{{ $overflowAccountCount }}</span>
+                      @endif
+                    </span>
+                    @endif
                   </div>
                   @endforeach
                 </div>
@@ -115,10 +152,46 @@
                 @php
                     $platform = is_array($post->platforms) ? ($post->platforms[0] ?? '') : '';
                     $pillClass = $platformClasses[$platform] ?? '';
+                    $postAccounts = $post->postPlatforms
+                        ->filter(fn($pp) => $pp->socialAccount !== null)
+                        ->unique('social_account_id')
+                        ->values();
+                    $visibleAccounts = $postAccounts->take(4);
+                    $overflowAccountCount = max(0, $postAccounts->count() - $visibleAccounts->count());
                 @endphp
                 <div class="calendar-post-pill {{ $pillClass }}" data-post-id="{{ $post->id }}" draggable="true">
                   <span class="calendar-post-pill__when">— draft</span>
-                  {{ \Illuminate\Support\Str::limit($post->content, 30) }}
+                  <span class="calendar-post-pill__text">{{ \Illuminate\Support\Str::limit($post->content, 30) }}</span>
+                  @if($visibleAccounts->isNotEmpty())
+                  <span class="calendar-post-pill__accounts" aria-hidden="true">
+                    @foreach($visibleAccounts as $pp)
+                    @php
+                      $acc = $pp->socialAccount;
+                      $accPlat = Platform::tryFrom((string) ($pp->platform ?: $acc->platform));
+                      $accIcon = $accPlat?->icon() ?? 'fa-solid fa-globe';
+                      $accAvatar = $acc->composerPreviewAvatarUrl();
+                      $accName = trim((string) ($acc->display_name ?? ''));
+                      if ($accName === '') { $accName = trim((string) ($acc->username ?? '')); }
+                      $accTitle = $accName !== '' ? $accName : ($accPlat?->label() ?? ucfirst((string) ($pp->platform ?: 'account')));
+                    @endphp
+                    <span class="calendar-post-pill__account" title="{{ e($accTitle) }}">
+                      <span class="calendar-post-pill__account-core">
+                        @if($accAvatar)
+                        <img src="{{ $accAvatar }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+                        @else
+                        <i class="fa-solid fa-user"></i>
+                        @endif
+                      </span>
+                      <span class="calendar-post-pill__account-badge">
+                        <i class="{{ $accIcon }}"></i>
+                      </span>
+                    </span>
+                    @endforeach
+                    @if($overflowAccountCount > 0)
+                    <span class="calendar-post-pill__account-more" title="+{{ $overflowAccountCount }} more attached account(s)">+{{ $overflowAccountCount }}</span>
+                    @endif
+                  </span>
+                  @endif
                 </div>
                 @endforeach
                 @if($draftPosts->isEmpty())

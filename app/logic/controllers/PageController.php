@@ -448,6 +448,10 @@ class PageController extends Controller
             30,
             function () use ($user, $start, $end) {
                 return $user->posts()
+                    ->with([
+                        'postPlatforms:id,post_id,social_account_id,platform',
+                        'postPlatforms.socialAccount:id,platform,display_name,username,avatar_url',
+                    ])
                     ->where(function ($q) use ($start, $end) {
                         $q->whereBetween('scheduled_at', [$start, $end])
                           ->orWhereBetween('published_at', [$start, $end])
