@@ -37,12 +37,12 @@
                 </div>
                 <div class="field">
                   <label class="field__label" for="subject">Subject</label>
-                  <p class="field__hint">Only <code>{{ '{{ $variableName }}' }}</code>-style placeholders; no Blade directives.</p>
+                  <p class="field__hint">Only <code>@{{ $variableName }}</code>-style placeholders; no Blade directives.</p>
                   <input class="input" id="subject" name="subject" value="{{ old('subject', $template->subject) }}" required />
                 </div>
                 <div class="field">
                   <label class="field__label" for="body_html">Body HTML</label>
-                  <p class="field__hint">Use only <code>{{ '{{ $variableName }}' }}</code> placeholders (for example <code>{{ '{{ $userName }}' }}</code>). Blade directives, PHP, and unescaped raw HTML inserts are not allowed.</p>
+                  <p class="field__hint">Use only <code>@{{ $variableName }}</code> placeholders (for example <code>@{{ $userName }}</code>). Blade directives, PHP, and unescaped raw HTML inserts are not allowed.</p>
                   <textarea class="input admin-email-template__body" id="body_html" name="body_html" rows="16" spellcheck="false" required>{{ old('body_html', $template->body_html) }}</textarea>
                 </div>
                 <div class="field">
