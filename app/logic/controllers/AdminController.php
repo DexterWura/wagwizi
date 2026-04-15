@@ -38,7 +38,6 @@ use App\Services\Auth\SocialLoginAvailability;
 use App\Services\Audit\AuditTrailService;
 use App\Services\Platform\Platform;
 use App\Services\Landing\LandingFeaturesDeepService;
-use App\Services\Media\MediaStorageQuotaService;
 use App\Services\Notifications\InAppNotificationService;
 use App\Services\Seo\PublicSeoFilesService;
 use App\Services\Cache\PublicCatalogCache;
@@ -103,9 +102,7 @@ class AdminController extends Controller
             ->distinct('user_id')
             ->count('user_id');
 
-        $defaultMediaStorageLimitMb = app(MediaStorageQuotaService::class)->defaultLimitMb();
-
-        return view('admin.users', compact('users', 'plans', 'trialingUsersCount', 'defaultMediaStorageLimitMb'));
+        return view('admin.users', compact('users', 'plans', 'trialingUsersCount'));
     }
 
     public function updateUserRole(Request $request, int $id): RedirectResponse
@@ -140,25 +137,6 @@ class AdminController extends Controller
         $user->update(['status' => $validated['status']]);
 
         return back()->with('success', "Status updated to {$validated['status']} for {$user->name}.");
-    }
-
-    public function updateUserMediaStorageLimit(Request $request, int $id): RedirectResponse
-    {
-        $validated = $request->validate([
-            'media_storage_limit_mb' => 'nullable|integer|min:100|max:524288',
-        ]);
-
-        $user = User::findOrFail($id);
-        $value = $validated['media_storage_limit_mb'] ?? null;
-        $user->update([
-            'media_storage_limit_mb' => $value !== null && $value !== '' ? (int) $value : null,
-        ]);
-
-        $applied = $user->media_storage_limit_mb !== null
-            ? ($user->media_storage_limit_mb . ' MB')
-            : ('default (' . app(MediaStorageQuotaService::class)->defaultLimitMb() . ' MB)');
-
-        return back()->with('success', "Media storage limit updated for {$user->name}: {$applied}.");
     }
 
     public function loginAsUser(Request $request, int $id): RedirectResponse
@@ -383,6 +361,7 @@ class AdminController extends Controller
             'yearly_price_cents'            => 'nullable|integer|min:0',
             'max_social_profiles'           => 'nullable|integer|min:1',
             'max_scheduled_posts_per_month' => 'nullable|integer|min:1',
+            'media_storage_limit_mb'        => 'required|integer|min:100|max:524288',
             'features'                      => 'nullable|string',
             'allowed_platforms'             => 'nullable|array',
             'allowed_platforms.*'           => 'string',
@@ -439,6 +418,7 @@ class AdminController extends Controller
         $validated = $this->normalizedPlanPricingFromRequest($validated);
 
         $validated['platform_ai_tokens_per_period'] = (int) $validated['platform_ai_tokens_per_period'];
+        $validated['media_storage_limit_mb'] = (int) $validated['media_storage_limit_mb'];
 
         if ($validated['is_most_popular']) {
             Plan::query()->update(['is_most_popular' => false]);
@@ -468,6 +448,7 @@ class AdminController extends Controller
             'yearly_price_cents'            => 'nullable|integer|min:0',
             'max_social_profiles'           => 'nullable|integer|min:1',
             'max_scheduled_posts_per_month' => 'nullable|integer|min:1',
+            'media_storage_limit_mb'        => 'required|integer|min:100|max:524288',
             'features'                      => 'nullable|string',
             'allowed_platforms'             => 'nullable|array',
             'allowed_platforms.*'           => 'string',
@@ -531,6 +512,7 @@ class AdminController extends Controller
         }
 
         $validated['platform_ai_tokens_per_period'] = (int) $validated['platform_ai_tokens_per_period'];
+        $validated['media_storage_limit_mb'] = (int) $validated['media_storage_limit_mb'];
 
         DB::transaction(function () use ($plan, $validated, $previousPlatformAiBudget): void {
             if ($validated['is_most_popular']) {

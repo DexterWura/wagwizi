@@ -14,7 +14,6 @@ use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 
 final class InAppNotificationService
 {
@@ -88,12 +87,13 @@ final class InAppNotificationService
     public function emailSuperAdminsNewUser(User $newUser): void
     {
         $adminUrl = route('admin.users', ['search' => $newUser->email]);
-        $subject = 'New user: ' . $newUser->name;
-        $inner = '<p><strong>Someone new just walked in.</strong></p>'
-            . '<p>' . e($newUser->name) . ' (' . e((string) $newUser->email) . ') created an account.</p>'
-            . '<p><a href="' . e($adminUrl) . '">Open in admin</a></p>';
-
-        $this->sendHtmlToSuperAdminEmails($subject, $this->simpleAdminEmailDocument($inner));
+        foreach ($this->superAdminRecipients() as $admin) {
+            QueueTemplatedEmailForUserJob::dispatch($admin->id, 'admin.user_registered', [
+                'newUserName' => (string) $newUser->name,
+                'newUserEmail' => (string) $newUser->email,
+                'adminUsersUrl' => $adminUrl,
+            ]);
+        }
     }
 
     /**
@@ -102,19 +102,15 @@ final class InAppNotificationService
     public function emailSuperAdminsPaidSubscription(User $subscriber, Plan $plan, bool $isRenewal): void
     {
         $adminUrl = route('admin.subscriptions');
-        if ($isRenewal) {
-            $subject = 'Ka-ching! Subscription renewed — ' . $plan->name;
-            $inner = '<p><strong>Ka-ching!</strong> Subscription renewal — the meter’s still running and the coffee’s still hot.</p>'
-                . '<p>' . e($subscriber->name) . ' (' . e((string) $subscriber->email) . ') renewed <strong>' . e($plan->name) . '</strong>.</p>'
-                . '<p><a href="' . e($adminUrl) . '">Subscriptions in admin</a></p>';
-        } else {
-            $subject = 'Ka-ching! New subscription — ' . $plan->name;
-            $inner = '<p><strong>Ka-ching!</strong> New subscription — someone just turned enthusiasm into revenue.</p>'
-                . '<p>' . e($subscriber->name) . ' (' . e((string) $subscriber->email) . ') subscribed to <strong>' . e($plan->name) . '</strong>.</p>'
-                . '<p><a href="' . e($adminUrl) . '">Subscriptions in admin</a></p>';
+        $templateKey = $isRenewal ? 'admin.subscription_paid_renewal' : 'admin.subscription_paid_new';
+        foreach ($this->superAdminRecipients() as $admin) {
+            QueueTemplatedEmailForUserJob::dispatch($admin->id, $templateKey, [
+                'subscriberName' => (string) $subscriber->name,
+                'subscriberEmail' => (string) $subscriber->email,
+                'planName' => (string) $plan->name,
+                'subscriptionsUrl' => $adminUrl,
+            ]);
         }
-
-        $this->sendHtmlToSuperAdminEmails($subject, $this->simpleAdminEmailDocument($inner));
     }
 
     /**
@@ -365,45 +361,17 @@ final class InAppNotificationService
             ->all();
     }
 
-    /** @return list<string> */
-    private function superAdminEmails(): array
+    /**
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    private function superAdminRecipients(): Collection
     {
-        $emails = User::query()
+        return User::query()
             ->where('role', 'super_admin')
             ->where('status', 'active')
             ->whereNotNull('email')
-            ->pluck('email');
-
-        return Collection::make($emails)
-            ->filter(static fn (mixed $email): bool => is_string($email) && $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL))
-            ->values()
-            ->all();
-    }
-
-    private function simpleAdminEmailDocument(string $innerHtml): string
-    {
-        $app = e(config('app.name'));
-
-        return '<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;line-height:1.5;color:#111">'
-            . '<p style="color:#666;font-size:14px;margin:0 0 1em">' . $app . ' — admin alert</p>'
-            . $innerHtml
-            . '</body></html>';
-    }
-
-    private function sendHtmlToSuperAdminEmails(string $subject, string $html): void
-    {
-        $mail = app(NotificationChannelConfigService::class);
-        foreach ($this->superAdminEmails() as $to) {
-            try {
-                $mail->sendHtml($to, $subject, $html);
-            } catch (\Throwable $e) {
-                Log::warning('Failed to send super-admin email', [
-                    'to' => $to,
-                    'subject' => $subject,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
+            ->where('email', '<>', '')
+            ->get(['id', 'name', 'email']);
     }
 
     /** @return list<int> */

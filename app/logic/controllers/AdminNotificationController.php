@@ -46,7 +46,11 @@ class AdminNotificationController extends Controller
         return redirect()->route('admin.notifications.settings')->with('success', 'Notification settings saved.');
     }
 
-    public function sendTestEmail(NotificationChannelConfigService $mailConfig): RedirectResponse
+    public function sendTestEmail(
+        NotificationChannelConfigService $mailConfig,
+        EmailTemplateService $templates,
+        EmailTemplateRenderService $render,
+    ): RedirectResponse
     {
         $user = Auth::user();
         if ($user === null || $user->email === null || $user->email === '') {
@@ -54,17 +58,23 @@ class AdminNotificationController extends Controller
         }
 
         try {
-            // Direct SMTP probe for admin UX: immediate success/failure feedback.
-            $html = view('emails.smtp-test', [
-                'user' => $user,
-                'sentAt' => now(),
-            ])->render();
+            $template = $templates->findByKey('admin.smtp_test');
+            if ($template === null) {
+                return redirect()
+                    ->route('admin.notifications.settings')
+                    ->with('error', 'SMTP test template (admin.smtp_test) is missing. Add it in Admin → Email templates.');
+            }
+
+            $vars = array_merge($render->baseVarsForUser($user), [
+                'sentAt' => now()->toDateTimeString(),
+            ]);
+            $rendered = $render->renderTemplate($template, $vars);
 
             $mailConfig->sendHtml(
                 $user->email,
-                config('app.name') . ' SMTP test email',
-                $html,
-                'SMTP test email sent at ' . now()->toDateTimeString()
+                $rendered['subject'],
+                $rendered['html'],
+                $rendered['text']
             );
         } catch (\Throwable $e) {
             Log::warning('Admin test email failed', [

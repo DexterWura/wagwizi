@@ -39,10 +39,19 @@ class EmailTemplateRenderService
             'siteName'        => $this->siteName(),
             'userName'        => 'Sample User',
             'unsubscribeUrl'  => url('/'),
+            'resetUrl'        => url('/reset-password'),
             'ticketId'        => '42',
             'ticketSubject'   => 'Sample support request',
             'ticketUrl'       => url('/support-tickets/42'),
             'responderName'   => 'Support',
+            'newUserName'     => 'Jane Doe',
+            'newUserEmail'    => 'jane@example.com',
+            'adminUsersUrl'   => url('/admin/users'),
+            'subscriberName'  => 'John Subscriber',
+            'subscriberEmail' => 'john@example.com',
+            'planName'        => 'Pro',
+            'subscriptionsUrl'=> url('/admin/subscriptions'),
+            'sentAt'          => now()->toDateTimeString(),
         ];
     }
 

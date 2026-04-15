@@ -47,7 +47,6 @@ class User extends Authenticatable
         'ai_api_key',
         'webhook_key_id',
         'webhook_secret',
-        'media_storage_limit_mb',
     ];
 
     protected $hidden = [
@@ -68,7 +67,6 @@ class User extends Authenticatable
             'marketing_email_opt_in' => 'boolean',
             'ai_api_key'             => 'encrypted',
             'webhook_secret'         => 'encrypted',
-            'media_storage_limit_mb' => 'integer',
         ];
     }
 

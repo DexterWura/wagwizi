@@ -135,6 +135,11 @@
                       <input class="input input--sm" name="max_scheduled_posts_per_month" type="number" value="{{ $plan->max_scheduled_posts_per_month }}" placeholder="Unlimited" />
                     </div>
                     <div class="field">
+                      <label class="field__label">Media storage limit (MB)</label>
+                      <input class="input input--sm" name="media_storage_limit_mb" type="number" min="100" max="524288" value="{{ (int) ($plan->media_storage_limit_mb ?? 2048) }}" required />
+                      <p class="field__hint">Applies to each subscriber on this plan.</p>
+                    </div>
+                    <div class="field">
                       <label class="field__label">Max accounts / platform</label>
                       <input class="input input--sm" name="max_accounts_per_platform" type="number" value="{{ $plan->max_accounts_per_platform }}" placeholder="Unlimited" />
                     </div>
@@ -345,6 +350,11 @@
               <div class="field">
                 <label class="field__label">Max posts/month</label>
                 <input class="input" name="max_scheduled_posts_per_month" type="number" placeholder="Unlimited" />
+              </div>
+              <div class="field">
+                <label class="field__label">Media storage limit (MB)</label>
+                <input class="input" name="media_storage_limit_mb" type="number" min="100" max="524288" value="2048" required />
+                <p class="field__hint">Applies to each subscriber on this plan.</p>
               </div>
               <div class="field">
                 <label class="field__label">Max accounts / platform</label>

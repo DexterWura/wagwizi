@@ -11,7 +11,7 @@
                 <div class="page-icon" aria-hidden="true"><i class="fa-solid fa-users"></i></div>
                 <div>
                   <h1>Users</h1>
-                  <p>Manage user roles, statuses, accounts, and media storage limits.</p>
+                  <p>Manage user roles, statuses, and subscriptions.</p>
                 </div>
               </div>
             </div>
@@ -38,7 +38,6 @@
               <span>
                 All Users ({{ $users->total() }})
                 <span class="badge badge--warning" style="margin-left:8px;">Trialing users: {{ (int) ($trialingUsersCount ?? 0) }}</span>
-                <span class="badge badge--info" style="margin-left:8px;">Default media limit: {{ (int) ($defaultMediaStorageLimitMb ?? 2048) }} MB</span>
               </span>
             </div>
             <div class="card__body">
@@ -144,25 +143,6 @@
                             </div>
                           </form>
 
-                          <form method="POST" action="{{ route('admin.users.media-storage', $u->id) }}" class="inline-form" style="display:grid; gap:6px;">
-                            @csrf
-                            <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                              <input
-                                class="input input--xs"
-                                name="media_storage_limit_mb"
-                                type="number"
-                                min="100"
-                                max="524288"
-                                value="{{ $u->media_storage_limit_mb }}"
-                                placeholder="MB (blank = default)"
-                                style="width:170px;"
-                              />
-                              <button class="btn btn--outline btn--compact" type="submit">Save storage</button>
-                            </div>
-                            <small class="prose-muted">
-                              {{ $u->media_storage_limit_mb !== null ? ('Custom: ' . (int) $u->media_storage_limit_mb . ' MB') : ('Using default: ' . (int) ($defaultMediaStorageLimitMb ?? 2048) . ' MB') }}
-                            </small>
-                          </form>
                         </div>
                       </td>
                     </tr>

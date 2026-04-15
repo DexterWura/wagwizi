@@ -5,29 +5,18 @@ declare(strict_types=1);
 namespace App\Services\Media;
 
 use App\Models\MediaFile;
-use App\Models\SiteSetting;
 use App\Models\User;
 
 final class MediaStorageQuotaService
 {
     private const FALLBACK_DEFAULT_LIMIT_MB = 2048;
 
-    public function defaultLimitMb(): int
-    {
-        $raw = SiteSetting::get('media_default_storage_limit_mb', (string) self::FALLBACK_DEFAULT_LIMIT_MB);
-        $mb = (int) $raw;
-
-        return $mb > 0 ? $mb : self::FALLBACK_DEFAULT_LIMIT_MB;
-    }
-
     public function limitMbForUser(User $user): int
     {
-        $override = (int) ($user->media_storage_limit_mb ?? 0);
-        if ($override > 0) {
-            return $override;
-        }
+        $user->loadMissing('subscription.planModel');
+        $planLimit = (int) ($user->subscription?->planModel?->media_storage_limit_mb ?? 0);
 
-        return $this->defaultLimitMb();
+        return $planLimit > 0 ? $planLimit : self::FALLBACK_DEFAULT_LIMIT_MB;
     }
 
     public function limitBytesForUser(User $user): int

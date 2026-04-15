@@ -3,12 +3,12 @@
 namespace App\Controllers\Auth;
 
 use App\Controllers\Controller;
+use App\Jobs\QueueTemplatedEmailForUserJob;
 use App\Models\User;
 use App\Services\Auth\AuthService;
 use App\Services\Auth\SocialLoginAvailability;
 use App\Services\Audit\AuditTrailService;
 use App\Services\Notifications\InAppNotificationService;
-use App\Services\Notifications\NotificationChannelConfigService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -101,10 +101,8 @@ class AuthController extends Controller
         return view('forgot-password');
     }
 
-    public function sendPasswordResetLink(
-        Request $request,
-        NotificationChannelConfigService $mailConfig,
-    ): RedirectResponse {
+    public function sendPasswordResetLink(Request $request): RedirectResponse
+    {
         $validated = $request->validate([
             'email' => 'required|email',
         ]);
@@ -122,17 +120,9 @@ class AuthController extends Controller
                     ]
                 );
 
-                $html = view('emails.password-reset-link', [
-                    'user' => $user,
+                QueueTemplatedEmailForUserJob::dispatch($user->id, 'auth.password_reset', [
                     'resetUrl' => $resetUrl,
-                ])->render();
-
-                $mailConfig->sendHtml(
-                    $user->email,
-                    config('app.name') . ' password reset',
-                    $html,
-                    "Use this link to reset your password: {$resetUrl}"
-                );
+                ]);
             } catch (\Throwable $e) {
                 Log::error('Failed to send password reset link', [
                     'email' => $validated['email'],

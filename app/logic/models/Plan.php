@@ -18,6 +18,7 @@ class Plan extends Model
         'yearly_price_cents',
         'max_social_profiles',
         'max_scheduled_posts_per_month',
+        'media_storage_limit_mb',
         'features',
         'allowed_platforms',
         'allowed_tools',
@@ -56,6 +57,7 @@ class Plan extends Model
             'has_free_trial'     => 'boolean',
             'free_trial_days'                 => 'integer',
             'platform_ai_tokens_per_period'   => 'integer',
+            'media_storage_limit_mb'          => 'integer',
             'max_workspace_members'            => 'integer',
             'max_accounts_per_platform'        => 'integer',
         ];
