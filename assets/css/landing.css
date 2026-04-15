@@ -287,7 +287,7 @@ body.lp {
   padding: 0.45rem 0.9rem;
 }
 
-.lp-header__cta-desktop {
+.lp-header__actions .lp-header__cta-desktop {
   display: none;
 }
 
@@ -305,11 +305,11 @@ body.lp {
     padding: 0.55rem 1.1rem;
   }
 
-  .lp-header__cta-mobile {
+  .lp-header__actions .lp-header__cta-mobile {
     display: none;
   }
 
-  .lp-header__cta-desktop {
+  .lp-header__actions .lp-header__cta-desktop {
     display: inline-flex;
   }
 }
