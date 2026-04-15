@@ -4,7 +4,9 @@ namespace App\Services\Billing;
 
 use App\Models\BillingCurrencySetting;
 use App\Models\SiteSetting;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 
 final class PaymentGatewayConfigService
 {
@@ -13,6 +15,16 @@ final class PaymentGatewayConfigService
     private const MERGED_CONFIG_CACHE_KEY = 'billing:merged_gateway_config:v1';
 
     private const MERGED_CONFIG_TTL_SECONDS = 120;
+
+    /** @var list<string> */
+    private const SENSITIVE_DOT_PATHS = [
+        'paynow.integration_key',
+        'pesepay.integration_key',
+        'pesepay.encryption_key',
+        'stripe.secret_key',
+        'stripe.webhook_secret',
+        'paypal.client_secret',
+    ];
 
     /**
      * @return array<string, mixed>
@@ -30,6 +42,7 @@ final class PaymentGatewayConfigService
     private function buildMergedConfig(): array
     {
         $raw = SiteSetting::getJson(self::KEY, []);
+        $raw = $this->decryptSensitiveValues(is_array($raw) ? $raw : []);
 
         $merged = array_replace_recursive($this->defaults(), is_array($raw) ? $raw : []);
         unset($merged['pricing']);
@@ -94,7 +107,7 @@ final class PaymentGatewayConfigService
         unset($gateways['pricing']);
         $merged = array_replace_recursive($this->defaults(), $gateways);
         unset($merged['pricing']);
-        SiteSetting::setJson(self::KEY, $merged);
+        SiteSetting::setJson(self::KEY, $this->encryptSensitiveValues($merged));
         Cache::forget(self::MERGED_CONFIG_CACHE_KEY);
     }
 
@@ -396,5 +409,55 @@ final class PaymentGatewayConfigService
             && trim($p['client_id']) !== ''
             && is_string($p['client_secret'] ?? null)
             && trim($p['client_secret']) !== '';
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @return array<string, mixed>
+     */
+    private function encryptSensitiveValues(array $config): array
+    {
+        foreach (self::SENSITIVE_DOT_PATHS as $path) {
+            $value = data_get($config, $path);
+            if (!is_string($value) || trim($value) === '') {
+                continue;
+            }
+            $trimmed = trim($value);
+            if (str_starts_with($trimmed, 'enc:')) {
+                continue;
+            }
+
+            data_set($config, $path, 'enc:' . Crypt::encryptString($trimmed));
+        }
+
+        return $config;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @return array<string, mixed>
+     */
+    private function decryptSensitiveValues(array $config): array
+    {
+        foreach (self::SENSITIVE_DOT_PATHS as $path) {
+            $value = data_get($config, $path);
+            if (!is_string($value) || $value === '') {
+                continue;
+            }
+            if (!str_starts_with($value, 'enc:')) {
+                continue;
+            }
+
+            $payload = substr($value, 4);
+            try {
+                $decrypted = Crypt::decryptString($payload);
+            } catch (DecryptException) {
+                continue;
+            }
+
+            data_set($config, $path, $decrypted);
+        }
+
+        return $config;
     }
 }

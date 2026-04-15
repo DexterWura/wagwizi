@@ -4,6 +4,7 @@ namespace App\Controllers\Auth;
 
 use App\Controllers\Controller;
 use App\Jobs\QueueTemplatedEmailForUserJob;
+use App\Models\SiteSetting;
 use App\Models\User;
 use App\Services\Auth\AuthService;
 use App\Services\Auth\SignupOtpService;
@@ -15,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -33,6 +35,7 @@ class AuthController extends Controller
         $this->captureIntendedFromQuery(request());
         $viewData = $this->socialAuthViewData();
         $viewData['redirectTarget'] = $this->safeRedirectPath((string) request()->query('redirect', '')) ?? '';
+        $viewData['lastSocialLoginProvider'] = $this->normalizedLastSocialProvider((string) request()->cookie('last_social_login_provider', ''));
 
         return view('login', $viewData);
     }
@@ -88,19 +91,32 @@ class AuthController extends Controller
         return redirect()->intended('/dashboard');
     }
 
-    public function showSignup(): View
+    public function showSignup(): RedirectResponse|View
     {
+        if (! $this->registrationOpen()) {
+            return redirect()->route('login')->withErrors([
+                'email' => 'Registration is currently closed.',
+            ]);
+        }
+
         $this->captureIntendedFromQuery(request());
         $viewData = $this->socialAuthViewData();
         $viewData['referralCode'] = trim((string) request()->query('ref', ''));
         $viewData['redirectTarget'] = $this->safeRedirectPath((string) request()->query('redirect', '')) ?? '';
         $viewData['signupOtpEnabled'] = $this->signupOtpService->isEnabled();
+        $viewData['lastSocialLoginProvider'] = $this->normalizedLastSocialProvider((string) request()->cookie('last_social_login_provider', ''));
 
         return view('signup', $viewData);
     }
 
     public function showSignupOtpForm(Request $request): RedirectResponse|View
     {
+        if (! $this->registrationOpen()) {
+            return redirect()->route('login')->withErrors([
+                'email' => 'Registration is currently closed.',
+            ]);
+        }
+
         if (! $this->signupOtpService->isEnabled()) {
             return redirect()->route('signup');
         }
@@ -223,6 +239,12 @@ class AuthController extends Controller
 
     public function signup(Request $request): RedirectResponse
     {
+        if (! $this->registrationOpen()) {
+            return back()->withErrors([
+                'email' => 'Registration is currently closed.',
+            ]);
+        }
+
         $validated = $request->validate([
             'name'     => 'required|string|max:255',
             'email'    => 'required|email|max:255|unique:users,email',
@@ -284,6 +306,12 @@ class AuthController extends Controller
 
     public function verifySignupOtp(Request $request): RedirectResponse
     {
+        if (! $this->registrationOpen()) {
+            return redirect()->route('login')->withErrors([
+                'email' => 'Registration is currently closed.',
+            ]);
+        }
+
         if (! $this->signupOtpService->isEnabled()) {
             return redirect()->route('signup');
         }
@@ -332,6 +360,12 @@ class AuthController extends Controller
 
     public function resendSignupOtp(Request $request): RedirectResponse
     {
+        if (! $this->registrationOpen()) {
+            return redirect()->route('login')->withErrors([
+                'email' => 'Registration is currently closed.',
+            ]);
+        }
+
         if (! $this->signupOtpService->isEnabled()) {
             return redirect()->route('signup');
         }
@@ -458,5 +492,30 @@ class AuthController extends Controller
         }
 
         return $maskedLocal . '@' . $domain;
+    }
+
+    private function registrationOpen(): bool
+    {
+        try {
+            if (! Schema::hasTable('site_settings')) {
+                return true;
+            }
+
+            $v = SiteSetting::get('registration_open', '1');
+
+            return $v === '1' || $v === 1 || $v === true;
+        } catch (\Throwable) {
+            return true;
+        }
+    }
+
+    private function normalizedLastSocialProvider(string $provider): ?string
+    {
+        $p = strtolower(trim($provider));
+        if (in_array($p, ['google', 'linkedin-openid'], true)) {
+            return $p;
+        }
+
+        return null;
     }
 }

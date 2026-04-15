@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Workflow;
 
+use App\Jobs\RunWorkflowJob;
 use App\Models\User;
 use App\Models\SocialAccount;
 use App\Models\Workflow;
@@ -174,7 +175,9 @@ final class WorkflowRunnerService
                 continue;
             }
 
-            $this->run($workflow, 'schedule', ['trigger' => 'schedule']);
+            // Reserve this run window before queueing to avoid duplicate enqueues.
+            $workflow->update(['last_run_at' => now()]);
+            RunWorkflowJob::dispatch((int) $workflow->id, 'schedule', ['trigger' => 'schedule']);
             $count++;
         }
 
@@ -198,7 +201,7 @@ final class WorkflowRunnerService
             if (strtolower((string) ($config['event_key'] ?? '')) !== strtolower($eventKey)) {
                 continue;
             }
-            $this->run($workflow, 'event', [
+            RunWorkflowJob::dispatch((int) $workflow->id, 'event', [
                 'trigger' => 'event',
                 'event_key' => $eventKey,
                 'event_payload' => $payload,

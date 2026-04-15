@@ -9,11 +9,15 @@ use App\Models\User;
 use App\Services\Post\PostPublishingService;
 use App\Services\Post\PostSchedulingService;
 use App\Services\Subscription\PlanWebhookFeatureService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 final class UserWebhookService
 {
+    private const SIGNATURE_MAX_SKEW_SECONDS = 300;
+    private const SIGNATURE_REPLAY_TTL_SECONDS = 600;
+
     public function __construct(
         private readonly PlanWebhookFeatureService $planWebhookFeature,
         private readonly PostSchedulingService $postScheduling,
@@ -78,16 +82,31 @@ final class UserWebhookService
     /**
      * @return array{ok: bool, user?: User, error?: string}
      */
-    public function authenticateInbound(string $webhookKeyId, ?string $providedSecret): array
+    public function authenticateInbound(
+        string $webhookKeyId,
+        ?string $providedTimestamp,
+        ?string $providedSignature,
+        string $rawBody
+    ): array
     {
         $id = trim($webhookKeyId);
         if ($id === '') {
             return ['ok' => false, 'error' => 'Webhook key id is required.'];
         }
 
-        $secret = trim((string) $providedSecret);
-        if ($secret === '') {
-            return ['ok' => false, 'error' => 'Missing webhook secret. Provide it in X-Webhook-Secret header.'];
+        $timestampRaw = trim((string) $providedTimestamp);
+        $signatureRaw = trim((string) $providedSignature);
+        if ($timestampRaw === '' || $signatureRaw === '') {
+            return ['ok' => false, 'error' => 'Missing webhook signature headers. Provide X-Webhook-Timestamp and X-Webhook-Signature.'];
+        }
+
+        if (!preg_match('/^\d{10}$/', $timestampRaw)) {
+            return ['ok' => false, 'error' => 'Invalid webhook timestamp format.'];
+        }
+        $timestamp = (int) $timestampRaw;
+        $now = now()->timestamp;
+        if (abs($now - $timestamp) > self::SIGNATURE_MAX_SKEW_SECONDS) {
+            return ['ok' => false, 'error' => 'Webhook timestamp is outside the allowed window.'];
         }
 
         $user = User::query()->where('webhook_key_id', $id)->first();
@@ -103,8 +122,24 @@ final class UserWebhookService
         }
 
         $storedSecret = trim((string) ($user->webhook_secret ?? ''));
-        if ($storedSecret === '' || !hash_equals($storedSecret, $secret)) {
-            return ['ok' => false, 'error' => 'Invalid webhook secret.'];
+        if ($storedSecret === '') {
+            return ['ok' => false, 'error' => 'Webhook secret is not configured.'];
+        }
+
+        $signature = strtolower(trim(preg_replace('/^sha256=/i', '', $signatureRaw) ?? ''));
+        if (!preg_match('/^[a-f0-9]{64}$/', $signature)) {
+            return ['ok' => false, 'error' => 'Invalid webhook signature format.'];
+        }
+
+        $expected = hash_hmac('sha256', $timestampRaw . '.' . $rawBody, $storedSecret);
+        if (!hash_equals($expected, $signature)) {
+            return ['ok' => false, 'error' => 'Invalid webhook signature.'];
+        }
+
+        $replayKey = 'webhook_replay:' . $id . ':' . $timestampRaw . ':' . $signature;
+        $isFresh = Cache::add($replayKey, '1', now()->addSeconds(self::SIGNATURE_REPLAY_TTL_SECONDS));
+        if (!$isFresh) {
+            return ['ok' => false, 'error' => 'Replay detected. This webhook signature was already used.'];
         }
 
         return ['ok' => true, 'user' => $user];

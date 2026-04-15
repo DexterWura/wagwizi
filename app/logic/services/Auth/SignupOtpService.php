@@ -16,6 +16,7 @@ class SignupOtpService
     private const OTP_TEMPLATE_KEY = 'auth.signup_otp';
     private const OTP_TTL_MINUTES = 10;
     private const MAX_ATTEMPTS = 5;
+    private const SEND_COOLDOWN_SECONDS = 60;
 
     public function __construct(
         private readonly EmailTemplateService $templates,
@@ -43,6 +44,7 @@ class SignupOtpService
         if ($name === '' || $passwordHash === '') {
             throw new RuntimeException('Incomplete signup payload for OTP verification.');
         }
+        $this->assertSendCooldown($email);
 
         $code = $this->generateCode();
         $this->storePendingSignup($email, [
@@ -65,6 +67,7 @@ class SignupOtpService
         if ($pending === null) {
             return false;
         }
+        $this->assertSendCooldown($normalizedEmail);
 
         $code = $this->generateCode();
         $pending['otp_hash'] = $this->hashOtp($normalizedEmail, $code);
@@ -216,6 +219,15 @@ class SignupOtpService
     private function hashOtp(string $email, string $code): string
     {
         return hash_hmac('sha256', $this->normalizeEmail($email) . '|' . $code, (string) config('app.key'));
+    }
+
+    private function assertSendCooldown(string $email): void
+    {
+        $key = 'signup_otp_cooldown:' . sha1($this->normalizeEmail($email));
+        $allowed = Cache::add($key, '1', now()->addSeconds(self::SEND_COOLDOWN_SECONDS));
+        if (!$allowed) {
+            throw new RuntimeException('Please wait before requesting another verification code.');
+        }
     }
 }
 

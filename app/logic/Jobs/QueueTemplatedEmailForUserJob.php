@@ -4,16 +4,18 @@ namespace App\Jobs;
 
 use App\Models\User;
 use App\Services\Notifications\SystemMessageSendService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
 /**
- * Schedules a templated email for a user (creates delivery row + SendTemplatedEmailJob).
- * For HTTP flows, the actual send runs after response; for CLI flows it runs synchronously.
+ * Queues creation of a templated email delivery for a user.
  */
-class QueueTemplatedEmailForUserJob
+class QueueTemplatedEmailForUserJob implements ShouldQueue
 {
-    use Dispatchable, SerializesModels;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function __construct(
         private readonly int $userId,
@@ -33,3 +35,4 @@ class QueueTemplatedEmailForUserJob
         $send->queueEmailToUser($user, $this->templateKey, $this->vars, $this->metadataExtra);
     }
 }
+

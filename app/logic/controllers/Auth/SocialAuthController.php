@@ -11,6 +11,8 @@ use Laravel\Socialite\Facades\Socialite;
 
 class SocialAuthController extends Controller
 {
+    private const LAST_SOCIAL_LOGIN_COOKIE = 'last_social_login_provider';
+
     public function __construct(
         private readonly AuthService $authService,
     ) {}
@@ -65,11 +67,21 @@ class SocialAuthController extends Controller
 
         $request->session()->regenerate();
 
+        $normalizedProvider = $this->normalizedProvider($provider);
         if ($result['is_new']) {
             return redirect()->route('profile')
-                ->with('info', 'Welcome! Please complete your profile to get started.');
+                ->with('info', 'Welcome! Please complete your profile to get started.')
+                ->withCookie(cookie(self::LAST_SOCIAL_LOGIN_COOKIE, $normalizedProvider, 60 * 24 * 365));
         }
 
-        return redirect()->intended('/dashboard');
+        return redirect()->intended('/dashboard')
+            ->withCookie(cookie(self::LAST_SOCIAL_LOGIN_COOKIE, $normalizedProvider, 60 * 24 * 365));
+    }
+
+    private function normalizedProvider(string $provider): string
+    {
+        $p = strtolower(trim($provider));
+
+        return in_array($p, ['google', 'linkedin-openid'], true) ? $p : 'google';
     }
 }

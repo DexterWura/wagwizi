@@ -59,11 +59,11 @@
                       <input class="input" type="text" readonly value="{{ $webhookUrl }}" />
                     </div>
                     <div class="field" style="margin-top: 0.6rem;">
-                      <label class="field__label">Webhook secret (send as <code>X-Webhook-Secret</code>)</label>
+                      <label class="field__label">Webhook secret (for request signing)</label>
                       <input class="input" type="text" readonly value="{{ $webhookData['webhook_secret'] }}" />
                     </div>
                     <p style="margin-top:0.6rem;color:var(--text-muted);font-size:0.9rem;">
-                      Payload supports <code>action</code> (<code>draft</code>, <code>schedule</code>, <code>publish_now</code>), <code>content</code>, <code>platform_accounts</code>, and optional scheduling/media fields.
+                      Send <code>X-Webhook-Timestamp</code> (unix seconds) and <code>X-Webhook-Signature</code> = <code>sha256=HMAC_SHA256(timestamp + "." + rawBody, webhook_secret)</code>. Payload supports <code>action</code> (<code>draft</code>, <code>schedule</code>, <code>publish_now</code>), <code>content</code>, <code>platform_accounts</code>, and optional scheduling/media fields.
                     </p>
                     <form method="POST" action="{{ route('tools.webhooks.regenerate') }}" style="margin-top:0.75rem;">
                       @csrf

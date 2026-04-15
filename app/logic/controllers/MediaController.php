@@ -9,6 +9,7 @@ use App\Utils\FileUploadUtil;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class MediaController extends Controller
 {
@@ -114,26 +115,43 @@ class MediaController extends Controller
             'ids.*' => 'integer',
         ]);
 
-        $query = MediaFile::query()->where('user_id', $user->id);
+        $query = MediaFile::query()->where('user_id', $user->id)->orderBy('id');
         if (! empty($validated['ids']) && is_array($validated['ids'])) {
             $query->whereIn('id', array_map('intval', $validated['ids']));
         }
 
-        $rows = $query->get();
-        foreach ($rows as $media) {
-            $media->posts()->detach();
-            if (is_string($media->path) && trim($media->path) !== '') {
-                FileUploadUtil::delete($media->path);
+        $deletedCount = 0;
+        $query->select(['id', 'path'])->chunkById(200, function ($chunk) use (&$deletedCount, $user): void {
+            $ids = $chunk->pluck('id')
+                ->map(static fn ($v): int => (int) $v)
+                ->filter(static fn (int $v): bool => $v > 0)
+                ->values()
+                ->all();
+            if ($ids === []) {
+                return;
             }
-            $media->delete();
-        }
+
+            DB::table('post_media')->whereIn('media_file_id', $ids)->delete();
+            MediaFile::query()
+                ->where('user_id', $user->id)
+                ->whereIn('id', $ids)
+                ->delete();
+
+            foreach ($chunk as $media) {
+                if (is_string($media->path) && trim($media->path) !== '') {
+                    FileUploadUtil::delete($media->path);
+                }
+            }
+
+            $deletedCount += count($ids);
+        });
 
         app(UserCacheVersionService::class)->bump((int) $user->id);
 
         return response()->json([
             'success' => true,
-            'message' => $rows->isEmpty() ? 'Nothing to clear.' : 'Storage updated.',
-            'deleted_count' => $rows->count(),
+            'message' => $deletedCount === 0 ? 'Nothing to clear.' : 'Storage updated.',
+            'deleted_count' => $deletedCount,
             'storage' => $this->mediaQuota->summaryForUser($user),
         ]);
     }

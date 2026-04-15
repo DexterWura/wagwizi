@@ -477,6 +477,10 @@ final class DashboardMetricsService
 
     private function fetchAudienceForAccount(SocialAccount $account): ?int
     {
+        if (!config('app.dashboard_live_audience_fetch', false)) {
+            return $this->metadataAudience($account);
+        }
+
         try {
             /** @var TokenRefreshService $refresh */
             $refresh = app(TokenRefreshService::class);

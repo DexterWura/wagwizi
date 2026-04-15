@@ -2,6 +2,7 @@
 
 namespace App\Services\Auth;
 
+use App\Models\SiteSetting;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Models\WorkspaceMembership;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 
@@ -128,10 +130,17 @@ class AuthService
                 $user = User::where('email', $email)->first();
 
                 if ($user !== null) {
+                    if (! $this->providerEmailIsTrusted($provider, $socialUser)) {
+                        throw new \RuntimeException('Unable to verify provider email assurance. Please sign in with your password and connect this provider from your account.');
+                    }
                     $user->update([$providerIdColumn => $socialUser->getId()]);
                     $this->loginSocialUser($user, $provider, 'existing account (email match)');
                     return ['user' => $user, 'is_new' => false];
                 }
+            }
+
+            if (! $this->registrationOpen()) {
+                throw new \RuntimeException('Registration is currently closed.');
             }
 
             $user = User::create([
@@ -234,5 +243,36 @@ class AuthService
         } while (User::query()->where('referral_code', $code)->exists());
 
         return $code;
+    }
+
+    public function registrationOpen(): bool
+    {
+        try {
+            if (! Schema::hasTable('site_settings')) {
+                return true;
+            }
+
+            $v = SiteSetting::get('registration_open', '1');
+
+            return $v === '1' || $v === 1 || $v === true;
+        } catch (\Throwable) {
+            return true;
+        }
+    }
+
+    private function providerEmailIsTrusted(string $provider, SocialiteUser $socialUser): bool
+    {
+        if ($provider === 'linkedin-openid') {
+            // LinkedIn OpenID Connect flow requires verified account ownership.
+            return true;
+        }
+
+        $raw = method_exists($socialUser, 'getRaw') ? (array) $socialUser->getRaw() : [];
+
+        return match ($provider) {
+            'google' => ($raw['email_verified'] ?? $raw['verified_email'] ?? false) === true
+                || ($raw['email_verified'] ?? $raw['verified_email'] ?? '0') === '1',
+            default => false,
+        };
     }
 }

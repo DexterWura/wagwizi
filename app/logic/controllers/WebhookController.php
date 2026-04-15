@@ -36,13 +36,16 @@ class WebhookController extends Controller
 
     public function inbound(Request $request, string $webhookKeyId): JsonResponse
     {
-        $providedSecret = trim((string) $request->header('X-Webhook-Secret', ''));
-        if ($providedSecret === '') {
-            // Optional fallback for systems that cannot set custom headers.
-            $providedSecret = trim((string) $request->input('webhook_secret', ''));
-        }
+        $providedTimestamp = trim((string) $request->header('X-Webhook-Timestamp', ''));
+        $providedSignature = trim((string) $request->header('X-Webhook-Signature', ''));
+        $rawBody = (string) $request->getContent();
 
-        $auth = $this->userWebhookService->authenticateInbound($webhookKeyId, $providedSecret);
+        $auth = $this->userWebhookService->authenticateInbound(
+            $webhookKeyId,
+            $providedTimestamp,
+            $providedSignature,
+            $rawBody
+        );
         if (!($auth['ok'] ?? false)) {
             return response()->json([
                 'success' => false,

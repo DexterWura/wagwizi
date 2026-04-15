@@ -131,18 +131,22 @@ class PostPublishingService
      */
     public function publishDuePosts(): int
     {
-        $posts = Post::dueForPublishing()->get();
-        if ($posts->isNotEmpty()) {
-            Log::info('Publish due posts batch', [
-                'overdue_count' => $posts->count(),
-                'post_ids'      => $posts->pluck('id')->take(50)->values()->all(),
-            ]);
-        }
         $dispatched = 0;
+        Post::query()
+            ->dueForPublishing()
+            ->orderBy('id')
+            ->chunkById(200, function ($posts) use (&$dispatched): void {
+                if ($posts->isNotEmpty()) {
+                    Log::info('Publish due posts batch', [
+                        'overdue_count' => $posts->count(),
+                        'post_ids'      => $posts->pluck('id')->take(50)->values()->all(),
+                    ]);
+                }
 
-        foreach ($posts as $post) {
-            $dispatched += $this->dispatchPublishing($post, true);
-        }
+                foreach ($posts as $post) {
+                    $dispatched += $this->dispatchPublishing($post, true);
+                }
+            });
 
         return $dispatched;
     }

@@ -35,7 +35,13 @@ return [
     | When true (default), posts picked up by publishDuePosts() run PublishPostToPlatformJob
     | synchronously so scheduled publishing works without a separate queue worker.
     */
-    'publish_due_posts_sync' => filter_var(env('PUBLISH_DUE_POSTS_SYNC', true), FILTER_VALIDATE_BOOLEAN),
+    'publish_due_posts_sync' => filter_var(env('PUBLISH_DUE_POSTS_SYNC', false), FILTER_VALIDATE_BOOLEAN),
+
+    /*
+    | When true, "publish now" may run platform jobs synchronously inside the request.
+    | Keep false in production so publishes are queue-first and low-latency for users.
+    */
+    'publish_now_sync' => filter_var(env('PUBLISH_NOW_SYNC', false), FILTER_VALIDATE_BOOLEAN),
 
     /*
     | When true, all publish jobs (immediate + scheduled) and eligible first-comment jobs run
@@ -52,6 +58,12 @@ return [
     | Serialize publishes targeting the same social account to reduce rate-limit races.
     */
     'publish_per_account_lock' => filter_var(env('PUBLISH_PER_ACCOUNT_LOCK', true), FILTER_VALIDATE_BOOLEAN),
+
+    /*
+    | Dashboard audience card should avoid live third-party API fan-out by default.
+    | Set true only if you explicitly accept slower dashboard responses.
+    */
+    'dashboard_live_audience_fetch' => filter_var(env('DASHBOARD_LIVE_AUDIENCE_FETCH', false), FILTER_VALIDATE_BOOLEAN),
 
     'maintenance' => [
         'driver' => 'file',
