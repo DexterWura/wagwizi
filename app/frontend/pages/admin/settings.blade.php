@@ -188,6 +188,12 @@
                     </label>
                     <p class="field__hint">When disabled, new users cannot sign up.</p>
                     <label class="check-line check-line--spaced">
+                      <input type="hidden" name="signup_email_otp_enabled" value="0" />
+                      <input type="checkbox" name="signup_email_otp_enabled" value="1" {{ ($settings['signup_email_otp_enabled'] ?? '0') === '1' ? 'checked' : '' }} />
+                      <span>Require email OTP for signups</span>
+                    </label>
+                    <p class="field__hint">When enabled, email/password signups must verify a 6-digit code. Google and LinkedIn signups bypass OTP.</p>
+                    <label class="check-line check-line--spaced">
                       <input type="hidden" name="show_floating_help" value="0" />
                       <input type="checkbox" name="show_floating_help" value="1" {{ ($settings['show_floating_help'] ?? '1') === '1' ? 'checked' : '' }} />
                       <span>Show floating Get Help button</span>

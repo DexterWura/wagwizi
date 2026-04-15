@@ -848,6 +848,7 @@ class AdminController extends Controller
             'seo_local_postal_code'      => SiteSetting::get('seo_local_postal_code', ''),
             'seo_local_country_code'     => SiteSetting::get('seo_local_country_code', ''),
             'registration_open'          => SiteSetting::get('registration_open', '1'),
+            'signup_email_otp_enabled'   => SiteSetting::get('signup_email_otp_enabled', '0'),
             'show_floating_help'         => SiteSetting::get('show_floating_help', '1'),
             'affiliate_program_enabled'  => SiteSetting::get('affiliate_program_enabled', '0'),
             'affiliate_first_subscription_percent' => SiteSetting::get('affiliate_first_subscription_percent', '10.00'),
@@ -1006,7 +1007,7 @@ class AdminController extends Controller
             'seo_favicon_remove' => 'nullable|boolean',
         ]);
 
-        $fields = ['app_name', 'app_tagline', 'hero_eyebrow', 'hero_heading', 'hero_subheading', 'registration_open', 'show_floating_help'];
+        $fields = ['app_name', 'app_tagline', 'hero_eyebrow', 'hero_heading', 'hero_subheading', 'registration_open', 'signup_email_otp_enabled', 'show_floating_help'];
 
         foreach ($fields as $field) {
             if ($request->has($field)) {

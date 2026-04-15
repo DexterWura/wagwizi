@@ -24,6 +24,13 @@
       </div>
       @endif
 
+      @if(!empty($signupOtpEnabled))
+      <div class="alert alert--info" role="note">
+        <i class="fa-solid fa-envelope-open-text" aria-hidden="true"></i>
+        <span>After signup, we will email a 6-digit verification code before creating your account.</span>
+      </div>
+      @endif
+
       @if($socialGoogleEnabled || $socialLinkedinEnabled)
       <div class="social-auth-buttons">
         @if($socialGoogleEnabled)

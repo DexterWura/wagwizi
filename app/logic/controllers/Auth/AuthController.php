@@ -6,6 +6,7 @@ use App\Controllers\Controller;
 use App\Jobs\QueueTemplatedEmailForUserJob;
 use App\Models\User;
 use App\Services\Auth\AuthService;
+use App\Services\Auth\SignupOtpService;
 use App\Services\Auth\SocialLoginAvailability;
 use App\Services\Audit\AuditTrailService;
 use App\Services\Notifications\InAppNotificationService;
@@ -22,6 +23,7 @@ class AuthController extends Controller
 {
     public function __construct(
         private readonly AuthService $authService,
+        private readonly SignupOtpService $signupOtpService,
         private readonly SocialLoginAvailability $socialLoginAvailability,
         private readonly AuditTrailService $auditTrailService,
     ) {}
@@ -92,8 +94,30 @@ class AuthController extends Controller
         $viewData = $this->socialAuthViewData();
         $viewData['referralCode'] = trim((string) request()->query('ref', ''));
         $viewData['redirectTarget'] = $this->safeRedirectPath((string) request()->query('redirect', '')) ?? '';
+        $viewData['signupOtpEnabled'] = $this->signupOtpService->isEnabled();
 
         return view('signup', $viewData);
+    }
+
+    public function showSignupOtpForm(Request $request): RedirectResponse|View
+    {
+        if (! $this->signupOtpService->isEnabled()) {
+            return redirect()->route('signup');
+        }
+
+        $pendingEmail = (string) $request->session()->get('signup_otp_email', '');
+        if ($pendingEmail === '' || ! $this->signupOtpService->hasPendingSignup($pendingEmail)) {
+            $request->session()->forget('signup_otp_email');
+            return redirect()->route('signup')->withErrors([
+                'email' => 'Your signup verification session expired. Please sign up again.',
+            ]);
+        }
+
+        return view('signup-otp', [
+            'pendingEmail' => $pendingEmail,
+            'maskedEmail' => $this->maskEmail($pendingEmail),
+            'otpExpiresMinutes' => $this->signupOtpService->ttlMinutes(),
+        ]);
     }
 
     public function showForgotPassword(): View
@@ -218,28 +242,128 @@ class AuthController extends Controller
                 ->value('id');
         }
 
-        $this->authService->register(
-            $validated['name'],
-            $validated['email'],
-            $validated['password'],
-            $referredByUserId ? (int) $referredByUserId : null
-        );
+        if (! $this->signupOtpService->isEnabled()) {
+            try {
+                return $this->completeSignupAndRedirect(
+                    $request,
+                    $validated['name'],
+                    $validated['email'],
+                    Hash::make($validated['password']),
+                    $referredByUserId ? (int) $referredByUserId : null
+                );
+            } catch (\RuntimeException $e) {
+                return back()
+                    ->withErrors(['email' => $e->getMessage()])
+                    ->withInput($request->except('password', 'password_confirmation'));
+            }
+        }
 
-        $request->session()->regenerate();
-        $user = $request->user();
-        $this->auditTrailService->record(
-            category: 'auth',
-            event: 'signup_success',
-            userId: $user?->id ? (int) $user->id : null,
-            request: $request,
-            statusCode: 201,
-            metadata: [
-                'email' => (string) ($validated['email'] ?? ''),
-                'referred' => $referredByUserId !== null,
-            ],
-        );
+        try {
+            $this->signupOtpService->begin([
+                'name' => (string) $validated['name'],
+                'email' => (string) $validated['email'],
+                'password_hash' => Hash::make((string) $validated['password']),
+                'referred_by_user_id' => $referredByUserId ? (int) $referredByUserId : null,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to dispatch signup OTP email', [
+                'email' => (string) $validated['email'],
+                'error' => $e->getMessage(),
+            ]);
 
-        return redirect()->intended('/dashboard');
+            return back()
+                ->withErrors(['email' => 'Could not send verification code right now. Please try again.'])
+                ->withInput($request->except('password', 'password_confirmation'));
+        }
+
+        $request->session()->put('signup_otp_email', strtolower(trim((string) $validated['email'])));
+
+        return redirect()->route('signup.otp.form')
+            ->with('success', 'We sent a 6-digit verification code to your email.');
+    }
+
+    public function verifySignupOtp(Request $request): RedirectResponse
+    {
+        if (! $this->signupOtpService->isEnabled()) {
+            return redirect()->route('signup');
+        }
+
+        $validated = $request->validate([
+            'otp_code' => ['required', 'string', 'regex:/^\d{6}$/'],
+        ]);
+
+        $pendingEmail = (string) $request->session()->get('signup_otp_email', '');
+        if ($pendingEmail === '') {
+            return redirect()->route('signup')->withErrors([
+                'email' => 'Your signup verification session expired. Please sign up again.',
+            ]);
+        }
+
+        $verification = $this->signupOtpService->verifyCode($pendingEmail, (string) $validated['otp_code']);
+        if (! ($verification['ok'] ?? false)) {
+            return back()->withErrors([
+                'otp_code' => (string) ($verification['reason'] ?? 'Invalid verification code.'),
+            ]);
+        }
+
+        $pending = $verification['pending'] ?? null;
+        if (! is_array($pending)) {
+            return redirect()->route('signup')->withErrors([
+                'email' => 'Your signup verification session expired. Please sign up again.',
+            ]);
+        }
+
+        $request->session()->forget('signup_otp_email');
+
+        try {
+            return $this->completeSignupAndRedirect(
+                $request,
+                (string) ($pending['name'] ?? ''),
+                (string) ($pending['email'] ?? ''),
+                (string) ($pending['password_hash'] ?? ''),
+                isset($pending['referred_by_user_id']) ? (int) $pending['referred_by_user_id'] : null
+            );
+        } catch (\RuntimeException $e) {
+            return redirect()->route('signup')
+                ->withErrors(['email' => $e->getMessage()])
+                ->withInput(['name' => (string) ($pending['name'] ?? ''), 'email' => (string) ($pending['email'] ?? '')]);
+        }
+    }
+
+    public function resendSignupOtp(Request $request): RedirectResponse
+    {
+        if (! $this->signupOtpService->isEnabled()) {
+            return redirect()->route('signup');
+        }
+
+        $pendingEmail = (string) $request->session()->get('signup_otp_email', '');
+        if ($pendingEmail === '' || ! $this->signupOtpService->hasPendingSignup($pendingEmail)) {
+            $request->session()->forget('signup_otp_email');
+            return redirect()->route('signup')->withErrors([
+                'email' => 'Your signup verification session expired. Please sign up again.',
+            ]);
+        }
+
+        try {
+            $resent = $this->signupOtpService->resend($pendingEmail);
+        } catch (\Throwable $e) {
+            Log::error('Failed to resend signup OTP', [
+                'email' => $pendingEmail,
+                'error' => $e->getMessage(),
+            ]);
+            return back()->withErrors([
+                'otp_code' => 'Could not resend verification code right now. Please try again.',
+            ]);
+        }
+
+        if (! $resent) {
+            $request->session()->forget('signup_otp_email');
+            return redirect()->route('signup')->withErrors([
+                'email' => 'Your signup verification session expired. Please sign up again.',
+            ]);
+        }
+
+        return back()->with('success', 'A new 6-digit verification code was sent to your email.');
     }
 
     public function logout(Request $request): RedirectResponse
@@ -282,5 +406,57 @@ class AuthController extends Controller
         }
 
         return $target;
+    }
+
+    private function completeSignupAndRedirect(
+        Request $request,
+        string $name,
+        string $email,
+        string $passwordHash,
+        ?int $referredByUserId
+    ): RedirectResponse {
+        $this->authService->registerWithPasswordHash(
+            $name,
+            $email,
+            $passwordHash,
+            $referredByUserId
+        );
+
+        $request->session()->regenerate();
+        $user = $request->user();
+        $this->auditTrailService->record(
+            category: 'auth',
+            event: 'signup_success',
+            userId: $user?->id ? (int) $user->id : null,
+            request: $request,
+            statusCode: 201,
+            metadata: [
+                'email' => $email,
+                'referred' => $referredByUserId !== null,
+                'otp_verified' => $this->signupOtpService->isEnabled(),
+            ],
+        );
+
+        return redirect()->intended('/dashboard');
+    }
+
+    private function maskEmail(string $email): string
+    {
+        $email = strtolower(trim($email));
+        if ($email === '' || ! str_contains($email, '@')) {
+            return $email;
+        }
+
+        [$local, $domain] = explode('@', $email, 2);
+        $localLen = strlen($local);
+        if ($localLen <= 2) {
+            $maskedLocal = str_repeat('*', max(1, $localLen));
+        } else {
+            $maskedLocal = substr($local, 0, 1)
+                . str_repeat('*', max(1, $localLen - 2))
+                . substr($local, -1);
+        }
+
+        return $maskedLocal . '@' . $domain;
     }
 }

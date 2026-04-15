@@ -69,6 +69,13 @@ Route::middleware('guest')->group(function () {
 
     Route::get('/signup',  [AuthController::class, 'showSignup'])->name('signup');
     Route::post('/signup', [AuthController::class, 'signup'])->middleware('throttle:5,1');
+    Route::get('/signup/verify-otp', [AuthController::class, 'showSignupOtpForm'])->name('signup.otp.form');
+    Route::post('/signup/verify-otp', [AuthController::class, 'verifySignupOtp'])
+        ->middleware('throttle:8,1')
+        ->name('signup.otp.verify');
+    Route::post('/signup/verify-otp/resend', [AuthController::class, 'resendSignupOtp'])
+        ->middleware('throttle:4,1')
+        ->name('signup.otp.resend');
 
     Route::get('/auth/{provider}/redirect', [SocialAuthController::class, 'redirect'])->name('social.redirect');
     Route::get('/auth/{provider}/callback', [SocialAuthController::class, 'callback'])->name('social.callback');

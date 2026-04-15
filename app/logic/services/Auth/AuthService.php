@@ -9,6 +9,7 @@ use App\Services\Notifications\InAppNotificationService;
 use App\Services\Subscription\DefaultSubscriptionService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
@@ -52,11 +53,21 @@ class AuthService
 
     public function register(string $name, string $email, string $password, ?int $referredByUserId = null): User
     {
-        return DB::transaction(function () use ($name, $email, $password, $referredByUserId): User {
+        return $this->registerWithPasswordHash($name, $email, Hash::make($password), $referredByUserId);
+    }
+
+    public function registerWithPasswordHash(string $name, string $email, string $passwordHash, ?int $referredByUserId = null): User
+    {
+        return DB::transaction(function () use ($name, $email, $passwordHash, $referredByUserId): User {
+            $normalizedEmail = strtolower(trim($email));
+            if (User::query()->where('email', $normalizedEmail)->exists()) {
+                throw new \RuntimeException('An account with this email already exists.');
+            }
+
             $user = User::create([
                 'name'     => $name,
-                'email'    => $email,
-                'password' => $password,
+                'email'    => $normalizedEmail,
+                'password' => $passwordHash,
                 'referral_code' => $this->generateUniqueReferralCode(),
                 'referred_by_user_id' => $referredByUserId,
             ]);

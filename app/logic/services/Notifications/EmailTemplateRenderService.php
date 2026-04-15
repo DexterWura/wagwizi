@@ -52,6 +52,8 @@ class EmailTemplateRenderService
             'planName'        => 'Pro',
             'subscriptionsUrl'=> url('/admin/subscriptions'),
             'sentAt'          => now()->toDateTimeString(),
+            'otpCode'         => '123456',
+            'otpExpiresMinutes' => '10',
         ];
     }
 
