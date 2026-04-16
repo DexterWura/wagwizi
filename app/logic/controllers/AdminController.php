@@ -38,6 +38,7 @@ use App\Services\Auth\SocialLoginAvailability;
 use App\Services\Audit\AuditTrailService;
 use App\Services\Platform\Platform;
 use App\Services\Landing\LandingFeaturesDeepService;
+use App\Services\Landing\LandingHowItWorksService;
 use App\Services\Notifications\InAppNotificationService;
 use App\Services\Seo\PublicSeoFilesService;
 use App\Services\Cache\PublicCatalogCache;
@@ -870,6 +871,7 @@ class AdminController extends Controller
         $robotsExists = is_file(public_path('robots.txt'));
 
         $landingFeaturesDeep = app(LandingFeaturesDeepService::class)->resolvedBlocks();
+        $landingHowItWorks  = app(LandingHowItWorksService::class)->resolvedSteps();
         $landingFeaturesVisualLabels = [
             LandingFeaturesDeepService::VISUAL_GLASS_CARD => 'Glass card (eyebrow + body)',
             LandingFeaturesDeepService::VISUAL_GLASS_MONO => 'Glass — single line',
@@ -886,7 +888,8 @@ class AdminController extends Controller
             'sitemapExists',
             'robotsExists',
             'landingFeaturesDeep',
-            'landingFeaturesVisualLabels'
+            'landingFeaturesVisualLabels',
+            'landingHowItWorks'
         ));
     }
 
@@ -990,6 +993,53 @@ class AdminController extends Controller
         return $this->redirectToSettingsSection(
             (string) $request->input('return_section', 'landing'),
             'Landing features deep section saved.',
+            'success'
+        );
+    }
+
+    public function updateLandingHowItWorks(Request $request, LandingHowItWorksService $service): RedirectResponse
+    {
+        $request->validate([
+            'steps'              => 'required|array|size:3',
+            'steps.*.title'      => 'nullable|string|max:120',
+            'steps.*.body'       => 'nullable|string|max:500',
+            'steps.*.icon_classes' => 'nullable|string|max:200',
+        ]);
+
+        $defaults = $service->defaultSteps();
+        $prevAll  = SiteSetting::getJson(LandingHowItWorksService::STORAGE_KEY, []);
+        $out      = [];
+
+        for ($i = 0; $i < 3; $i++) {
+            $def  = $defaults[$i];
+            $prev = is_array($prevAll[$i] ?? null) ? $prevAll[$i] : [];
+            $f    = $request->input("steps.$i", []);
+
+            $title = trim((string) ($f['title'] ?? ''));
+            $body  = trim((string) ($f['body'] ?? ''));
+
+            // If admin left blank, keep previous (or default).
+            $outTitle = $title !== '' ? Str::limit(strip_tags($title), 120) : ($prev['title'] ?? $def['title']);
+            $outBody  = $body !== '' ? Str::limit(strip_tags($body), 500) : ($prev['body'] ?? $def['body']);
+
+            $iconRaw = (string) ($f['icon_classes'] ?? '');
+            $iconTrim = trim($iconRaw);
+            $outIcon = $iconTrim !== ''
+                ? $service->parseIconClasses($iconTrim)
+                : ($prev['icon_classes'] ?? $def['icon_classes']);
+
+            $out[] = [
+                'title'        => $outTitle,
+                'body'         => $outBody,
+                'icon_classes' => $outIcon,
+            ];
+        }
+
+        SiteSetting::setJson(LandingHowItWorksService::STORAGE_KEY, $out);
+
+        return $this->redirectToSettingsSection(
+            (string) $request->input('return_section', 'landing'),
+            'Landing how-it-works section saved.',
             'success'
         );
     }

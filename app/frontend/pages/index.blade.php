@@ -35,7 +35,7 @@
         </a>
         <nav class="lp-nav" aria-label="Primary">
           <a href="#product">Product</a>
-          <a href="#resources">Resources</a>
+          <a href="#resources">How it works</a>
           <a href="#pricing">Pricing</a>
         </nav>
         <div class="lp-header__actions">
@@ -53,7 +53,7 @@
       </div>
       <div id="lp-nav-panel" role="dialog" aria-label="Mobile menu">
         <a href="#product">Product</a>
-        <a href="#resources">Resources</a>
+        <a href="#resources">How it works</a>
         <a href="#pricing">Pricing</a>
         @auth
           <a href="{{ route('dashboard') }}">Dashboard</a>
@@ -458,14 +458,29 @@
 
       <section class="lp-section" id="resources">
         <div class="lp-section__head" data-lp-reveal>
-          <h2>Connect your social channels in one dashboard</h2>
-          <p>Link the networks your team uses and manage multi-account publishing from a single social media command center.</p>
+          <h2>How it works</h2>
+          <p>Go from setup to scheduled posts with AI assistance—without switching tools.</p>
         </div>
+
         <div class="lp-wrap">
-          <div class="lp-int-grid">
-            @foreach($enabledPlatforms as $platform)
-            <div class="lp-int-cell" data-lp-reveal><i class="{{ $platform->icon() }}"></i></div>
-            @endforeach
+          <div class="lp-how" data-lp-reveal>
+            <svg class="lp-how__connector" viewBox="0 0 1000 170" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+              <path class="lp-how__path" d="M160 85 C 270 15, 380 15, 500 85 C 620 155, 730 155, 840 85" />
+              <path class="lp-how__path lp-how__path--glow" d="M160 85 C 270 15, 380 15, 500 85 C 620 155, 730 155, 840 85" />
+            </svg>
+
+            <ol class="lp-how__steps">
+              @foreach($landingHowItWorks as $i => $step)
+              <li class="lp-how__step" data-lp-reveal>
+                <div class="lp-how__icon-circle">
+                  <span class="lp-how__step-num" aria-hidden="true">{{ $i + 1 }}</span>
+                  <i class="{{ $step['icon_classes'] }}" aria-hidden="true"></i>
+                </div>
+                <h3>{{ $step['title'] }}</h3>
+                <p>{{ $step['body'] }}</p>
+              </li>
+              @endforeach
+            </ol>
           </div>
         </div>
       </section>

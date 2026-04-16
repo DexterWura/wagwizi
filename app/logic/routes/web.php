@@ -211,6 +211,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/settings/generate-sitemap', [AdminController::class, 'generateSitemap'])->name('settings.generate-sitemap');
         Route::post('/settings/generate-robots', [AdminController::class, 'generateRobotsTxt'])->name('settings.generate-robots');
         Route::post('/settings/landing-features-deep', [AdminController::class, 'updateLandingFeaturesDeep'])->name('settings.landing-features-deep');
+        Route::post('/settings/landing-how-it-works', [AdminController::class, 'updateLandingHowItWorks'])->name('settings.landing-how-it-works');
 
         Route::get('/migrations',           [AdminController::class, 'migrations'])->name('migrations');
         Route::post('/migrations/run',      [AdminController::class, 'runMigrations'])->name('migrations.run');

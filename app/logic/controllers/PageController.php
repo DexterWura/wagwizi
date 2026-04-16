@@ -20,6 +20,7 @@ use App\Services\SocialAccount\SocialAccountLimitService;
 use App\Services\Subscription\SubscriptionTrialService;
 use App\Services\Insights\AudienceInsightsService;
 use App\Services\Landing\LandingFeaturesDeepService;
+use App\Services\Landing\LandingHowItWorksService;
 use App\Services\Media\MediaStorageQuotaService;
 use App\Services\Ai\PlatformAiQuotaService;
 use App\Services\Platform\Platform;
@@ -81,6 +82,8 @@ class PageController extends Controller
             $landingFeaturesDeep[]  = $row;
         }
 
+        $landingHowItWorks = app(LandingHowItWorksService::class)->resolvedSteps();
+
         $currencyDisplay = app(CurrencyDisplayService::class);
 
         $user = null;
@@ -115,6 +118,7 @@ class PageController extends Controller
             'heroHeading',
             'heroSubheading',
             'landingFeaturesDeep',
+            'landingHowItWorks',
             'currencyDisplay',
             'user',
             'subscriptionAccess',

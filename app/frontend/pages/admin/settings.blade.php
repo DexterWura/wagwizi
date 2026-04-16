@@ -354,6 +354,40 @@
             </div>
           </form>
 
+          <form method="POST" action="{{ route('admin.settings.landing-how-it-works') }}" enctype="multipart/form-data" class="card admin-landing-how-form" data-admin-settings-pane="landing">
+            @csrf
+            <input type="hidden" name="return_section" value="landing" />
+            <div class="card__head">Landing page — How it works</div>
+            <div class="card__body">
+              <p class="field__hint">Three animated steps. Icon classes use Font Awesome (e.g. <code>fa-solid fa-paper-plane</code>).</p>
+
+              @for($i = 0; $i < 3; $i++)
+              @php $how = $landingHowItWorks[$i]; @endphp
+              <fieldset class="admin-landing-how-block">
+                <legend class="admin-landing-how-block__title">Step {{ $i + 1 }}</legend>
+
+                <div class="field">
+                  <label class="field__label" for="how-{{ $i }}-title">Title</label>
+                  <input class="input" id="how-{{ $i }}-title" name="steps[{{ $i }}][title]" value="{{ $how['title'] }}" />
+                </div>
+
+                <div class="field">
+                  <label class="field__label" for="how-{{ $i }}-body">Body</label>
+                  <textarea class="input" id="how-{{ $i }}-body" name="steps[{{ $i }}][body]" rows="3">{{ $how['body'] }}</textarea>
+                </div>
+
+                <div class="field">
+                  <label class="field__label" for="how-{{ $i }}-icon_classes">Icon classes</label>
+                  <input class="input" id="how-{{ $i }}-icon_classes" name="steps[{{ $i }}][icon_classes]" value="{{ $how['icon_classes'] }}" placeholder="fa-solid fa-paper-plane" />
+                </div>
+              </fieldset>
+              @endfor
+            </div>
+            <div class="admin-form-footer">
+              <button type="submit" class="btn btn--primary">Save how-it-works</button>
+            </div>
+          </form>
+
           <div class="card" data-admin-settings-pane="seo">
             <div class="card__head">SEO files</div>
             <div class="card__body">

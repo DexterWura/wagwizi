@@ -2153,6 +2153,166 @@ section#video .lp-wrap {
   display: block;
 }
 
+/* —— How it works —— */
+.lp-how[data-lp-reveal] {
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+.lp-how {
+  position: relative;
+  padding: 1rem 0 0;
+}
+
+.lp-how__connector {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 26px;
+  height: 150px;
+  width: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.lp-how.is-visible .lp-how__connector {
+  opacity: 1;
+}
+
+.lp-how__path {
+  fill: none;
+  stroke: rgba(34, 211, 238, 0.7);
+  stroke-width: 3;
+  stroke-dasharray: 10 14;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.35));
+  animation: lp-how-dash 2.8s linear infinite;
+  animation-play-state: paused;
+}
+
+.lp-how.is-visible .lp-how__path {
+  animation-play-state: running;
+}
+
+.lp-how__path--glow {
+  stroke: rgba(168, 85, 247, 0.55);
+  stroke-width: 7;
+  opacity: 0.38;
+}
+
+@keyframes lp-how-dash {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -240;
+  }
+}
+
+.lp-how__steps {
+  position: relative;
+  z-index: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2.25rem;
+  align-items: start;
+}
+
+.lp-how__step {
+  text-align: center;
+}
+
+.lp-how__icon-circle {
+  position: relative;
+  width: 86px;
+  height: 86px;
+  border-radius: 999px;
+  margin: 0 auto 1rem;
+  background: radial-gradient(circle at 30% 20%, rgba(52, 211, 153, 0.92) 0%, rgba(52, 211, 153, 0.18) 45%, rgba(168, 85, 247, 0.12) 100%);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.08), 0 18px 50px rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c6fbe0;
+  transform: translateY(10px) scale(0.98);
+  opacity: 0;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+  backdrop-filter: blur(10px);
+}
+
+.lp-how__step.is-visible .lp-how__icon-circle {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.lp-how__icon-circle i {
+  font-size: 1.7rem;
+}
+
+.lp-how__step-num {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  color: #eafff4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.lp-how__step h3 {
+  margin: 0 0 0.55rem;
+  font-family: var(--lp-display);
+  font-size: 1.15rem;
+  color: var(--lp-text);
+}
+
+.lp-how__step p {
+  margin: 0;
+  color: var(--lp-muted);
+  line-height: 1.55;
+  font-size: 0.98rem;
+}
+
+@media (max-width: 900px) {
+  .lp-how__connector {
+    display: none;
+  }
+
+  .lp-how__steps {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .lp-how__step h3,
+  .lp-how__step p {
+    text-align: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-how__path {
+    animation: none;
+  }
+
+  .lp-how__icon-circle {
+    transition: none;
+  }
+}
+
 .lp-int-grid {
   display: flex;
   flex-wrap: wrap;
