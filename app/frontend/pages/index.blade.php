@@ -502,9 +502,6 @@
             </div>
           </div>
           @auth
-            @if(!empty($landingCheckout['hosted_available']) && ($landingCheckout['checkout_mode'] ?? '') === 'choose' && !empty($landingCheckout['gateways']))
-            <p class="lp-checkout-note">You will choose your payment method in a popup right before secure checkout.</p>
-            @endif
             <p class="lp-checkout-status" data-lp-checkout-status hidden aria-live="polite"></p>
           @endauth
           <div class="lp-pricing__grid">
