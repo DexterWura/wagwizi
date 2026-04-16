@@ -4827,6 +4827,63 @@ button.link-create {
   gap: 0.5rem;
 }
 
+.composer-master-wrap {
+  position: relative;
+}
+
+.composer-master-wrap.is-showing-ai-diff #composer-master {
+  opacity: 0.12;
+}
+
+.composer-draft-diff {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.composer-draft-diff[hidden] {
+  display: none !important;
+}
+
+.composer-draft-diff__head {
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-input) 90%, var(--accent-color) 10%);
+}
+
+.composer-draft-diff__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.composer-draft-diff__body {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 0.65rem 0.75rem;
+}
+
+.composer-draft-diff__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border-top: 1px solid var(--border);
+}
+
 .composer-ai-dock {
   position: absolute;
   left: 0;
@@ -4875,6 +4932,28 @@ button.link-create {
   opacity: 0.5;
   pointer-events: none;
   user-select: none;
+}
+
+.composer-ai-inline-lock {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-input) 90%, var(--accent-color) 10%);
+}
+
+.composer-ai-inline-lock__text {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  flex: 1 1 100%;
+}
+
+.composer-ai-inline-lock__actions {
+  display: flex;
+  gap: 0.45rem;
 }
 
 .composer-ai-paywall {
@@ -5562,14 +5641,6 @@ button.link-create {
 .composer-feed-preview__live {
   margin: 0;
   white-space: pre-wrap;
-}
-
-.composer-feed-preview__agent-diff {
-  margin: 0;
-}
-
-.composer-feed-preview__agent-diff[hidden] {
-  display: none !important;
 }
 
 .composer-inline-diff {

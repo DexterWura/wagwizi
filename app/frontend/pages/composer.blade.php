@@ -121,7 +121,24 @@
                 <div class="composer-form-card__section composer-draft-anchor">
                   <label class="field__label sr-only" for="composer-master">Post text</label>
                   <div class="composer-draft-stack">
-                    <textarea class="textarea textarea--composer" id="composer-master" rows="9" placeholder="Write something here…"></textarea>
+                    <div class="composer-master-wrap" data-app-composer-master-wrap>
+                      <textarea class="textarea textarea--composer" id="composer-master" rows="9" placeholder="Write something here…"></textarea>
+                      <div class="composer-draft-diff" data-app-composer-draft-diff hidden aria-live="polite" aria-label="AI suggested draft changes">
+                        <div class="composer-draft-diff__head">
+                          <span class="composer-draft-diff__title"><i class="fa-solid fa-code-compare" aria-hidden="true"></i> AI suggested edits</span>
+                        </div>
+                        <div class="composer-draft-diff__body">
+                          <span class="composer-inline-diff">
+                            <del class="diff-inline-del" data-app-composer-draft-diff-del></del>
+                            <ins class="diff-inline-ins" data-app-composer-draft-diff-ins></ins>
+                          </span>
+                        </div>
+                        <div class="composer-draft-diff__actions">
+                          <button type="button" class="btn btn--primary btn--sm" data-app-composer-draft-diff-accept>Accept all</button>
+                          <button type="button" class="btn btn--outline btn--sm" data-app-composer-draft-diff-dismiss>Dismiss</button>
+                        </div>
+                      </div>
+                    </div>
                     <div class="composer-toolbar">
                       <button type="button" class="composer-pill" data-app-composer-hashtag aria-label="Insert hashtag">
                         <i class="fa-solid fa-hashtag" aria-hidden="true"></i>
@@ -179,6 +196,22 @@
                             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                           </button>
                         </div>
+                        @if($composerAiLocked)
+                        <div class="composer-ai-inline-lock" role="region" aria-label="How to unlock AI Assist">
+                          <span class="composer-ai-paywall__badge" aria-hidden="true"><i class="fa-solid fa-wand-magic-sparkles"></i> PRO</span>
+                          @if(!empty($composerAiQuotaExhausted))
+                          <p class="composer-ai-inline-lock__text">Platform AI credits are used up for this billing period.</p>
+                          @elseif(!empty($composerAiPlanNoPlatformAi))
+                          <p class="composer-ai-inline-lock__text">Your current plan does not include platform AI credits.</p>
+                          @else
+                          <p class="composer-ai-inline-lock__text">AI Assist is locked. Add your API key or upgrade for platform AI credits.</p>
+                          @endif
+                          <div class="composer-ai-inline-lock__actions">
+                            <a class="btn btn--primary btn--sm" href="{{ route('settings') }}">AI settings</a>
+                            <a class="btn btn--outline btn--sm" href="{{ route('plans') }}">View plans</a>
+                          </div>
+                        </div>
+                        @endif
                         <div class="composer-ai-dock__stack @if($composerAiLocked) composer-ai-dock__stack--locked @endif">
                           <div class="composer-ai-dock__stack-inner" aria-hidden="{{ $composerAiLocked ? 'true' : 'false' }}">
                             <div class="ai-chat-panel__messages" id="composer-ai-messages">
@@ -189,27 +222,6 @@
                               <button type="submit" class="btn btn--primary" @if($composerAiLocked) disabled @endif>Send</button>
                             </form>
                           </div>
-                          @if($composerAiLocked)
-                          <div class="composer-ai-paywall" role="region" aria-label="How to unlock AI Assist">
-                            <div class="composer-ai-paywall__card">
-                              <span class="composer-ai-paywall__badge" aria-hidden="true"><i class="fa-solid fa-wand-magic-sparkles"></i> AI</span>
-                              @if(!empty($composerAiQuotaExhausted))
-                              <p class="composer-ai-paywall__title">Platform AI limit reached</p>
-                              <p class="composer-ai-paywall__text">You have used all platform AI credits for this billing period. Wait until your plan renews to get a fresh allowance, or add your own API key under Settings → AI (any plan).</p>
-                              @elseif(!empty($composerAiPlanNoPlatformAi))
-                              <p class="composer-ai-paywall__title">No platform AI on this plan</p>
-                              <p class="composer-ai-paywall__text">Your current plan does not include platform AI credits. Add your own API key under Settings → AI, or upgrade to a plan that includes credits.</p>
-                              @else
-                              <p class="composer-ai-paywall__title">Unlock AI Assist</p>
-                              <p class="composer-ai-paywall__text">Use platform AI with a paid plan that includes credits, or add your own API key in Settings (any plan, billed by your provider).</p>
-                              @endif
-                              <div class="composer-ai-paywall__actions">
-                                <a class="btn btn--primary" href="{{ route('settings') }}">AI settings</a>
-                                <a class="btn btn--outline" href="{{ route('plans') }}">View plans</a>
-                              </div>
-                            </div>
-                          </div>
-                          @endif
                         </div>
                       </div>
                     </div>
@@ -419,12 +431,6 @@
                     <div class="composer-feed-preview__body">
                       <div class="composer-feed-preview__media" data-app-composer-feed-media hidden></div>
                       <div class="composer-feed-preview__live" data-app-composer-feed-live>Your post will appear here.</div>
-                      <div class="composer-feed-preview__agent-diff" data-app-composer-feed-diff hidden aria-live="polite">
-                        <span class="composer-inline-diff">
-                          <del class="diff-inline-del"></del>
-                          <ins class="diff-inline-ins"></ins>
-                        </span>
-                      </div>
                     </div>
                     <div class="composer-feed-preview__bar" aria-hidden="true">
                       <span><i class="fa-regular fa-heart"></i></span>

@@ -1126,22 +1126,10 @@
     var master = document.getElementById("composer-master");
     if (!master) return;
     var live = document.querySelector("[data-app-composer-feed-live]");
-    var diffWrap = document.querySelector("[data-app-composer-feed-diff]");
-    var delEl = diffWrap ? diffWrap.querySelector(".diff-inline-del") : null;
-    var insEl = diffWrap ? diffWrap.querySelector(".diff-inline-ins") : null;
     var fallback = "Your post will appear here.";
     var raf = null;
-    function clearFeedDiff() {
-      if (!diffWrap || !live || diffWrap.hasAttribute("hidden")) return;
-      diffWrap.hidden = true;
-      diffWrap.setAttribute("hidden", "");
-      live.hidden = false;
-      if (delEl) delEl.textContent = "";
-      if (insEl) insEl.textContent = "";
-    }
     function flush() {
       raf = null;
-      clearFeedDiff();
       syncComposerFeedPreviewIdentity();
       var masterText = (master.value || "").trim();
       if (!masterText) masterText = fallback;
@@ -1180,17 +1168,54 @@
     flush();
   }
 
-  function showComposerFeedDiff(oldText, newText) {
-    var diffWrap = document.querySelector("[data-app-composer-feed-diff]");
-    var live = document.querySelector("[data-app-composer-feed-live]");
-    var delEl = diffWrap && diffWrap.querySelector(".diff-inline-del");
-    var insEl = diffWrap && diffWrap.querySelector(".diff-inline-ins");
-    if (!diffWrap || !live || !delEl || !insEl) return;
+  function showComposerDraftDiff(oldText, newText) {
+    var wrap = document.querySelector("[data-app-composer-master-wrap]");
+    var diff = document.querySelector("[data-app-composer-draft-diff]");
+    var delEl = diff ? diff.querySelector("[data-app-composer-draft-diff-del]") : null;
+    var insEl = diff ? diff.querySelector("[data-app-composer-draft-diff-ins]") : null;
+    var acceptBtn = diff ? diff.querySelector("[data-app-composer-draft-diff-accept]") : null;
+    var dismissBtn = diff ? diff.querySelector("[data-app-composer-draft-diff-dismiss]") : null;
+    var master = document.getElementById("composer-master");
+    if (!wrap || !diff || !delEl || !insEl || !master) return;
+
+    var nextText = (newText || "").trim();
+    if (!nextText) return;
+
     delEl.textContent = oldText || "";
-    insEl.textContent = newText || "";
-    live.hidden = true;
-    diffWrap.hidden = false;
-    diffWrap.removeAttribute("hidden");
+    insEl.textContent = nextText;
+    diff.hidden = false;
+    diff.removeAttribute("hidden");
+    wrap.classList.add("is-showing-ai-diff");
+
+    function clear() {
+      diff.hidden = true;
+      diff.setAttribute("hidden", "");
+      wrap.classList.remove("is-showing-ai-diff");
+      delEl.textContent = "";
+      insEl.textContent = "";
+      diff.removeAttribute("data-composer-ai-pending-text");
+    }
+
+    diff.setAttribute("data-composer-ai-pending-text", nextText);
+
+    if (acceptBtn && !acceptBtn.getAttribute("data-composer-ai-diff-bound")) {
+      acceptBtn.setAttribute("data-composer-ai-diff-bound", "1");
+      acceptBtn.addEventListener("click", function () {
+        var pending = diff.getAttribute("data-composer-ai-pending-text") || "";
+        clear();
+        master.value = pending;
+        master.dispatchEvent(new Event("input", { bubbles: true }));
+        master.focus();
+      });
+    }
+
+    if (dismissBtn && !dismissBtn.getAttribute("data-composer-ai-diff-bound")) {
+      dismissBtn.setAttribute("data-composer-ai-diff-bound", "1");
+      dismissBtn.addEventListener("click", function () {
+        clear();
+        master.focus();
+      });
+    }
   }
 
   function initComposerAiDock() {
@@ -1647,7 +1672,7 @@
             return;
           }
           appendMsg(messages, reply, "assistant");
-          showComposerFeedDiff(draftBefore, reply);
+          showComposerDraftDiff(draftBefore, reply);
         })
         .catch(function () {
           appendMsg(messages, "Network error. Try again.", "assistant");
