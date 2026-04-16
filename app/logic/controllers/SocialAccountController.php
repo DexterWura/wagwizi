@@ -914,6 +914,11 @@ class SocialAccountController extends Controller
         $driver = Socialite::driver($this->socialiteDriver($platform));
         $slug   = $platform->value;
 
+        if ($platform === Platform::Facebook && method_exists($driver, 'usingGraphVersion')) {
+            // Socialite defaults Facebook to v3.3, which is obsolete and can cause auth failures.
+            $driver->usingGraphVersion((string) env('FACEBOOK_GRAPH_VERSION', 'v21.0'));
+        }
+
         $configured = config("platforms.{$slug}.redirect_uri");
         $full       = null;
         if (is_string($configured) && trim($configured) !== '') {
