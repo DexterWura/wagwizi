@@ -17,12 +17,35 @@ final class CronSecretResolver
 
     public function get(): string
     {
+        $this->ensureStoredSecret();
+
         $fromDb = $this->getFromDatabase();
         if ($fromDb !== '') {
             return $fromDb;
         }
 
         return trim((string) config('app.cron_secret', ''));
+    }
+
+    /**
+     * Persist CRON_SECRET from environment into database when no stored value exists yet.
+     */
+    private function ensureStoredSecret(): void
+    {
+        if ($this->isStoredInDatabase()) {
+            return;
+        }
+
+        $fromEnv = trim((string) config('app.cron_secret', ''));
+        if ($fromEnv === '') {
+            return;
+        }
+
+        try {
+            $this->store($fromEnv);
+        } catch (\Throwable) {
+            // Keep runtime behavior intact if DB is unavailable.
+        }
     }
 
     private function getFromDatabase(): string
