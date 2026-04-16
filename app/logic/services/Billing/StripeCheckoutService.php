@@ -122,34 +122,40 @@ final class StripeCheckoutService
     {
         $creds = $this->clientFactory->credentials();
         if ($creds === null || ! $this->clientFactory->bootstrapSdk()) {
-            return;
+            throw new \RuntimeException('Stripe is not configured.');
         }
         if (! is_string($creds['webhook_secret']) || $creds['webhook_secret'] === '') {
-            return;
+            throw new \RuntimeException('Stripe webhook secret is missing.');
         }
         if (! is_string($signatureHeader) || $signatureHeader === '') {
-            return;
+            throw new \InvalidArgumentException('Missing Stripe-Signature header.');
         }
 
         \Stripe\Stripe::setApiKey($creds['secret_key']);
 
         try {
             $event = \Stripe\Webhook::constructEvent($payload, $signatureHeader, $creds['webhook_secret']);
-        } catch (\Throwable) {
-            return;
+        } catch (\Throwable $e) {
+            throw new \InvalidArgumentException('Stripe webhook signature verification failed: ' . $e->getMessage(), 0, $e);
         }
 
         $type = (string) ($event->type ?? '');
-        if (! in_array($type, ['checkout.session.completed', 'checkout.session.async_payment_succeeded'], true)) {
+        if (in_array($type, ['checkout.session.completed', 'checkout.session.async_payment_succeeded'], true)) {
+            $session = $event->data->object ?? null;
+            if ($session === null) {
+                return;
+            }
+
+            $this->completeFromSessionObject($session);
             return;
         }
 
-        $session = $event->data->object ?? null;
-        if ($session === null) {
-            return;
+        if (in_array($type, ['charge.refunded', 'charge.dispute.funds_withdrawn', 'charge.dispute.created'], true)) {
+            $obj = $event->data->object ?? null;
+            if ($obj !== null) {
+                $this->reverseFromStripeEventObject($obj, $type);
+            }
         }
-
-        $this->completeFromSessionObject($session);
     }
 
     public function tryCompleteFromReturn(PaymentTransaction $transaction, ?string $sessionId = null): bool
@@ -230,6 +236,49 @@ final class StripeCheckoutService
         ]);
 
         $this->fulfillment->fulfillAfterPayment($transaction->user, $transaction->plan, $transaction);
+    }
+
+    private function reverseFromStripeEventObject(object $eventObject, string $eventType): void
+    {
+        $paymentIntentId = $this->stripePaymentIntentIdFromObject($eventObject);
+        if ($paymentIntentId === '') {
+            return;
+        }
+
+        $transaction = PaymentTransaction::query()
+            ->where('gateway', 'stripe')
+            ->where(function ($q) use ($paymentIntentId): void {
+                $q->where('paynow_reference', $paymentIntentId)
+                    ->orWhere('meta->stripe_payment_intent', $paymentIntentId);
+            })
+            ->first();
+
+        if ($transaction === null) {
+            return;
+        }
+
+        $this->fulfillment->reverseAfterPayment(
+            $transaction,
+            'Stripe event: ' . $eventType,
+            $paymentIntentId
+        );
+    }
+
+    private function stripePaymentIntentIdFromObject(object $eventObject): string
+    {
+        $candidate = '';
+        if (isset($eventObject->payment_intent) && is_string($eventObject->payment_intent)) {
+            $candidate = $eventObject->payment_intent;
+        }
+
+        if ($candidate === '' && isset($eventObject->id) && is_string($eventObject->id)) {
+            $id = (string) $eventObject->id;
+            if (str_starts_with($id, 'pi_')) {
+                $candidate = $id;
+            }
+        }
+
+        return trim($candidate);
     }
 }
 

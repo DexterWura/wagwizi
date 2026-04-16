@@ -6,6 +6,7 @@ namespace App\Services\Subscription;
 
 use App\Models\Plan;
 use App\Models\PlanChange;
+use App\Models\PlanTrialUsage;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Jobs\QueueTemplatedEmailForUserJob;
@@ -26,6 +27,14 @@ final class SubscriptionTrialService
         }
 
         if (! $plan->has_free_trial || $plan->free_trial_days === null || $plan->free_trial_days < 1) {
+            return false;
+        }
+
+        $alreadyUsed = PlanTrialUsage::query()
+            ->where('user_id', $user->id)
+            ->where('plan_id', $plan->id)
+            ->exists();
+        if ($alreadyUsed) {
             return false;
         }
 
@@ -65,6 +74,16 @@ final class SubscriptionTrialService
             if ($newPlan->is_lifetime && $newPlan->hasReachedLifetimeCap()) {
                 throw new \RuntimeException('Lifetime plan is full.');
             }
+
+            PlanTrialUsage::query()->firstOrCreate(
+                [
+                    'user_id' => $user->id,
+                    'plan_id' => $newPlan->id,
+                ],
+                [
+                    'started_at' => now(),
+                ]
+            );
 
             $subscription = Subscription::updateOrCreate(
                 ['user_id' => $user->id],

@@ -259,6 +259,11 @@ final class PaypalCheckoutService
         }
 
         $eventType = (string) ($decoded['event_type'] ?? '');
+        if (in_array($eventType, ['PAYMENT.SALE.REFUNDED', 'PAYMENT.SALE.REVERSED'], true)) {
+            $this->handleReversalWebhookResource($decoded, $eventType);
+            return;
+        }
+
         if ($eventType !== 'PAYMENT.SALE.COMPLETED') {
             return;
         }
@@ -294,6 +299,34 @@ final class PaypalCheckoutService
         if ($this->applyVerifiedPaymentToTransaction($transaction, $payment, $saleId)) {
             $this->fulfillment->fulfillAfterPayment($transaction->user, $transaction->plan, $transaction);
         }
+    }
+
+    private function handleReversalWebhookResource(array $decoded, string $eventType): void
+    {
+        $resource = $decoded['resource'] ?? null;
+        if (! is_array($resource)) {
+            return;
+        }
+
+        $saleId = trim((string) ($resource['id'] ?? ''));
+        if ($saleId === '') {
+            return;
+        }
+
+        $transaction = PaymentTransaction::query()
+            ->where('gateway', 'paypal')
+            ->where('paynow_reference', $saleId)
+            ->first();
+
+        if ($transaction === null) {
+            return;
+        }
+
+        $this->fulfillment->reverseAfterPayment(
+            $transaction,
+            'PayPal event: ' . $eventType,
+            $saleId
+        );
     }
 
     private function applyVerifiedPaymentToTransaction(

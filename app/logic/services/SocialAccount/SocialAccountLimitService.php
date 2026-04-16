@@ -17,11 +17,17 @@ final class SocialAccountLimitService
     public function effectivePlan(User $user): ?Plan
     {
         $user->loadMissing('subscription.planModel');
-        $plan = $user->subscription?->planModel;
-        if ($plan !== null) {
+        $sub = $user->subscription;
+        $plan = $sub?->planModel;
+        if ($sub !== null && $plan !== null && ($sub->isActive() || $sub->isTrialing())) {
             return $plan;
         }
 
+        return $this->freePlan();
+    }
+
+    private function freePlan(): ?Plan
+    {
         return Plan::query()
             ->where('is_active', true)
             ->where('is_free', true)

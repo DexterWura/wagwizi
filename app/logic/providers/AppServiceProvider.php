@@ -26,6 +26,7 @@ use App\Services\Platform\PlatformRegistry;
 use App\Services\Post\PostPublishingService;
 use App\Services\SocialAccount\TokenRefreshService;
 use App\Services\Workflow\WorkflowRunnerService;
+use App\Services\Billing\PaymentTransactionMaintenanceService;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
@@ -121,6 +122,12 @@ class AppServiceProvider extends ServiceProvider
                 $app->make(InAppNotificationService::class)->notifySuperAdminsIfPendingMigrations();
 
                 return 'Pending migrations in-app check done.';
+            });
+
+            $cron->register('expire_stale_payments', function () use ($app) {
+                $n = $app->make(PaymentTransactionMaintenanceService::class)->expireStalePendingTransactions(1440);
+
+                return "Expired {$n} stale pending payment transaction(s).";
             });
 
             return $cron;

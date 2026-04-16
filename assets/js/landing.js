@@ -519,13 +519,7 @@
   function resolveLandingGateway(cfg) {
     if (!cfg) return "paynow";
     if (cfg.checkout_mode === "choose") {
-      var row = document.querySelector("[data-lp-gateway-row]");
-      var scope = row || document;
-      var sel = scope.querySelector('input[name="lp_checkout_gateway"]:checked');
-      var gw = sel ? sel.value : null;
-      if (gw) return gw;
-      sel = document.querySelector('input[name="lp_checkout_gateway"]:checked');
-      return sel ? sel.value : null;
+      return null;
     }
     var d = (cfg.default_gateway || "paynow").toLowerCase();
     if (d === "none") return "paynow";
@@ -536,9 +530,11 @@
     var cfg = readLandingCheckoutConfig();
     var section = document.querySelector(".lp-pricing");
     var statusEl = document.querySelector("[data-lp-checkout-status]");
+    var gatewayModal = document.getElementById("lp-modal-gateway-picker");
     if (!cfg || !section) return;
 
     var busy = false;
+    var pendingCheckout = null;
 
     function showStatus(msg, anim) {
       if (!statusEl) return;
@@ -564,8 +560,73 @@
       document.querySelectorAll("[data-lp-billing]").forEach(function (b) {
         b.disabled = !!on;
       });
-      document.querySelectorAll('input[name="lp_checkout_gateway"]').forEach(function (inp) {
-        inp.disabled = !!on;
+    }
+
+    function setModalOpen(open) {
+      if (!gatewayModal) return;
+      gatewayModal.classList.toggle("is-open", !!open);
+      gatewayModal.setAttribute("aria-hidden", open ? "false" : "true");
+      document.body.style.overflow = open ? "hidden" : "";
+    }
+
+    function selectedGatewayFromModal() {
+      if (!gatewayModal) return null;
+      var sel = gatewayModal.querySelector('input[name="lp_checkout_gateway_modal"]:checked');
+      return sel ? sel.value : null;
+    }
+
+    function runHostedCheckoutWithGateway(planSlug, billing, gw) {
+      setCheckoutBusy(true);
+      showStatus("Connecting you to our secure payment provider — you’ll finish checkout in a new step…", true);
+      return lpApiPost("/plans/checkout/start", {
+        plan_slug: planSlug,
+        gateway: gw,
+        billing_interval: billing
+      }).then(function (r2) {
+        if (r2.success && r2.redirect_url) {
+          window.location.href = r2.redirect_url;
+          return;
+        }
+        var m = r2.message || "Could not start checkout.";
+        if (r2.paypal_error_name) m += " (" + r2.paypal_error_name + ")";
+        showStatus(m, false);
+        setCheckoutBusy(false);
+      });
+    }
+
+    if (gatewayModal) {
+      gatewayModal.querySelectorAll("[data-lp-modal-close]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          pendingCheckout = null;
+          setModalOpen(false);
+          clearStatus();
+        });
+      });
+
+      var modalConfirm = gatewayModal.querySelector("[data-lp-gateway-confirm]");
+      if (modalConfirm) {
+        modalConfirm.addEventListener("click", function () {
+          if (!pendingCheckout) return;
+          var gw = selectedGatewayFromModal();
+          if (!gw) {
+            showStatus("Choose a payment method to continue checkout.", false);
+            return;
+          }
+          var data = pendingCheckout;
+          pendingCheckout = null;
+          setModalOpen(false);
+          runHostedCheckoutWithGateway(data.planSlug, data.billing, gw).catch(function () {
+            showStatus("Network error. Check your connection and try again.", false);
+            setCheckoutBusy(false);
+          });
+        });
+      }
+
+      document.addEventListener("keydown", function (e) {
+        if (e.key !== "Escape") return;
+        if (!gatewayModal.classList.contains("is-open")) return;
+        pendingCheckout = null;
+        setModalOpen(false);
       });
     }
 
@@ -608,23 +669,18 @@
           }
           if (res.checkout_required && res._status === 402 && cfg.hosted_available && slugNeedsLandingCheckout(cfg, planSlug)) {
             var gw = resolveLandingGateway(cfg);
-            if (!gw) {
-              fail("Choose a payment method above before subscribing.");
+            if (!gw && gatewayModal) {
+              setCheckoutBusy(false);
+              pendingCheckout = { planSlug: planSlug, billing: billing };
+              showStatus("Choose a payment method to continue checkout.", false);
+              setModalOpen(true);
               return;
             }
-            return lpApiPost("/plans/checkout/start", {
-              plan_slug: planSlug,
-              gateway: gw,
-              billing_interval: billing
-            }).then(function (r2) {
-              if (r2.success && r2.redirect_url) {
-                window.location.href = r2.redirect_url;
-                return;
-              }
-              var m = r2.message || "Could not start checkout.";
-              if (r2.paypal_error_name) m += " (" + r2.paypal_error_name + ")";
-              fail(m);
-            });
+            if (!gw) {
+              fail("Choose a payment method to continue checkout.");
+              return;
+            }
+            return runHostedCheckoutWithGateway(planSlug, billing, gw);
           }
           fail(res.message || "This plan can’t be selected right now.");
         })

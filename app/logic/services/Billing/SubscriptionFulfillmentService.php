@@ -11,11 +11,16 @@ use App\Jobs\QueueTemplatedEmailForUserJob;
 use App\Services\Affiliate\AffiliateCommissionService;
 use App\Services\Ai\PlatformAiQuotaService;
 use App\Services\Notifications\InAppNotificationService;
+use App\Services\Subscription\DefaultSubscriptionService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 final class SubscriptionFulfillmentService
 {
+    public function __construct(
+        private DefaultSubscriptionService $defaultSubscriptionService
+    ) {}
+
     /**
      * Activates a paid plan after a successful payment (Paynow, etc.).
      */
@@ -229,5 +234,60 @@ final class SubscriptionFulfillmentService
 
         return $this->planChargeAmountCents($plan, 'monthly') !== null
             || $this->planChargeAmountCents($plan, 'yearly') !== null;
+    }
+
+    public function reverseAfterPayment(PaymentTransaction $transaction, string $reason, ?string $gatewayEventId = null): bool
+    {
+        return DB::transaction(function () use ($transaction, $reason, $gatewayEventId): bool {
+            $locked = PaymentTransaction::query()->whereKey($transaction->id)->lockForUpdate()->first();
+            if ($locked === null || ! $locked->isCompleted()) {
+                return false;
+            }
+
+            $user = $locked->user;
+            $oldSub = $user->subscription;
+            $oldPlanId = $oldSub?->plan_id;
+
+            $meta = is_array($locked->meta) ? $locked->meta : [];
+            $meta['reversal_reason'] = $reason;
+            $meta['reversed_at'] = now()->toIso8601String();
+            if (is_string($gatewayEventId) && $gatewayEventId !== '') {
+                $meta['reversal_event_id'] = $gatewayEventId;
+            }
+
+            $locked->update([
+                'status' => 'reversed',
+                'failed_at' => now(),
+                'failure_message' => $reason,
+                'meta' => $meta,
+            ]);
+
+            $this->defaultSubscriptionService->assignFreePlanToUser($user);
+            $user->refresh();
+            $toPlanId = $user->subscription?->plan_id;
+
+            if ($oldPlanId !== null && $toPlanId !== null && $oldPlanId !== $toPlanId) {
+                PlanChange::create([
+                    'user_id' => $user->id,
+                    'from_plan_id' => $oldPlanId,
+                    'to_plan_id' => $toPlanId,
+                    'change_type' => 'downgrade',
+                    'gateway' => $locked->gateway,
+                    'gateway_event_id' => $gatewayEventId ?: $locked->reference,
+                ]);
+            }
+
+            Log::warning('Paid plan reversed and downgraded', [
+                'transaction_id' => $locked->id,
+                'gateway' => $locked->gateway,
+                'reference' => $locked->reference,
+                'user_id' => $locked->user_id,
+                'plan_id' => $locked->plan_id,
+                'reason' => $reason,
+                'gateway_event_id' => $gatewayEventId,
+            ]);
+
+            return true;
+        });
     }
 }

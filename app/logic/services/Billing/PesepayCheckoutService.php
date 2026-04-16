@@ -112,17 +112,17 @@ final class PesepayCheckoutService
     {
         $cipher = $body['payload'] ?? null;
         if (! is_string($cipher) || $cipher === '') {
-            return;
+            throw new \InvalidArgumentException('Invalid Pesepay webhook payload.');
         }
 
         $pesepay = $this->clientFactory->make();
         if ($pesepay === null) {
-            return;
+            throw new \RuntimeException('Pesepay is not configured.');
         }
 
         $data = $pesepay->decodeCallbackPayload($cipher);
         if ($data === null) {
-            return;
+            throw new \InvalidArgumentException('Invalid Pesepay callback payload.');
         }
 
         $this->fulfillIfPaidFromPayload($data);

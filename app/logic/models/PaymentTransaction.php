@@ -66,4 +66,9 @@ class PaymentTransaction extends Model
     {
         return $this->status === 'completed';
     }
+
+    public function isReversed(): bool
+    {
+        return $this->status === 'reversed';
+    }
 }

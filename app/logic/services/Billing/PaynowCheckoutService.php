@@ -101,14 +101,14 @@ final class PaynowCheckoutService
                 'has_key' => $key !== null,
                 'has_hash' => isset($payload['hash']),
             ]);
-            return;
+            throw new \InvalidArgumentException('Invalid Paynow webhook payload: missing key/hash.');
         }
 
         if (! $this->verifyPayloadHash($payload, $key)) {
             Log::warning('Paynow webhook ignored: hash verification failed', [
                 'reference' => isset($payload['reference']) ? (string) $payload['reference'] : null,
             ]);
-            return;
+            throw new \InvalidArgumentException('Invalid Paynow webhook signature.');
         }
 
         $status = new StatusResponse($payload);

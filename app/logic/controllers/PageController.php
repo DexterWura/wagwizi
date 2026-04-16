@@ -741,6 +741,13 @@ class PageController extends Controller
             ], 402);
         }
 
+        if ($fulfillment->requiresOnlinePayment($newPlan)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Online payment is currently unavailable for this plan. Please try again shortly or contact support.',
+            ], 422);
+        }
+
         $directPayload = [
             'plan_id'              => $newPlan->id,
             'plan'                 => $newPlan->slug,

@@ -32,6 +32,10 @@ class PaypalWebhookController extends Controller
                 'message' => $e->getMessage(),
                 'class'   => $e::class,
             ]);
+
+            $status = $e instanceof \InvalidArgumentException ? 400 : 500;
+
+            return response('Webhook processing failed', $status);
         }
 
         return response('OK', 200);

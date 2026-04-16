@@ -115,6 +115,13 @@ class CronService
                 'interval_minutes' => 60,
                 'enabled'          => true,
             ],
+            [
+                'key'              => 'expire_stale_payments',
+                'label'            => 'Expire stale pending payments',
+                'description'      => 'Marks old pending checkout attempts as failed so users can retry cleanly.',
+                'interval_minutes' => 1440,
+                'enabled'          => true,
+            ],
         ];
 
         foreach ($defaults as $data) {

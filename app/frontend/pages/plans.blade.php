@@ -62,32 +62,9 @@
             <div class="card__head">Choose a plan</div>
             <div class="card__body">
           @if(($checkoutRequiresGatewayChoice ?? false) && !empty($availableCheckoutGateways))
-            <div class="plans-pay-cards" role="radiogroup" aria-label="Payment method">
-              @foreach(($availableCheckoutGateways ?? []) as $gateway)
-                @php
-                  [$payLabel, $payIcon] = match ($gateway) {
-                    'paypal' => ['PayPal', 'fa-brands fa-paypal'],
-                    'stripe' => ['Stripe', 'fa-brands fa-stripe'],
-                    'paynow' => ['Paynow', 'fa-solid fa-bolt'],
-                    'pesepay' => ['Pesepay', 'fa-solid fa-building-columns'],
-                    default => [ucfirst($gateway), 'fa-solid fa-wallet'],
-                  };
-                @endphp
-                <label class="plans-pay-card">
-                  <input
-                    type="radio"
-                    name="plans_checkout_gateway"
-                    class="plans-pay-card__input sr-only"
-                    value="{{ $gateway }}"
-                    @checked(($defaultCheckoutGateway ?? 'paynow') === $gateway)
-                  />
-                  <span class="plans-pay-card__surface">
-                    <span class="plans-pay-card__icon" aria-hidden="true"><i class="{{ $payIcon }}"></i></span>
-                    <span class="plans-pay-card__label">{{ $payLabel }}</span>
-                  </span>
-                </label>
-              @endforeach
-            </div>
+            <p class="prose-muted" style="font-size:0.88rem;margin:0 0 1rem;">
+              You will choose your payment method in a quick popup when you continue to checkout.
+            </p>
           @endif
           @if($anyYearlyOffers ?? false)
             @php
@@ -213,6 +190,62 @@
             </div>
           </div>
         </main>
+        @if(($checkoutRequiresGatewayChoice ?? false) && !empty($availableCheckoutGateways))
+          <div
+            class="app-modal"
+            id="modal-plans-gateway-picker"
+            data-app-modal
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-plans-gateway-title"
+            aria-hidden="true"
+          >
+            <div class="app-modal__backdrop" data-app-modal-close data-plans-gateway-cancel tabindex="-1" aria-hidden="true"></div>
+            <div class="app-modal__panel">
+              <div class="app-modal__head">
+                <div>
+                  <h2 id="modal-plans-gateway-title">Choose payment method</h2>
+                  <p class="app-modal__lede">Select where to continue your secure checkout.</p>
+                </div>
+                <button type="button" class="icon-btn" data-app-modal-close data-plans-gateway-cancel aria-label="Close dialog">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              <div class="app-modal__body">
+                <div class="plans-pay-cards" role="radiogroup" aria-label="Payment method">
+                  @foreach(($availableCheckoutGateways ?? []) as $gateway)
+                    @php
+                      [$payLabel, $payIcon] = match ($gateway) {
+                        'paypal' => ['PayPal', 'fa-brands fa-paypal'],
+                        'stripe' => ['Stripe', 'fa-brands fa-stripe'],
+                        'paynow' => ['Paynow', 'fa-solid fa-bolt'],
+                        'pesepay' => ['Pesepay', 'fa-solid fa-building-columns'],
+                        default => [ucfirst($gateway), 'fa-solid fa-wallet'],
+                      };
+                    @endphp
+                    <label class="plans-pay-card">
+                      <input
+                        type="radio"
+                        name="plans_checkout_gateway"
+                        class="plans-pay-card__input sr-only"
+                        value="{{ $gateway }}"
+                        @checked(($defaultCheckoutGateway ?? 'paynow') === $gateway)
+                      />
+                      <span class="plans-pay-card__surface">
+                        <span class="plans-pay-card__icon" aria-hidden="true"><i class="{{ $payIcon }}"></i></span>
+                        <span class="plans-pay-card__label">{{ $payLabel }}</span>
+                      </span>
+                    </label>
+                  @endforeach
+                </div>
+              </div>
+              <div class="app-modal__foot">
+                <button type="button" class="btn btn--ghost" data-app-modal-close data-plans-gateway-cancel>Cancel</button>
+                <button type="button" class="btn btn--primary" data-plans-gateway-confirm>Continue to payment</button>
+              </div>
+            </div>
+          </div>
+        @endif
 @endsection
 
 @push('scripts')

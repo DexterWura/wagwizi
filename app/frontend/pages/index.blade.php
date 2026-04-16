@@ -425,32 +425,7 @@
           </div>
           @auth
             @if(!empty($landingCheckout['hosted_available']) && ($landingCheckout['checkout_mode'] ?? '') === 'choose' && !empty($landingCheckout['gateways']))
-            <div class="lp-pay-methods" data-lp-gateway-row role="radiogroup" aria-label="Payment method">
-              <span class="lp-pay-methods__label">Pay with</span>
-              <div class="lp-pay-methods__choices">
-                @foreach($landingCheckout['gateways'] as $gateway)
-                  @php
-                    [$payLabel, $payIcon] = match ($gateway) {
-                      'paypal' => ['PayPal', 'fa-brands fa-paypal'],
-                      'stripe' => ['Stripe', 'fa-brands fa-stripe'],
-                      'paynow' => ['Paynow', 'fa-solid fa-bolt'],
-                      'pesepay' => ['Pesepay', 'fa-solid fa-building-columns'],
-                      default => [ucfirst($gateway), 'fa-solid fa-wallet'],
-                    };
-                  @endphp
-                  <label class="lp-pay-method">
-                    <input
-                      type="radio"
-                      name="lp_checkout_gateway"
-                      class="lp-pay-method__input"
-                      value="{{ $gateway }}"
-                      @checked(($landingCheckout['default_gateway'] ?? 'paynow') === $gateway)
-                    />
-                    <span class="lp-pay-method__surface"><i class="{{ $payIcon }}" aria-hidden="true"></i>{{ $payLabel }}</span>
-                  </label>
-                @endforeach
-              </div>
-            </div>
+            <p class="lp-checkout-note">You will choose your payment method in a popup right before secure checkout.</p>
             @endif
             <p class="lp-checkout-status" data-lp-checkout-status hidden aria-live="polite"></p>
           @endauth
@@ -715,6 +690,65 @@
         <span class="lp-footer__credit">Developed by <a href="https://dextersoft.com" target="_blank" rel="noopener noreferrer">Dextersoft</a></span>
       </div>
     </footer>
+
+    @auth
+      @if(!empty($landingCheckout['hosted_available']) && ($landingCheckout['checkout_mode'] ?? '') === 'choose' && !empty($landingCheckout['gateways']))
+      <div
+        class="app-modal"
+        id="lp-modal-gateway-picker"
+        data-lp-checkout-modal
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="lp-modal-gateway-title"
+        aria-hidden="true"
+      >
+        <div class="app-modal__backdrop" data-lp-modal-close tabindex="-1" aria-hidden="true"></div>
+        <div class="app-modal__panel">
+          <div class="app-modal__head">
+            <div>
+              <h2 id="lp-modal-gateway-title">Choose payment method</h2>
+              <p class="app-modal__lede">Select where to continue your secure checkout.</p>
+            </div>
+            <button type="button" class="lp-modal-close" data-lp-modal-close aria-label="Close dialog">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          <div class="app-modal__body">
+            <div class="plans-pay-cards" role="radiogroup" aria-label="Payment method">
+              @foreach($landingCheckout['gateways'] as $gateway)
+                @php
+                  [$payLabel, $payIcon] = match ($gateway) {
+                    'paypal' => ['PayPal', 'fa-brands fa-paypal'],
+                    'stripe' => ['Stripe', 'fa-brands fa-stripe'],
+                    'paynow' => ['Paynow', 'fa-solid fa-bolt'],
+                    'pesepay' => ['Pesepay', 'fa-solid fa-building-columns'],
+                    default => [ucfirst($gateway), 'fa-solid fa-wallet'],
+                  };
+                @endphp
+                <label class="plans-pay-card">
+                  <input
+                    type="radio"
+                    name="lp_checkout_gateway_modal"
+                    class="plans-pay-card__input sr-only"
+                    value="{{ $gateway }}"
+                    @checked(($landingCheckout['default_gateway'] ?? 'paynow') === $gateway)
+                  />
+                  <span class="plans-pay-card__surface">
+                    <span class="plans-pay-card__icon" aria-hidden="true"><i class="{{ $payIcon }}"></i></span>
+                    <span class="plans-pay-card__label">{{ $payLabel }}</span>
+                  </span>
+                </label>
+              @endforeach
+            </div>
+          </div>
+          <div class="app-modal__foot">
+            <button type="button" class="lp-btn lp-btn--ghost" data-lp-modal-close>Cancel</button>
+            <button type="button" class="lp-btn lp-btn--primary" data-lp-gateway-confirm>Continue to payment</button>
+          </div>
+        </div>
+      </div>
+      @endif
+    @endauth
 
     @auth
       @if(!empty($landingCheckout))

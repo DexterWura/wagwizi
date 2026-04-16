@@ -2661,6 +2661,22 @@
       return paidSlugs.indexOf(slug) !== -1;
     }
 
+    var gatewayModal = document.getElementById("modal-plans-gateway-picker");
+    var pendingGatewayPlanSlug = null;
+
+    function selectedPlansGateway() {
+      if (!gatewayModal) return null;
+      var sel = gatewayModal.querySelector('input[name="plans_checkout_gateway"]:checked');
+      return sel ? sel.value : null;
+    }
+
+    function openPlansGatewayModal(planSlug) {
+      if (!gatewayModal) return false;
+      pendingGatewayPlanSlug = planSlug;
+      openModal("modal-plans-gateway-picker");
+      return true;
+    }
+
     function clearPlansCheckoutBusy() {
       root.removeAttribute("data-plans-busy");
       root.removeAttribute("aria-busy");
@@ -2731,6 +2747,35 @@
         });
     }
 
+    if (gatewayModal) {
+      var gatewayConfirm = gatewayModal.querySelector("[data-plans-gateway-confirm]");
+      if (gatewayConfirm) {
+        gatewayConfirm.addEventListener("click", function () {
+          if (!pendingGatewayPlanSlug) return;
+          var status = document.querySelector("[data-app-plan-status]");
+          var gw = selectedPlansGateway();
+          if (!gw) {
+            if (status) status.textContent = "Select a payment method to continue.";
+            if (global.App && global.App.showFlash) {
+              global.App.showFlash("Select a payment method first.", "error");
+            }
+            return;
+          }
+          var planSlug = pendingGatewayPlanSlug;
+          pendingGatewayPlanSlug = null;
+          closeModal(gatewayModal);
+          setPlansCheckoutBusy(status, "Redirecting to the payment gateway…");
+          runHostedCheckoutWithGateway(planSlug, gw);
+        });
+      }
+
+      gatewayModal.querySelectorAll("[data-plans-gateway-cancel]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          pendingGatewayPlanSlug = null;
+        });
+      });
+    }
+
     root.addEventListener("click", function (e) {
       var btn = e.target.closest("[data-plan-select]");
       if (!btn || btn.disabled) return;
@@ -2758,11 +2803,12 @@
         var mode = root.getAttribute("data-checkout-mode") || "single";
         var gw = null;
         if (mode === "choose") {
-          var scope = root.closest(".card__body") || root.parentElement;
-          var sel = scope ? scope.querySelector('input[name="plans_checkout_gateway"]:checked') : null;
-          if (!sel) {
-            sel = document.querySelector('input[name="plans_checkout_gateway"]:checked');
+          if (openPlansGatewayModal(planSlug)) {
+            clearPlansCheckoutBusy();
+            if (status) status.textContent = "Choose a payment method to continue checkout.";
+            return;
           }
+          var sel = document.querySelector('input[name="plans_checkout_gateway"]:checked');
           gw = sel ? sel.value : null;
           if (!gw) {
             if (status) status.textContent = "Select a payment method before choosing a plan.";
