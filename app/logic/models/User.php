@@ -45,6 +45,7 @@ class User extends Authenticatable
         'ai_provider',
         'ai_base_url',
         'ai_api_key',
+        'ai_personality',
         'webhook_key_id',
         'webhook_secret',
     ];

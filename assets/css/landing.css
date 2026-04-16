@@ -1740,6 +1740,12 @@ body.lp-nav-open {
   padding: 4rem 1.25rem;
 }
 
+@media (max-width: 767px) {
+  section#product {
+    display: none;
+  }
+}
+
 .lp-section__head {
   max-width: var(--lp-max);
   margin: 0 auto 2.5rem;

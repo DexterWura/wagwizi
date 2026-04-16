@@ -18,7 +18,7 @@ final class ComposerAiChatService
     public function complete(User $user, string $userMessage, string $draft): ComposerAiResult
     {
         $creds = $this->credentials->resolve($user);
-        $system = $this->systemPrompt();
+        $system = $this->systemPrompt($user);
 
         $usePlatformReservation = $creds->billingSource === 'platform' && ! $user->isSuperAdmin();
         $reserved = 0;
@@ -61,13 +61,24 @@ final class ComposerAiChatService
         }
     }
 
-    private function systemPrompt(): string
+    private function systemPrompt(User $user): string
     {
-        return <<<'TXT'
+        $base = <<<'TXT'
 You are a concise social media writing assistant. The user edits a "master" draft for multiple networks.
 Follow their instruction (tone, length, hashtags, CTA, platform quirks). Prefer a single ready-to-post revision.
 If they only asked for ideas or bullets, answer directly. Do not mention API keys or billing.
 TXT;
+
+        $p = trim(strip_tags((string) ($user->ai_personality ?? '')));
+        if ($p === '') {
+            return $base;
+        }
+
+        $p = mb_substr($p, 0, 2000);
+
+        return $base
+            . "\n\nUser personality instructions (apply to all replies unless user request overrides):\n"
+            . $p;
     }
 
     private function userPayload(string $userMessage, string $draft): string

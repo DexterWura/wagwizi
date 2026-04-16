@@ -174,6 +174,17 @@
                 </div>
                 <button type="button" class="btn btn--ghost btn--compact" data-app-ai-clear-key hidden>Remove saved key</button>
               </div>
+              <div class="field" style="margin-top: 14px;">
+                <label class="field__label" for="ai-personality">AI personality / instructions</label>
+                <textarea
+                  class="input"
+                  id="ai-personality"
+                  rows="5"
+                  data-app-ai-personality
+                  placeholder="Example: Write in a friendly, confident tone. Keep it concise. Use simple language. Always suggest 3 variants if I ask for ideas."
+                >{{ $aiPersonality }}</textarea>
+                <p class="field__hint">Applied to all AI actions (composer, assistant, etc.). Leave blank for default behavior.</p>
+              </div>
               <div class="settings-ai-actions">
                 <button type="button" class="btn btn--primary" data-app-ai-save>Save AI settings</button>
                 <p class="prose-muted profile-note settings-ai-status" data-app-ai-status></p>

@@ -1367,6 +1367,7 @@
     var clearKeyBtn = root.querySelector("[data-app-ai-clear-key]");
     var statusEl = root.querySelector("[data-app-ai-status]");
     var saveBtn = root.querySelector("[data-app-ai-save]");
+    var personalityEl = root.querySelector("[data-app-ai-personality]");
 
     function syncBaseUrlVisibility() {
       if (!providerEl || !baseWrap) return;
@@ -1495,6 +1496,9 @@
           ai_provider: provider,
           ai_base_url: baseVal
         };
+        if (personalityEl) {
+          payload.ai_personality = (personalityEl.value || "").trim();
+        }
         if (keyVal) {
           payload.ai_api_key = keyVal;
         }

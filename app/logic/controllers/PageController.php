@@ -678,6 +678,7 @@ class PageController extends Controller
             'workspaceName'        => $workspace?->name ?? $user->workspace_name ?? 'Personal brand',
             'defaultPostingTime'   => $user->default_posting_time ?? '09:00',
             'marketingEmailOptIn'  => (bool) ($user->marketing_email_opt_in ?? false),
+            'aiPersonality'        => (string) ($user->ai_personality ?? ''),
             'workspaceRole'        => $membership?->role ?? 'member',
             'workspaceMembers'     => $members,
             'workspaceInvites'     => $pendingInvites,

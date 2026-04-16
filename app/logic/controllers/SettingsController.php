@@ -110,6 +110,7 @@ class SettingsController extends Controller
             'ai_provider'       => 'nullable|string|in:openai,anthropic,gemini,custom',
             'ai_base_url'       => 'nullable|url|max:500',
             'ai_api_key'        => 'nullable|string|max:8192',
+            'ai_personality'    => 'nullable|string|max:2000',
             'ai_clear_api_key'  => 'sometimes|boolean',
         ]);
 
@@ -131,6 +132,11 @@ class SettingsController extends Controller
             'ai_provider' => $validated['ai_provider'] ?? null,
             'ai_base_url' => $validated['ai_base_url'] ?? null,
         ];
+
+        if (array_key_exists('ai_personality', $validated)) {
+            $p = trim(strip_tags((string) $validated['ai_personality']));
+            $attrs['ai_personality'] = $p !== '' ? $p : null;
+        }
 
         if ($request->boolean('ai_clear_api_key')) {
             $attrs['ai_api_key'] = null;
