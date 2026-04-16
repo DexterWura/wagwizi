@@ -1216,6 +1216,7 @@ class AdminController extends Controller
             'pesepay_enabled'              => 'nullable|boolean',
             'pesepay_integration_key'      => 'nullable|string|max:500',
             'pesepay_encryption_key'       => 'nullable|string|max:64',
+            'pesepay_checkout_currency'    => 'nullable|string|size:3',
             'pricing_base_currency'        => 'required|string|size:3',
             'pricing_default_currency'     => 'required|string|size:3',
             'exchange_rate_codes'          => 'nullable|array',
@@ -1291,6 +1292,10 @@ class AdminController extends Controller
         $pEnc = $request->input('pesepay_encryption_key');
         if (is_string($pEnc) && trim($pEnc) !== '') {
             $current['pesepay']['encryption_key'] = trim($pEnc);
+        }
+        $pCur = strtoupper(trim((string) $request->input('pesepay_checkout_currency', '')));
+        if (strlen($pCur) === 3) {
+            $current['pesepay']['checkout_currency'] = $pCur;
         }
 
         $current['stripe']['enabled'] = $request->boolean('stripe_enabled');

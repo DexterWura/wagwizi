@@ -165,7 +165,7 @@
               <div class="card__head admin-gateway-card__head">
                 <div>
                   <h2 id="gw-pesepay-heading" class="admin-gateway-card__title">Pesepay</h2>
-                  <p class="admin-gateway-card__sub">Redirect checkout (SDK in <code class="admin-code-tag">app/logic/gateways/Pesepay</code>). Uses the same locked checkout currency as Paynow above.</p>
+                  <p class="admin-gateway-card__sub">Redirect checkout (SDK in <code class="admin-code-tag">app/logic/gateways/Pesepay</code>). Set a gateway-specific currency if your Pesepay account does not support the Paynow checkout currency.</p>
                 </div>
                 <label class="admin-toggle">
                   <input type="checkbox" name="pesepay_enabled" value="1" {{ !empty($gateways['pesepay']['enabled']) ? 'checked' : '' }} />
@@ -174,6 +174,11 @@
                 </label>
               </div>
               <div class="card__body admin-form-grid">
+                <div class="field field--full">
+                  <label class="field__label" for="pesepay_checkout_currency">Pesepay checkout currency</label>
+                  <input class="input" id="pesepay_checkout_currency" name="pesepay_checkout_currency" value="{{ strtoupper($gateways['pesepay']['checkout_currency'] ?? ($gateways['paynow']['checkout_currency'] ?? 'USD')) }}" maxlength="3" placeholder="USD" autocomplete="off" />
+                  <p class="field__hint">ISO 4217 code used when initiating Pesepay transactions. If left unchanged, it falls back to the Paynow checkout currency.</p>
+                </div>
                 <div class="field field--full">
                   <label class="field__label" for="pesepay_integration_key">Integration key</label>
                   <input class="input" id="pesepay_integration_key" name="pesepay_integration_key" type="password" placeholder="{{ ($gateways['pesepay']['integration_key'] ?? '') !== '' ? 'Leave blank to keep current key' : 'From Pesepay dashboard' }}" autocomplete="new-password" />

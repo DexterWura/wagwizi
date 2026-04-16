@@ -85,6 +85,17 @@ final class CurrencyDisplayService
         return $this->defaultCurrency();
     }
 
+    public function resolvePesepayCheckoutCurrency(): string
+    {
+        $p = $this->gatewayConfig->all()['pesepay'] ?? [];
+        $locked = strtoupper(trim((string) ($p['checkout_currency'] ?? '')));
+        if (strlen($locked) === 3) {
+            return $locked;
+        }
+
+        return $this->resolvePaynowCheckoutCurrency();
+    }
+
     /**
      * Currency charged in PayPal REST payments. PayPal does not support every ISO code
      * (e.g. many local African currencies); this picks a supported code and converts the amount.

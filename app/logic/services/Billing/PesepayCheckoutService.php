@@ -32,7 +32,7 @@ final class PesepayCheckoutService
 
         $reference = 'PS-' . Str::lower(Str::random(10)) . '-' . $user->id;
 
-        $checkoutCurrency = $this->currency->resolvePaynowCheckoutCurrency();
+        $checkoutCurrency = $this->currency->resolvePesepayCheckoutCurrency();
         $checkoutMajor    = $this->currency->convertBaseMinorToCurrencyMajor($amountCents, $checkoutCurrency);
         $chargedMinor     = $this->currency->minorUnitsFromMajor($checkoutMajor);
 

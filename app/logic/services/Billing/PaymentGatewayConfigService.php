@@ -58,6 +58,10 @@ final class PaymentGatewayConfigService
             ];
             $merged['paynow']['checkout_currency']   = $billing->paynow_checkout_currency;
             $merged['paynow']['accepted_currencies'] = [$billing->paynow_checkout_currency];
+            $pesepayCheckout = strtoupper(trim((string) ($merged['pesepay']['checkout_currency'] ?? '')));
+            if (strlen($pesepayCheckout) !== 3) {
+                $merged['pesepay']['checkout_currency'] = $billing->paynow_checkout_currency;
+            }
 
             return $merged;
         }
@@ -95,6 +99,8 @@ final class PaymentGatewayConfigService
         }
         $merged['paynow']['checkout_currency']   = $checkout;
         $merged['paynow']['accepted_currencies'] = [$checkout];
+        $pesepayCheckout = strtoupper(trim((string) ($merged['pesepay']['checkout_currency'] ?? '')));
+        $merged['pesepay']['checkout_currency'] = strlen($pesepayCheckout) === 3 ? $pesepayCheckout : $checkout;
 
         return $merged;
     }
@@ -331,6 +337,7 @@ final class PaymentGatewayConfigService
                 'enabled'         => false,
                 'integration_key' => '',
                 'encryption_key'  => '',
+                'checkout_currency' => '',
             ],
             'stripe'           => [
                 'enabled'         => false,
