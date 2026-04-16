@@ -17,7 +17,12 @@ class CronController extends Controller
 
     public function run(Request $request): JsonResponse
     {
-        $secret = $request->header('X-Cron-Secret');
+        $secret = (string) (
+            $request->header('X-Cron-Secret')
+            ?? $request->query('token')
+            ?? $request->input('token')
+            ?? ''
+        );
 
         $expected = $this->cronSecretResolver->get();
 
@@ -25,7 +30,11 @@ class CronController extends Controller
             Log::warning('Cron endpoint hit with invalid secret', [
                 'ip' => $request->ip(),
             ]);
-            return response()->json(['error' => 'Unauthorized.'], 401);
+            return response()->json([
+                'error' => empty($expected)
+                    ? 'Cron token is not configured in database.'
+                    : 'Unauthorized.',
+            ], 401);
         }
 
         $results = $this->cronService->runDueTasks();

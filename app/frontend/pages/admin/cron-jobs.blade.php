@@ -46,14 +46,12 @@
             <div class="card__head"><span>Cron token</span></div>
             <div class="card__body">
               <p class="field__hint">
-                Active token is read from the <strong>database</strong> when set here (stored encrypted). If none is stored, the app uses <code class="admin-code-tag">CRON_SECRET</code> from <code class="admin-code-tag">secrets/.env</code>.
+                Active token is read from the <strong>database only</strong> (stored encrypted).
                 Current source:
                 @if($cronSecretFromDb)
                   <strong>Database</strong>
-                @elseif($cronSecret !== '')
-                  <strong>Environment</strong> (<code class="admin-code-tag">CRON_SECRET</code>)
                 @else
-                  <strong>Not configured</strong> — save a token below or set <code class="admin-code-tag">CRON_SECRET</code>.
+                  <strong>Not configured</strong> — save a token below.
                 @endif
               </p>
               <form method="POST" action="{{ route('admin.cron-jobs.secret') }}" class="admin-form-grid" style="margin-bottom:1rem;">
@@ -68,7 +66,7 @@
                 </div>
               </form>
               @if($cronSecretFromDb)
-              <form method="POST" action="{{ route('admin.cron-jobs.secret') }}" onsubmit="return confirm('Remove the token from the database and use CRON_SECRET from the server environment (if any)?');">
+              <form method="POST" action="{{ route('admin.cron-jobs.secret') }}" onsubmit="return confirm('Remove the token from the database? Cron endpoint will stop working until you save a new token.');">
                 @csrf
                 <button class="btn btn--ghost btn--compact btn--danger" type="submit" name="clear_stored_cron_secret" value="1">Clear stored token</button>
               </form>
@@ -88,7 +86,7 @@
               @else
                 <div class="alert alert--warning">
                   <strong>No cron token is available yet.</strong>
-                  Save a token in the section above, or set <code class="admin-code-tag">CRON_SECRET</code> in <code class="admin-code-tag">secrets/.env</code>.
+                  Save a token in the section above.
                 </div>
               @endif
             </div>

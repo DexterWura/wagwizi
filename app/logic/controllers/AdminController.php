@@ -1792,7 +1792,7 @@ class AdminController extends Controller
         if ($request->boolean('clear_stored_cron_secret')) {
             $cronSecrets->clearStored();
 
-            return back()->with('success', 'Stored cron secret removed. The app now uses CRON_SECRET from the server environment (if set).');
+            return back()->with('success', 'Stored cron secret removed. Cron is now disabled until a new database token is saved.');
         }
 
         if ($request->boolean('generate_cron_secret')) {
