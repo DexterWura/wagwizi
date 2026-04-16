@@ -950,21 +950,35 @@ class AdminController extends Controller
                 'image'         => '',
             ];
 
-            if ($visual === LandingFeaturesDeepService::VISUAL_IMAGE) {
+            $imageVisuals = [
+                LandingFeaturesDeepService::VISUAL_IMAGE,
+                LandingFeaturesDeepService::VISUAL_GLASS_CARD,
+                LandingFeaturesDeepService::VISUAL_GLASS_MONO,
+                LandingFeaturesDeepService::VISUAL_ICONS,
+                LandingFeaturesDeepService::VISUAL_GRID,
+            ];
+
+            if (in_array($visual, $imageVisuals, true)) {
                 if ($request->hasFile("features.$i.image")) {
-                    if (! empty($prev['image'])) {
+                    // Only delete previously uploaded images; don't delete preset assets/images/*.
+                    if (! empty($prev['image']) && str_starts_with($prev['image'], 'assets/uploads/landing/')) {
                         FileUploadUtil::delete($prev['image']);
                     }
                     $block['image'] = FileUploadUtil::store($request->file("features.$i.image"), 'landing');
                 } else {
                     $existing = trim((string) ($f['image_existing'] ?? ''));
-                    if ($existing !== '' && str_starts_with($existing, 'assets/uploads/landing/')) {
+                    // Allow both uploaded images and built-in preset images.
+                    if (
+                        $existing !== '' &&
+                        (str_starts_with($existing, 'assets/uploads/landing/') || str_starts_with($existing, 'assets/images/'))
+                    ) {
                         $block['image'] = $existing;
                     } elseif (! empty($prev['image'])) {
                         $block['image'] = $prev['image'];
                     }
                 }
-            } elseif (! empty($prev['image'])) {
+            } elseif (! empty($prev['image']) && str_starts_with($prev['image'], 'assets/uploads/landing/')) {
+                // Visual styles that don't use images: remove any uploaded background.
                 FileUploadUtil::delete($prev['image']);
             }
 

@@ -46,7 +46,7 @@ class LandingFeaturesDeepService
                 'glass_body'    => 'Reach, engagement, and queue — without leaving the page.',
                 'glass_mono'    => '',
                 'icon_classes'  => '',
-                'image'         => '',
+                'image'         => 'assets/images/dashboard.png',
             ],
             [
                 'reverse'       => true,
@@ -59,7 +59,7 @@ class LandingFeaturesDeepService
                 'glass_body'    => '',
                 'glass_mono'    => '+ One workspace. Every channel.',
                 'icon_classes'  => '',
-                'image'         => '',
+                'image'         => 'assets/images/composer.png',
             ],
             [
                 'reverse'       => false,
@@ -72,7 +72,7 @@ class LandingFeaturesDeepService
                 'glass_body'    => '',
                 'glass_mono'    => '',
                 'icon_classes'  => 'fa-brands fa-x-twitter fa-2x,fa-brands fa-linkedin fa-2x,fa-brands fa-instagram fa-2x',
-                'image'         => '',
+                'image'         => 'assets/images/preview.png',
             ],
             [
                 'reverse'       => true,
@@ -85,7 +85,7 @@ class LandingFeaturesDeepService
                 'glass_body'    => '',
                 'glass_mono'    => '',
                 'icon_classes'  => '',
-                'image'         => '',
+                'image'         => 'assets/images/calendar.png',
             ],
         ];
     }
@@ -118,6 +118,14 @@ class LandingFeaturesDeepService
         $b    = $def;
         foreach ($keys as $k) {
             if (array_key_exists($k, $over)) {
+                if ($k === 'image') {
+                    $val = $over[$k];
+                    // Avoid wiping defaults when admin submits empty values.
+                    if (is_string($val) && trim($val) === '') {
+                        continue;
+                    }
+                }
+
                 $b[$k] = $over[$k];
             }
         }

@@ -339,7 +339,7 @@
                   <input class="input" id="lf-{{ $i }}-icon_classes" name="features[{{ $i }}][icon_classes]" value="{{ $lf['icon_classes'] }}" placeholder="Comma-separated; empty = platform icons" />
                 </div>
                 <div class="field">
-                  <label class="field__label" for="lf-{{ $i }}-image">Image (photo style)</label>
+                  <label class="field__label" for="lf-{{ $i }}-image">Image (background / photo)</label>
                   <input class="input" type="file" id="lf-{{ $i }}-image" name="features[{{ $i }}][image]" accept="image/jpeg,image/png,image/gif,image/webp" />
                   <input type="hidden" name="features[{{ $i }}][image_existing]" value="{{ $lf['image'] ?? '' }}" />
                   @if(!empty($lf['image']))

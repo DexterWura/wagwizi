@@ -359,37 +359,96 @@
             <div class="lp-split__visual">
               @if(($feature['visual'] ?? '') === 'glass_card')
               <div class="lp-glass">
-                @if(!empty($feature['glass_eyebrow']))
-                <p class="lp-glass__eyebrow">{{ $feature['glass_eyebrow'] }}</p>
+                @if(!empty($feature['image']))
+                <div class="lp-glass__media" aria-hidden="true">
+                  <img
+                    src="{{ asset($feature['image']) }}"
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    width="576"
+                    height="222"
+                  />
+                </div>
                 @endif
-                @if(!empty($feature['glass_body']))
-                <p class="lp-glass__body">{{ $feature['glass_body'] }}</p>
-                @endif
+                <div class="lp-glass__electric" aria-hidden="true"></div>
+                <div class="lp-glass__content">
+                  @if(!empty($feature['glass_eyebrow']))
+                  <p class="lp-glass__eyebrow">{{ $feature['glass_eyebrow'] }}</p>
+                  @endif
+                  @if(!empty($feature['glass_body']))
+                  <p class="lp-glass__body">{{ $feature['glass_body'] }}</p>
+                  @endif
+                </div>
               </div>
               @elseif(($feature['visual'] ?? '') === 'glass_mono')
               <div class="lp-glass">
-                <p class="lp-glass__mono">{{ $feature['glass_mono'] }}</p>
+                @if(!empty($feature['image']))
+                <div class="lp-glass__media" aria-hidden="true">
+                  <img
+                    src="{{ asset($feature['image']) }}"
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    width="576"
+                    height="222"
+                  />
+                </div>
+                @endif
+                <div class="lp-glass__electric" aria-hidden="true"></div>
+                <div class="lp-glass__content">
+                  <p class="lp-glass__mono">{{ $feature['glass_mono'] }}</p>
+                </div>
               </div>
               @elseif(($feature['visual'] ?? '') === 'icons')
-              <div class="lp-glass lp-glass--icons">
-                @if(count($feature['icon_class_list'] ?? []) > 0)
-                  @foreach($feature['icon_class_list'] as $ic)
-                  <i class="{{ $ic }}" aria-hidden="true"></i>
-                  @endforeach
-                @elseif(count($enabledPlatforms) > 0)
-                  @foreach($enabledPlatforms as $platform)
-                  <i class="{{ $platform->icon() }} fa-2x" aria-hidden="true"></i>
-                  @endforeach
-                @else
-                  <p class="lp-glass__body lp-glass__body--hint">Add platform icons in admin or enable networks.</p>
+              <div class="lp-glass lp-glass--icons lp-glass--icon">
+                @if(!empty($feature['image']))
+                <div class="lp-glass__media" aria-hidden="true">
+                  <img
+                    src="{{ asset($feature['image']) }}"
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    width="576"
+                    height="222"
+                  />
+                </div>
                 @endif
+                <div class="lp-glass__electric" aria-hidden="true"></div>
+                <div class="lp-glass__content">
+                  @if(count($feature['icon_class_list'] ?? []) > 0)
+                    @foreach($feature['icon_class_list'] as $ic)
+                    <i class="{{ $ic }}" aria-hidden="true"></i>
+                    @endforeach
+                  @elseif(count($enabledPlatforms) > 0)
+                    @foreach($enabledPlatforms as $platform)
+                    <i class="{{ $platform->icon() }} fa-2x" aria-hidden="true"></i>
+                    @endforeach
+                  @else
+                    <p class="lp-glass__body lp-glass__body--hint">Add platform icons in admin or enable networks.</p>
+                  @endif
+                </div>
               </div>
               @elseif(($feature['visual'] ?? '') === 'image' && !empty($feature['image']))
               <div class="lp-feature-visual-photo">
                 <img src="{{ asset($feature['image']) }}" alt="{{ $feature['title'] !== '' ? $feature['title'] : config('app.name') }}" loading="lazy" decoding="async" width="800" height="600" />
               </div>
               @elseif(($feature['visual'] ?? '') === 'grid')
-              <div class="lp-glass lp-glass--grid"></div>
+              <div class="lp-glass lp-glass--grid">
+                @if(!empty($feature['image']))
+                <div class="lp-glass__media" aria-hidden="true">
+                  <img
+                    src="{{ asset($feature['image']) }}"
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    width="576"
+                    height="222"
+                  />
+                </div>
+                @endif
+                <div class="lp-glass__electric" aria-hidden="true"></div>
+              </div>
               @endif
             </div>
           </div>
