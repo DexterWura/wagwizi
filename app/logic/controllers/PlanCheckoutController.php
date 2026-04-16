@@ -198,12 +198,21 @@ class PlanCheckoutController extends Controller
             Log::warning('Pesepay checkout start failed', [
                 'user_id'   => $user->id,
                 'plan_slug' => $plan->slug,
+                'message'   => $e->getMessage(),
                 'exception' => $e,
             ]);
 
+            $message = 'Could not start checkout. Please try again or contact support.';
+            if (config('app.debug')) {
+                $detail = trim($e->getMessage());
+                if ($detail !== '') {
+                    $message .= ' (' . $detail . ')';
+                }
+            }
+
             return response()->json([
                 'success' => false,
-                'message' => 'Could not start checkout. Please try again or contact support.',
+                'message' => $message,
             ], 422);
         }
 

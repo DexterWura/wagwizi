@@ -1217,6 +1217,7 @@ class AdminController extends Controller
             'pesepay_integration_key'      => 'nullable|string|max:500',
             'pesepay_encryption_key'       => 'nullable|string|max:64',
             'pesepay_checkout_currency'    => 'nullable|string|size:3',
+            'pesepay_mode'                 => 'nullable|string|in:sandbox,live',
             'pricing_base_currency'        => 'required|string|size:3',
             'pricing_default_currency'     => 'required|string|size:3',
             'exchange_rate_codes'          => 'nullable|array',
@@ -1297,6 +1298,8 @@ class AdminController extends Controller
         if (strlen($pCur) === 3) {
             $current['pesepay']['checkout_currency'] = $pCur;
         }
+        $pMode = strtolower(trim((string) $request->input('pesepay_mode', 'live')));
+        $current['pesepay']['mode'] = $pMode === 'sandbox' ? 'sandbox' : 'live';
 
         $current['stripe']['enabled'] = $request->boolean('stripe_enabled');
         foreach (['publishable_key', 'secret_key', 'webhook_secret'] as $f) {

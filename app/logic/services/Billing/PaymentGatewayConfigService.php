@@ -62,6 +62,8 @@ final class PaymentGatewayConfigService
             if (strlen($pesepayCheckout) !== 3) {
                 $merged['pesepay']['checkout_currency'] = $billing->paynow_checkout_currency;
             }
+            $pesepayMode = strtolower(trim((string) ($merged['pesepay']['mode'] ?? 'live')));
+            $merged['pesepay']['mode'] = $pesepayMode === 'sandbox' ? 'sandbox' : 'live';
 
             return $merged;
         }
@@ -101,6 +103,8 @@ final class PaymentGatewayConfigService
         $merged['paynow']['accepted_currencies'] = [$checkout];
         $pesepayCheckout = strtoupper(trim((string) ($merged['pesepay']['checkout_currency'] ?? '')));
         $merged['pesepay']['checkout_currency'] = strlen($pesepayCheckout) === 3 ? $pesepayCheckout : $checkout;
+        $pesepayMode = strtolower(trim((string) ($merged['pesepay']['mode'] ?? 'live')));
+        $merged['pesepay']['mode'] = $pesepayMode === 'sandbox' ? 'sandbox' : 'live';
 
         return $merged;
     }
@@ -338,6 +342,7 @@ final class PaymentGatewayConfigService
                 'integration_key' => '',
                 'encryption_key'  => '',
                 'checkout_currency' => '',
+                'mode'            => 'live',
             ],
             'stripe'           => [
                 'enabled'         => false,

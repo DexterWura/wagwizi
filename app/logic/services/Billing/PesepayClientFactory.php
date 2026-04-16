@@ -25,6 +25,12 @@ final class PesepayClientFactory
             require_once $autoload;
         }
 
-        return new Pesepay($creds['integration_key'], $creds['encryption_key']);
+        $cfg = $this->gatewayConfig->all()['pesepay'] ?? [];
+        $mode = strtolower(trim((string) ($cfg['mode'] ?? 'live')));
+        $baseUrl = $mode === 'sandbox'
+            ? 'https://api.test.sandbox.pesepay.com/payments-engine'
+            : 'https://api.pesepay.com/api/payments-engine';
+
+        return new Pesepay($creds['integration_key'], $creds['encryption_key'], $baseUrl);
     }
 }

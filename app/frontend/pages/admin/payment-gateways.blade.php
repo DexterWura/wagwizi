@@ -175,6 +175,14 @@
               </div>
               <div class="card__body admin-form-grid">
                 <div class="field field--full">
+                  <label class="field__label" for="pesepay_mode">Pesepay mode</label>
+                  <select class="input" id="pesepay_mode" name="pesepay_mode">
+                    <option value="sandbox" {{ strtolower((string) ($gateways['pesepay']['mode'] ?? 'live')) === 'sandbox' ? 'selected' : '' }}>Sandbox (test credentials)</option>
+                    <option value="live" {{ strtolower((string) ($gateways['pesepay']['mode'] ?? 'live')) === 'live' ? 'selected' : '' }}>Live (production credentials)</option>
+                  </select>
+                  <p class="field__hint">Use <strong>Sandbox</strong> when your Pesepay keys are test credentials.</p>
+                </div>
+                <div class="field field--full">
                   <label class="field__label" for="pesepay_checkout_currency">Pesepay checkout currency</label>
                   <input class="input" id="pesepay_checkout_currency" name="pesepay_checkout_currency" value="{{ strtoupper($gateways['pesepay']['checkout_currency'] ?? ($gateways['paynow']['checkout_currency'] ?? 'USD')) }}" maxlength="3" placeholder="USD" autocomplete="off" />
                   <p class="field__hint">ISO 4217 code used when initiating Pesepay transactions. If left unchanged, it falls back to the Paynow checkout currency.</p>
