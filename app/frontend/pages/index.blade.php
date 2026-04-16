@@ -372,6 +372,7 @@
                 </div>
                 @endif
                 <div class="lp-glass__electric" aria-hidden="true"></div>
+                @if(empty($feature['image']))
                 <div class="lp-glass__content">
                   @if(!empty($feature['glass_eyebrow']))
                   <p class="lp-glass__eyebrow">{{ $feature['glass_eyebrow'] }}</p>
@@ -380,6 +381,7 @@
                   <p class="lp-glass__body">{{ $feature['glass_body'] }}</p>
                   @endif
                 </div>
+                @endif
               </div>
               @elseif(($feature['visual'] ?? '') === 'glass_mono')
               <div class="lp-glass">
@@ -396,9 +398,11 @@
                 </div>
                 @endif
                 <div class="lp-glass__electric" aria-hidden="true"></div>
+                @if(empty($feature['image']))
                 <div class="lp-glass__content">
                   <p class="lp-glass__mono">{{ $feature['glass_mono'] }}</p>
                 </div>
+                @endif
               </div>
               @elseif(($feature['visual'] ?? '') === 'icons')
               <div class="lp-glass lp-glass--icons lp-glass--icon">

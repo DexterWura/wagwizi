@@ -63,6 +63,11 @@
     Header set X-Frame-Options "SAMEORIGIN"
     Header set X-XSS-Protection "1; mode=block"
     Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Aggressive caching for versioned static assets.
+    <FilesMatch "\.(css|js|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|otf)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
 </IfModule>
 
 # Deny access to dotfiles (except .htaccess itself)

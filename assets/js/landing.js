@@ -296,6 +296,40 @@
     var frame = mock.querySelector(".lp-mockup__tilt") || mock;
     var raf = null;
     var pending = null;
+    var attached = false;
+
+    function attach() {
+      if (attached) return;
+      attached = true;
+      mock.addEventListener("mousemove", onMove, { passive: true });
+      mock.addEventListener("mouseleave", onLeave);
+    }
+
+    function maybeAttachOnEnter() {
+      // Avoid wiring high-frequency listeners until user intent.
+      attach();
+    }
+
+    function attachWhenVisible() {
+      if (!("IntersectionObserver" in window)) {
+        // Fall back to intent-based attach.
+        mock.addEventListener("mouseenter", maybeAttachOnEnter, { passive: true });
+        return;
+      }
+      var io = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (!entry.isIntersecting) return;
+            // Still wait for intent, but only once the mock is near viewport.
+            mock.addEventListener("mouseenter", maybeAttachOnEnter, { passive: true });
+            io.disconnect();
+          });
+        },
+        { rootMargin: "200px 0px 200px 0px", threshold: 0.01 }
+      );
+      io.observe(mock);
+    }
+
     function apply() {
       raf = null;
       if (!pending) return;
@@ -319,8 +353,8 @@
       raf = null;
       frame.style.transform = "perspective(1200px) rotateX(0deg) rotateY(0deg)";
     }
-    mock.addEventListener("mousemove", onMove, { passive: true });
-    mock.addEventListener("mouseleave", onLeave);
+
+    attachWhenVisible();
   }
 
   function initFaq() {

@@ -16,7 +16,7 @@ class LandingHowItWorksService
         return [
             [
                 'title' => 'Connect & Configure',
-                'body'  => 'Link your LinkedIn account and tell us about your industry, tone, and goals. Takes 3 minutes.',
+                'body'  => 'Link your social accounts and tell us about your industry, tone, and goals. Takes 3 minutes.',
                 'icon_classes' => 'fa-solid fa-paper-plane',
             ],
             [
