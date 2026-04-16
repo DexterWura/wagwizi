@@ -88,8 +88,20 @@ class SocialAccountController extends Controller
                     ->with('error', $platformEnum->label() . ' connection is not configured. Add the OAuth client ID and secret (and callback URL) in your environment or admin settings.');
             }
 
-            $driver = $this->socialiteForAccountLinking($platformEnum)->scopes($scopes);
+            $driver = $this->socialiteForAccountLinking($platformEnum);
+            $metaBusinessConfigId = $this->metaBusinessConfigIdForPlatform($platformEnum);
+
+            if ($metaBusinessConfigId !== null) {
+                // Meta Login for Business uses config_id-driven permissions instead of scope.
+                $driver->scopes([]);
+            } else {
+                $driver->scopes($scopes);
+            }
+
             $extra  = $this->oauthQueryParamsWhenLinkingAnotherAccount($platformEnum, Auth::user());
+            if ($metaBusinessConfigId !== null) {
+                $extra['config_id'] = $metaBusinessConfigId;
+            }
             if ($extra !== []) {
                 $driver->with($extra);
             }
@@ -871,6 +883,24 @@ class SocialAccountController extends Controller
 
         return is_string($id) && trim($id) !== ''
             && is_string($secret) && trim($secret) !== '';
+    }
+
+    private function metaBusinessConfigIdForPlatform(Platform $platform): ?string
+    {
+        // Threads uses its own OAuth scopes and does not use Meta Login for Business config_id.
+        if (!in_array($platform, [Platform::Facebook, Platform::Instagram], true)) {
+            return null;
+        }
+
+        if ($platform === Platform::Instagram) {
+            $instagram = trim((string) env('INSTAGRAM_BUSINESS_CONFIG_ID', ''));
+            if ($instagram !== '') {
+                return $instagram;
+            }
+        }
+
+        $facebook = trim((string) env('FACEBOOK_BUSINESS_CONFIG_ID', ''));
+        return $facebook !== '' ? $facebook : null;
     }
 
     /**

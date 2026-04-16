@@ -1,4 +1,6 @@
 # ─── Environment & Secrets ──────────────────────────────────
+.env
+**/.env
 secrets/.env
 secrets/installed
 
