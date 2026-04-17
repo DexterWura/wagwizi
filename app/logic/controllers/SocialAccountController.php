@@ -974,14 +974,21 @@ class SocialAccountController extends Controller
         $config    = config("platforms.{$platform->value}");
         $state     = bin2hex(random_bytes(16));
         session(['oauth_state' => $state]);
+        $metaBusinessConfigId = $this->metaBusinessConfigIdForPlatform($platform);
 
         $params = [
             'client_id'     => $config['client_id'],
             'redirect_uri'  => $config['redirect_uri'],
             'response_type' => 'code',
-            'scope'         => implode(',', $scopes),
             'state'         => $state,
         ];
+
+        if ($metaBusinessConfigId !== null) {
+            // Meta Login for Business uses config_id-driven permissions.
+            $params['config_id'] = $metaBusinessConfigId;
+        } else {
+            $params['scope'] = implode(',', $scopes);
+        }
 
         $instagramParams = array_merge($params, $this->oauthQueryParamsWhenLinkingAnotherAccount(Platform::Instagram, $linkingUser));
 
