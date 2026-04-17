@@ -63,8 +63,10 @@ return [
     ],
 
     'tiktok' => [
-        'enabled'       => (bool) env('TIKTOK_CLIENT_KEY'),
-        'client_id'     => env('TIKTOK_CLIENT_KEY'),
+        // TikTok names this value "client_key". Accept legacy TIKTOK_CLIENT_ID too.
+        'enabled'       => (bool) env('TIKTOK_CLIENT_KEY', env('TIKTOK_CLIENT_ID')),
+        'client_id'     => env('TIKTOK_CLIENT_KEY', env('TIKTOK_CLIENT_ID')),
+        'client_key'    => env('TIKTOK_CLIENT_KEY', env('TIKTOK_CLIENT_ID')),
         'client_secret' => env('TIKTOK_CLIENT_SECRET'),
         'redirect_uri'  => env('TIKTOK_REDIRECT_URI'),
         'scopes'        => ['user.info.basic', 'video.publish', 'video.upload'],

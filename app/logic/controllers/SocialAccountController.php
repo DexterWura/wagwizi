@@ -998,10 +998,18 @@ class SocialAccountController extends Controller
             ? 'select_account consent'
             : 'consent';
 
+        $tiktokClientKey = (string) ($config['client_key'] ?? $config['client_id'] ?? '');
+
         $authUrl = match ($platform) {
             Platform::Instagram => 'https://www.facebook.com/dialog/oauth?' . http_build_query($instagramParams),
             Platform::Threads   => 'https://threads.net/oauth/authorize?' . http_build_query($params),
-            Platform::TikTok    => 'https://www.tiktok.com/v2/auth/authorize/?' . http_build_query(array_merge($params, ['client_key' => $config['client_id']])),
+            Platform::TikTok    => 'https://www.tiktok.com/v2/auth/authorize/?' . http_build_query([
+                'client_key'    => $tiktokClientKey,
+                'redirect_uri'  => $config['redirect_uri'],
+                'response_type' => 'code',
+                'state'         => $state,
+                'scope'         => implode(',', $scopes),
+            ]),
             Platform::Pinterest => 'https://www.pinterest.com/oauth/?' . http_build_query($params),
             Platform::Reddit    => 'https://www.reddit.com/api/v1/authorize?' . http_build_query(array_merge($params, ['duration' => 'permanent'])),
             Platform::GoogleBusiness => 'https://accounts.google.com/o/oauth2/v2/auth?' . http_build_query(array_merge($params, [
@@ -1036,6 +1044,11 @@ class SocialAccountController extends Controller
             'client_id'     => $config['client_id'],
             'client_secret' => $config['client_secret'],
         ];
+
+        if ($platform === Platform::TikTok) {
+            $tokenPayload['client_key'] = (string) ($config['client_key'] ?? $config['client_id'] ?? '');
+            unset($tokenPayload['client_id']);
+        }
 
         $tokenUrl = match ($platform) {
             Platform::Instagram      => 'https://graph.facebook.com/v21.0/oauth/access_token',
