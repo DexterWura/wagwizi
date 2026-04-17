@@ -1858,6 +1858,38 @@ body.lp-nav-open {
   background: rgba(255, 255, 255, 0.06);
 }
 
+/* Platform brand icon colors */
+.fa-brands.fa-linkedin { color: #0a66c2; }
+.fa-brands.fa-facebook,
+.fa-brands.fa-facebook-f { color: #1877f2; }
+.fa-brands.fa-instagram {
+  background: linear-gradient(45deg, #f9ce34 0%, #ee2a7b 48%, #6228d7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.fa-brands.fa-x-twitter { color: #e7e9ea; }
+.fa-brands.fa-tiktok {
+  color: #ffffff;
+  text-shadow: -1px -1px 0 #25f4ee, 1px 1px 0 #fe2c55;
+}
+.fa-brands.fa-youtube { color: #ff0000; }
+.fa-brands.fa-telegram,
+.fa-brands.fa-telegram-plane { color: #229ed9; }
+.fa-brands.fa-pinterest,
+.fa-brands.fa-pinterest-p { color: #e60023; }
+.fa-brands.fa-threads { color: #f5f5f5; }
+.fa-brands.fa-reddit,
+.fa-brands.fa-reddit-alien { color: #ff4500; }
+.fa-brands.fa-wordpress { color: #21759b; }
+.fa-brands.fa-google { color: #4285f4; }
+.fa-brands.fa-discord { color: #5865f2; }
+.fa-brands.fa-bluesky { color: #1185fe; }
+.fa-brands.fa-dev { color: #f5f5f5; }
+.fa-brands.fa-whatsapp { color: #25d366; }
+.fa-brands.fa-stripe { color: #635bff; }
+.fa-brands.fa-paypal { color: #003087; }
+
 .lp-channel-card__meta {
   flex: 1;
   min-width: 0;
