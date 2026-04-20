@@ -39,5 +39,6 @@
     </footer>
 
     <script src="{{ asset(app_bundle_js_path()) }}?v={{ app_bundle_asset_version(app_bundle_js_path()) }}"></script>
+    @yield('scripts')
   </body>
 </html>

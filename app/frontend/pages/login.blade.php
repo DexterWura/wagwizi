@@ -27,10 +27,17 @@
       </div>
       @endif
 
+      @if(session('social_error'))
+      <div class="alert alert--error" role="alert">
+        <i class="fa-solid fa-circle-exclamation" aria-hidden="true"></i>
+        <span>{{ session('social_error') }}</span>
+      </div>
+      @endif
+
       @if($socialGoogleEnabled || $socialLinkedinEnabled)
       <div class="social-auth-buttons">
         @if($socialGoogleEnabled)
-        <a href="{{ route('social.redirect', 'google') }}" class="btn btn--social btn--google">
+        <a href="{{ route('social.redirect', 'google') }}" class="btn btn--social btn--google" data-social-auth-popup>
           @if(($lastSocialLoginProvider ?? null) === 'google')
           <span class="social-auth-last-used">Last used</span>
           @endif
@@ -39,7 +46,7 @@
         </a>
         @endif
         @if($socialLinkedinEnabled)
-        <a href="{{ route('social.redirect', 'linkedin-openid') }}" class="btn btn--social btn--linkedin">
+        <a href="{{ route('social.redirect', 'linkedin-openid') }}" class="btn btn--social btn--linkedin" data-social-auth-popup>
           @if(($lastSocialLoginProvider ?? null) === 'linkedin-openid')
           <span class="social-auth-last-used">Last used</span>
           @endif
@@ -77,4 +84,55 @@
         <a href="{{ route('password.request') }}">Forgot password</a>
       </div>
     </div>
+@endsection
+
+@section('scripts')
+<script>
+  (function () {
+    function popupFeatures(width, height) {
+      var dualLeft = window.screenLeft !== undefined ? window.screenLeft : window.screenX;
+      var dualTop = window.screenTop !== undefined ? window.screenTop : window.screenY;
+      var viewportWidth = window.innerWidth || document.documentElement.clientWidth || screen.width;
+      var viewportHeight = window.innerHeight || document.documentElement.clientHeight || screen.height;
+      var left = Math.max(0, dualLeft + ((viewportWidth - width) / 2));
+      var top = Math.max(0, dualTop + ((viewportHeight - height) / 2));
+      return "scrollbars=yes,resizable=yes,width=" + width + ",height=" + height + ",left=" + left + ",top=" + top;
+    }
+
+    function openSocialAuthPopup(url) {
+      var withPopupFlag = url.indexOf("?") === -1 ? (url + "?popup=1") : (url + "&popup=1");
+      var popup = window.open(withPopupFlag, "socialAuthPopup", popupFeatures(620, 760));
+      if (!popup) {
+        window.location.href = withPopupFlag;
+        return;
+      }
+      try {
+        popup.focus();
+      } catch (e) {}
+    }
+
+    document.addEventListener("click", function (event) {
+      var link = event.target && event.target.closest ? event.target.closest("a[data-social-auth-popup]") : null;
+      if (!link) return;
+      var href = link.getAttribute("href");
+      if (!href) return;
+      event.preventDefault();
+      openSocialAuthPopup(href);
+    });
+
+    window.addEventListener("message", function (event) {
+      if (event.origin !== window.location.origin) return;
+      var payload = event.data;
+      if (!payload || typeof payload !== "object") return;
+      if (payload.type !== "social-auth-complete") return;
+
+      var redirectUrl = typeof payload.redirectUrl === "string" ? payload.redirectUrl : "";
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+      window.location.reload();
+    });
+  })();
+</script>
 @endsection
