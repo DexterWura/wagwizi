@@ -103,7 +103,7 @@
                 @elseif($slug === 'whatsapp_channels')
                   <button type="button" class="btn btn--primary social-connect-card__btn" data-app-modal-open="modal-whatsapp-channels-connect">Connect</button>
                 @else
-                  <a class="btn btn--primary social-connect-card__btn" href="{{ route('accounts.connect', $slug) }}">Connect</a>
+                  <a class="btn btn--primary social-connect-card__btn" data-oauth-popup href="{{ route('accounts.connect', $slug) }}">Connect</a>
                 @endif
               </div>
             </div>
@@ -588,6 +588,53 @@
         .finally(function () {
           startButton.disabled = false;
         });
+    });
+  })();
+
+  (function () {
+    function popupFeatures(width, height) {
+      var dualLeft = window.screenLeft !== undefined ? window.screenLeft : window.screenX;
+      var dualTop = window.screenTop !== undefined ? window.screenTop : window.screenY;
+      var viewportWidth = window.innerWidth || document.documentElement.clientWidth || screen.width;
+      var viewportHeight = window.innerHeight || document.documentElement.clientHeight || screen.height;
+      var left = Math.max(0, dualLeft + ((viewportWidth - width) / 2));
+      var top = Math.max(0, dualTop + ((viewportHeight - height) / 2));
+      return "scrollbars=yes,resizable=yes,width=" + width + ",height=" + height + ",left=" + left + ",top=" + top;
+    }
+
+    function openOauthPopup(url) {
+      var withPopupFlag = url.indexOf("?") === -1 ? (url + "?popup=1") : (url + "&popup=1");
+      var popup = window.open(withPopupFlag, "oauthConnectPopup", popupFeatures(620, 760));
+      if (!popup) {
+        window.location.href = withPopupFlag;
+        return;
+      }
+      try {
+        popup.focus();
+      } catch (e) {}
+    }
+
+    document.addEventListener("click", function (event) {
+      var link = event.target && event.target.closest ? event.target.closest("a[data-oauth-popup]") : null;
+      if (!link) return;
+      var href = link.getAttribute("href");
+      if (!href) return;
+      event.preventDefault();
+      openOauthPopup(href);
+    });
+
+    window.addEventListener("message", function (event) {
+      if (event.origin !== window.location.origin) return;
+      var payload = event.data;
+      if (!payload || typeof payload !== "object") return;
+      if (payload.type !== "oauth-connect-complete") return;
+
+      var redirectUrl = typeof payload.redirectUrl === "string" ? payload.redirectUrl : "";
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+        return;
+      }
+      window.location.reload();
     });
   })();
 </script>

@@ -25,6 +25,7 @@ use Illuminate\View\View;
 class SocialAccountController extends Controller
 {
     private const DESTINATION_SELECTION_SESSION_KEY = 'oauth_destination_selection';
+    private const OAUTH_POPUP_SESSION_KEY = 'oauth_popup_connect';
 
     public function __construct(
         private readonly AccountLinkingService $linkingService,
@@ -81,6 +82,8 @@ class SocialAccountController extends Controller
 
         $scopes = config("platforms.{$platform}.scopes", []);
         $scopes = is_array($scopes) ? $scopes : [];
+        $popupRequested = $request->boolean('popup');
+        $this->setPopupConnectContext($platformEnum, $popupRequested);
 
         if ($this->isSocialiteSupported($platformEnum)) {
             if (!$this->socialiteServicesConfigured($platformEnum)) {
@@ -115,9 +118,10 @@ class SocialAccountController extends Controller
     /**
      * Handle the OAuth callback from a platform.
      */
-    public function callback(Request $request, string $platform): RedirectResponse
+    public function callback(Request $request, string $platform): RedirectResponse|\Symfony\Component\HttpFoundation\Response
     {
         $platformEnum = $this->resolvePlatform($platform);
+        $popupRequested = $platformEnum !== null ? $this->pullPopupConnectContext($platformEnum) : false;
 
         if ($platformEnum === null) {
             return redirect()->route('accounts')
@@ -153,7 +157,7 @@ class SocialAccountController extends Controller
                 }
 
                 if (in_array($platformEnum, [Platform::LinkedIn, Platform::LinkedInPages], true)) {
-                    return $this->handleLinkedInOAuthCallback($request, $platformEnum);
+                    return $this->handleLinkedInOAuthCallback($request, $platformEnum, $popupRequested);
                 } else {
                     $socialUser = $this->socialiteForAccountLinking($platformEnum)->user();
                     $platformUserId = $this->extractSocialUserId($socialUser, $platformEnum);
@@ -187,6 +191,7 @@ class SocialAccountController extends Controller
                             oauthDisplayName: $displayName,
                             oauthAvatarUrl: $socialUser->getAvatar(),
                             scopes: $storedScopes,
+                            popupRequested: $popupRequested,
                         );
                     }
 
@@ -217,9 +222,19 @@ class SocialAccountController extends Controller
                 'platform' => $platformEnum->value,
             ]);
 
+            if ($popupRequested) {
+                session()->flash('success', $platformEnum->label() . ' account connected successfully.');
+                return $this->oauthPopupCompletionResponse(route('accounts'));
+            }
+
             return redirect()->route('accounts')
                 ->with('success', $platformEnum->label() . ' account connected successfully.');
         } catch (\InvalidArgumentException $e) {
+            if ($popupRequested) {
+                session()->flash('error', $e->getMessage());
+                return $this->oauthPopupCompletionResponse(route('accounts'));
+            }
+
             return redirect()->route('accounts')
                 ->with('error', $e->getMessage());
         } catch (\Exception $e) {
@@ -229,6 +244,11 @@ class SocialAccountController extends Controller
                 'error'    => $e->getMessage(),
             ]);
             report($e);
+
+            if ($popupRequested) {
+                session()->flash('error', 'Failed to connect ' . $platformEnum->label() . '. Please try again.');
+                return $this->oauthPopupCompletionResponse(route('accounts'));
+            }
 
             return redirect()->route('accounts')
                 ->with('error', 'Failed to connect ' . $platformEnum->label() . '. Please try again.');
@@ -1226,7 +1246,7 @@ class SocialAccountController extends Controller
      * LinkedIn callback is handled explicitly to avoid provider edge-cases where
      * token exchange may be attempted without the callback code.
      */
-    private function handleLinkedInOAuthCallback(Request $request, Platform $platform): RedirectResponse
+    private function handleLinkedInOAuthCallback(Request $request, Platform $platform, bool $popupRequested): RedirectResponse|\Symfony\Component\HttpFoundation\Response
     {
         if ($request->has('error')) {
             $desc = $request->input('error_description', $request->input('error'));
@@ -1332,6 +1352,11 @@ class SocialAccountController extends Controller
                 ],
             );
 
+            if ($popupRequested) {
+                session()->flash('success', Platform::LinkedIn->label() . ' account connected successfully.');
+                return $this->oauthPopupCompletionResponse(route('accounts'));
+            }
+
             return redirect()->route('accounts')
                 ->with('success', Platform::LinkedIn->label() . ' account connected successfully.');
         }
@@ -1347,6 +1372,7 @@ class SocialAccountController extends Controller
             oauthAvatarUrl: $avatarUrl,
             scopes: $storedScopes,
             destinationType: $platform === Platform::LinkedInPages ? 'organization' : null,
+            popupRequested: $popupRequested,
         );
     }
 
@@ -1360,7 +1386,8 @@ class SocialAccountController extends Controller
         ?string $oauthDisplayName,
         ?string $oauthAvatarUrl,
         ?array $scopes,
-    ): RedirectResponse {
+        bool $popupRequested = false,
+    ): RedirectResponse|\Symfony\Component\HttpFoundation\Response {
         $destinations = $this->discoverFacebookDestinations($accessToken, $oauthUserId, $oauthUsername, $oauthDisplayName, $oauthAvatarUrl);
         $destinationTokens = $this->facebookDestinationTokenMap($destinations);
         $destinations = $this->stripDestinationAccessTokens($destinations);
@@ -1383,6 +1410,12 @@ class SocialAccountController extends Controller
         ];
         session([self::DESTINATION_SELECTION_SESSION_KEY => $all]);
 
+        if ($popupRequested) {
+            return $this->oauthPopupCompletionResponse(
+                route('accounts.destinations', ['platform' => $sessionPlatform->value])
+            );
+        }
+
         return redirect()->route('accounts.destinations', ['platform' => $sessionPlatform->value]);
     }
 
@@ -1397,7 +1430,8 @@ class SocialAccountController extends Controller
         ?string $oauthAvatarUrl,
         ?array $scopes,
         ?string $destinationType = null,
-    ): RedirectResponse {
+        bool $popupRequested = false,
+    ): RedirectResponse|\Symfony\Component\HttpFoundation\Response {
         $destinations = $this->discoverLinkedInDestinations($accessToken, $oauthUserId, $oauthUsername, $oauthDisplayName, $oauthAvatarUrl);
         if (is_string($destinationType) && $destinationType !== '') {
             $destinations = array_values(array_filter(
@@ -1424,7 +1458,54 @@ class SocialAccountController extends Controller
         ];
         session([self::DESTINATION_SELECTION_SESSION_KEY => $all]);
 
+        if ($popupRequested) {
+            return $this->oauthPopupCompletionResponse(
+                route('accounts.destinations', ['platform' => $sessionPlatform->value])
+            );
+        }
+
         return redirect()->route('accounts.destinations', ['platform' => $sessionPlatform->value]);
+    }
+
+    private function setPopupConnectContext(?Platform $platform, bool $popupRequested): void
+    {
+        if ($platform === null) {
+            return;
+        }
+
+        $all = session(self::OAUTH_POPUP_SESSION_KEY, []);
+        if (!is_array($all)) {
+            $all = [];
+        }
+
+        if ($popupRequested) {
+            $all[$platform->value] = true;
+        } else {
+            unset($all[$platform->value]);
+        }
+
+        session([self::OAUTH_POPUP_SESSION_KEY => $all]);
+    }
+
+    private function pullPopupConnectContext(Platform $platform): bool
+    {
+        $all = session(self::OAUTH_POPUP_SESSION_KEY, []);
+        if (!is_array($all)) {
+            return false;
+        }
+
+        $isPopup = (bool) ($all[$platform->value] ?? false);
+        unset($all[$platform->value]);
+        session([self::OAUTH_POPUP_SESSION_KEY => $all]);
+
+        return $isPopup;
+    }
+
+    private function oauthPopupCompletionResponse(?string $redirectUrl = null): \Symfony\Component\HttpFoundation\Response
+    {
+        return response()->view('accounts-oauth-popup-result', [
+            'redirectUrl' => $redirectUrl,
+        ]);
     }
 
     /**
