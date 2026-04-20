@@ -500,9 +500,11 @@ final class DashboardMetricsService
 
         return match ($account->platform) {
             'twitter'   => $this->twitterAudience($account),
-            'facebook'  => $this->facebookAudience($account),
+            'facebook',
+            'facebook_pages'  => $this->facebookAudience($account),
             'instagram' => $this->instagramAudience($account),
-            'linkedin'  => $this->linkedinAudience($account),
+            'linkedin',
+            'linkedin_pages'  => $this->linkedinAudience($account),
             'threads'   => $this->threadsAudience($account),
             default     => $this->metadataAudience($account),
         };
@@ -634,7 +636,7 @@ final class DashboardMetricsService
             $resp = Http::withToken($account->access_token)
                 ->timeout(12)
                 ->acceptJson()
-                ->withHeaders($this->linkedInHeaders())
+                ->withHeaders($this->linkedInHeaders($account->platform))
                 ->get('https://api.linkedin.com/v2/networkSizes/' . rawurlencode($authorUrn), [
                     'edgeType' => 'CompanyFollowedByMember',
                 ]);
@@ -650,7 +652,7 @@ final class DashboardMetricsService
         $resp = Http::withToken($account->access_token)
             ->timeout(12)
             ->acceptJson()
-            ->withHeaders($this->linkedInHeaders())
+            ->withHeaders($this->linkedInHeaders($account->platform))
             ->get('https://api.linkedin.com/rest/memberFollowersCount', [
                 'q' => 'me',
             ]);
@@ -831,13 +833,13 @@ final class DashboardMetricsService
     /**
      * @return array<string, string>
      */
-    private function linkedInHeaders(): array
+    private function linkedInHeaders(string $platformSlug = 'linkedin'): array
     {
         $headers = [
             'X-Restli-Protocol-Version' => '2.0.0',
         ];
 
-        $version = trim((string) config('platforms.linkedin.api_version', ''));
+        $version = trim((string) config("platforms.{$platformSlug}.api_version", config('platforms.linkedin.api_version', '')));
         if ($version !== '') {
             $headers['LinkedIn-Version'] = $version;
         }

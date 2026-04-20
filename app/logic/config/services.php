@@ -30,10 +30,22 @@ return [
         'redirect'      => env('FACEBOOK_REDIRECT_URI', '/accounts/facebook/callback'),
     ],
 
+    'facebook-pages' => [
+        'client_id'     => env('FACEBOOK_PAGES_CLIENT_ID', env('FACEBOOK_CLIENT_ID')),
+        'client_secret' => env('FACEBOOK_PAGES_CLIENT_SECRET', env('FACEBOOK_CLIENT_SECRET')),
+        'redirect'      => env('FACEBOOK_PAGES_REDIRECT_URI', '/accounts/facebook_pages/callback'),
+    ],
+
     'linkedin-openid' => [
         'client_id'     => env('LINKEDIN_CLIENT_ID'),
         'client_secret' => env('LINKEDIN_CLIENT_SECRET'),
         'redirect'      => env('LINKEDIN_AUTH_REDIRECT_URI', '/auth/linkedin-openid/callback'),
+    ],
+
+    'linkedin-pages-openid' => [
+        'client_id'     => env('LINKEDIN_PAGES_CLIENT_ID', env('LINKEDIN_CLIENT_ID')),
+        'client_secret' => env('LINKEDIN_PAGES_CLIENT_SECRET', env('LINKEDIN_CLIENT_SECRET')),
+        'redirect'      => env('LINKEDIN_PAGES_REDIRECT_URI', '/accounts/linkedin_pages/callback'),
     ],
 
 ];

@@ -22,6 +22,19 @@ return [
         'client_id'     => env('FACEBOOK_CLIENT_ID'),
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
         'redirect_uri'  => env('FACEBOOK_REDIRECT_URI'),
+        'scopes'        => ['public_profile'],
+        'max_content_length' => 63206,
+        'supports_images'    => true,
+        'supports_video'     => true,
+        'supports_carousel'  => false,
+        'rate_limit'         => 60,
+    ],
+
+    'facebook_pages' => [
+        'enabled'       => (bool) env('FACEBOOK_PAGES_CLIENT_ID', env('FACEBOOK_CLIENT_ID')),
+        'client_id'     => env('FACEBOOK_PAGES_CLIENT_ID', env('FACEBOOK_CLIENT_ID')),
+        'client_secret' => env('FACEBOOK_PAGES_CLIENT_SECRET', env('FACEBOOK_CLIENT_SECRET')),
+        'redirect_uri'  => env('FACEBOOK_PAGES_REDIRECT_URI', env('FACEBOOK_REDIRECT_URI')),
         'scopes'        => ['pages_manage_posts', 'pages_read_engagement', 'pages_show_list'],
         'max_content_length' => 63206,
         'supports_images'    => true,
@@ -55,6 +68,27 @@ return [
                 ? ['w_organization_social', 'r_organization_social', 'rw_organization_admin']
                 : []
         ))),
+        'max_content_length' => 3000,
+        'supports_images'    => true,
+        'supports_video'     => true,
+        'supports_carousel'  => false,
+        'rate_limit'         => 100,
+    ],
+
+    'linkedin_pages' => [
+        'enabled'       => (bool) env('LINKEDIN_PAGES_CLIENT_ID', env('LINKEDIN_CLIENT_ID')),
+        'client_id'     => env('LINKEDIN_PAGES_CLIENT_ID', env('LINKEDIN_CLIENT_ID')),
+        'client_secret' => env('LINKEDIN_PAGES_CLIENT_SECRET', env('LINKEDIN_CLIENT_SECRET')),
+        'redirect_uri'  => env('LINKEDIN_PAGES_REDIRECT_URI', env('LINKEDIN_REDIRECT_URI')),
+        'api_version'   => env('LINKEDIN_PAGES_API_VERSION', env('LINKEDIN_API_VERSION', '202504')),
+        'scopes'        => [
+            'openid',
+            'profile',
+            'w_member_social',
+            'w_organization_social',
+            'r_organization_social',
+            'rw_organization_admin',
+        ],
         'max_content_length' => 3000,
         'supports_images'    => true,
         'supports_video'     => true,

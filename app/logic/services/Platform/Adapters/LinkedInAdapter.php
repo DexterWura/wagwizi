@@ -368,7 +368,7 @@ class LinkedInAdapter extends AbstractPlatformAdapter
             'X-Restli-Protocol-Version' => '2.0.0',
         ];
 
-        $version = trim((string) config('platforms.linkedin.api_version', ''));
+        $version = trim((string) config("platforms.{$this->platform()->value}.api_version", ''));
         if ($version !== '') {
             $headers['LinkedIn-Version'] = $version;
         }

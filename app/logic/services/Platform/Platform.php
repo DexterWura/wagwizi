@@ -6,8 +6,10 @@ enum Platform: string
 {
     case Twitter   = 'twitter';
     case Facebook  = 'facebook';
+    case FacebookPages = 'facebook_pages';
     case Instagram = 'instagram';
     case LinkedIn  = 'linkedin';
+    case LinkedInPages = 'linkedin_pages';
     case TikTok    = 'tiktok';
     case YouTube   = 'youtube';
     case Telegram  = 'telegram';
@@ -26,8 +28,10 @@ enum Platform: string
         return match ($this) {
             self::Twitter        => 'X (Twitter)',
             self::Facebook       => 'Facebook',
+            self::FacebookPages  => 'Facebook Pages',
             self::Instagram      => 'Instagram',
             self::LinkedIn       => 'LinkedIn',
+            self::LinkedInPages  => 'LinkedIn Pages',
             self::TikTok         => 'TikTok',
             self::YouTube        => 'YouTube',
             self::Telegram       => 'Telegram',
@@ -48,8 +52,10 @@ enum Platform: string
         return match ($this) {
             self::Twitter        => 'fa-brands fa-x-twitter',
             self::Facebook       => 'fa-brands fa-facebook',
+            self::FacebookPages  => 'fa-brands fa-facebook',
             self::Instagram      => 'fa-brands fa-instagram',
             self::LinkedIn       => 'fa-brands fa-linkedin',
+            self::LinkedInPages  => 'fa-brands fa-linkedin',
             self::TikTok         => 'fa-brands fa-tiktok',
             self::YouTube        => 'fa-brands fa-youtube',
             self::Telegram       => 'fa-brands fa-telegram',
@@ -69,9 +75,11 @@ enum Platform: string
     {
         return match ($this) {
             self::Twitter        => 'Post text, images, and threads to your profile.',
-            self::Facebook       => 'Publish to Facebook Pages you administer.',
+            self::Facebook       => 'Connect your Facebook account for account-level access.',
+            self::FacebookPages  => 'Publish to Facebook Pages you administer.',
             self::Instagram      => 'Requires a Business or Creator account linked through Meta.',
-            self::LinkedIn       => 'Publish to company pages and personal profiles you manage.',
+            self::LinkedIn       => 'Publish to your personal LinkedIn profile.',
+            self::LinkedInPages  => 'Publish to LinkedIn company pages you manage.',
             self::TikTok         => 'Share where the TikTok API allows for your account type.',
             self::YouTube        => 'Community tab posts and video metadata updates.',
             self::Telegram       => 'Use a bot token to post to channels you control.',

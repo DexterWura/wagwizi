@@ -4,6 +4,8 @@ namespace Tests\Unit;
 
 use App\Models\SocialAccount;
 use App\Services\Platform\Adapters\LinkedInAdapter;
+use App\Services\Platform\Adapters\LinkedInPagesAdapter;
+use App\Services\Platform\Platform;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 
@@ -46,6 +48,13 @@ final class LinkedInAdapterDestinationMetadataTest extends TestCase
         $ownerUrn = $this->callPrivate($adapter, 'linkedInOwnerUrn', [$account, 'urn:li:person:12345']);
 
         $this->assertSame('urn:li:organization:445566', $ownerUrn);
+    }
+
+    public function test_linkedin_pages_adapter_uses_linkedin_pages_platform_slug(): void
+    {
+        $adapter = new LinkedInPagesAdapter();
+
+        $this->assertSame(Platform::LinkedInPages, $adapter->platform());
     }
 
     /**

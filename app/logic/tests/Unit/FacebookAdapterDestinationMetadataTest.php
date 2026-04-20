@@ -4,6 +4,8 @@ namespace Tests\Unit;
 
 use App\Models\SocialAccount;
 use App\Services\Platform\Adapters\FacebookAdapter;
+use App\Services\Platform\Adapters\FacebookPagesAdapter;
+use App\Services\Platform\Platform;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
 
@@ -41,6 +43,13 @@ final class FacebookAdapterDestinationMetadataTest extends TestCase
         $resolved = $this->callPrivate($adapter, 'facebookPublishingAccount', [$account]);
 
         $this->assertNull($resolved);
+    }
+
+    public function test_facebook_pages_adapter_uses_facebook_pages_platform_slug(): void
+    {
+        $adapter = new FacebookPagesAdapter();
+
+        $this->assertSame(Platform::FacebookPages, $adapter->platform());
     }
 
     /**

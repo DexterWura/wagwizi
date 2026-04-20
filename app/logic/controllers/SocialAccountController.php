@@ -152,8 +152,8 @@ class SocialAccountController extends Controller
                         ->with('error', $platformEnum->label() . ' connection is not configured. Add the OAuth client ID and secret in your environment.');
                 }
 
-                if ($platformEnum === Platform::LinkedIn) {
-                    return $this->handleLinkedInOAuthCallback($request);
+                if (in_array($platformEnum, [Platform::LinkedIn, Platform::LinkedInPages], true)) {
+                    return $this->handleLinkedInOAuthCallback($request, $platformEnum);
                 } else {
                     $socialUser = $this->socialiteForAccountLinking($platformEnum)->user();
                     $platformUserId = $this->extractSocialUserId($socialUser, $platformEnum);
@@ -176,8 +176,9 @@ class SocialAccountController extends Controller
                     $storedScopes = config("platforms.{$platform}.scopes", []);
                     $storedScopes = is_array($storedScopes) ? $storedScopes : null;
 
-                    if ($platformEnum === Platform::Facebook) {
+                    if ($platformEnum === Platform::FacebookPages) {
                         return $this->beginFacebookDestinationSelection(
+                            sessionPlatform: $platformEnum,
                             accessToken: $accessToken,
                             refreshToken: $socialUser->refreshToken ?? ($rawUser['refresh_token'] ?? null),
                             expiresIn: isset($socialUser->expiresIn) ? (int) $socialUser->expiresIn : null,
@@ -202,6 +203,9 @@ class SocialAccountController extends Controller
                         expiresAt:      $socialUser->expiresIn
                             ? now()->addSeconds($socialUser->expiresIn)
                             : null,
+                        metadata: $platformEnum === Platform::Facebook
+                            ? ['account_type' => 'person']
+                            : [],
                     );
                 }
             } else {
@@ -728,7 +732,7 @@ class SocialAccountController extends Controller
     public function destinations(Request $request, string $platform): View|RedirectResponse
     {
         $platformEnum = $this->resolvePlatform($platform);
-        if (!in_array($platformEnum, [Platform::Facebook, Platform::LinkedIn], true)) {
+        if (!in_array($platformEnum, [Platform::Facebook, Platform::LinkedIn, Platform::FacebookPages, Platform::LinkedInPages], true)) {
             return redirect()->route('accounts')->with('error', 'This platform does not require destination selection.');
         }
 
@@ -746,7 +750,7 @@ class SocialAccountController extends Controller
     public function storeDestinations(Request $request, string $platform): RedirectResponse
     {
         $platformEnum = $this->resolvePlatform($platform);
-        if (!in_array($platformEnum, [Platform::Facebook, Platform::LinkedIn], true)) {
+        if (!in_array($platformEnum, [Platform::Facebook, Platform::LinkedIn, Platform::FacebookPages, Platform::LinkedInPages], true)) {
             return redirect()->route('accounts')->with('error', 'This platform does not require destination selection.');
         }
 
@@ -792,9 +796,11 @@ class SocialAccountController extends Controller
                 continue;
             }
 
+            $destinationPlatform = Platform::tryFrom((string) ($destination['platform'] ?? $platformEnum->value)) ?? $platformEnum;
+
             $this->linkingService->linkAccount(
                 user: Auth::user(),
-                platform: $platformEnum,
+                platform: $destinationPlatform,
                 platformUserId: $platformUserId,
                 accessToken: $accessToken,
                 refreshToken: $pending['refresh_token'] ?? null,
@@ -852,7 +858,9 @@ class SocialAccountController extends Controller
         return in_array($platform, [
             Platform::Twitter,
             Platform::Facebook,
+            Platform::FacebookPages,
             Platform::LinkedIn,
+            Platform::LinkedInPages,
             Platform::YouTube,
         ]);
     }
@@ -861,7 +869,9 @@ class SocialAccountController extends Controller
     {
         return match ($platform) {
             Platform::YouTube  => 'google',
-            Platform::LinkedIn => 'linkedin-openid',
+            Platform::FacebookPages => 'facebook',
+            Platform::LinkedIn,
+            Platform::LinkedInPages => 'linkedin-openid',
             default              => $platform->value,
         };
     }
@@ -871,15 +881,9 @@ class SocialAccountController extends Controller
      */
     private function socialiteServicesConfigured(Platform $platform): bool
     {
-        $key = 'services.' . $this->socialiteDriver($platform);
-        $c   = config($key);
-
-        if (!is_array($c)) {
-            return false;
-        }
-
-        $id     = $c['client_id'] ?? null;
-        $secret = $c['client_secret'] ?? null;
+        $platformConfig = config('platforms.' . $platform->value, []);
+        $id = is_array($platformConfig) ? ($platformConfig['client_id'] ?? null) : null;
+        $secret = is_array($platformConfig) ? ($platformConfig['client_secret'] ?? null) : null;
 
         return is_string($id) && trim($id) !== ''
             && is_string($secret) && trim($secret) !== '';
@@ -888,7 +892,7 @@ class SocialAccountController extends Controller
     private function metaBusinessConfigIdForPlatform(Platform $platform): ?string
     {
         // Threads uses its own OAuth scopes and does not use Meta Login for Business config_id.
-        if (!in_array($platform, [Platform::Facebook, Platform::Instagram], true)) {
+        if (!in_array($platform, [Platform::Facebook, Platform::FacebookPages, Platform::Instagram], true)) {
             return null;
         }
 
@@ -928,7 +932,8 @@ class SocialAccountController extends Controller
 
         return match ($platform) {
             Platform::Twitter => ['prompt' => 'login'],
-            Platform::Facebook => ['auth_type' => 'reauthenticate'],
+            Platform::Facebook,
+            Platform::FacebookPages => ['auth_type' => 'reauthenticate'],
             Platform::YouTube => ['prompt' => 'select_account consent'],
             Platform::Instagram => ['auth_type' => 'reauthenticate'],
             default => [],
@@ -941,10 +946,11 @@ class SocialAccountController extends Controller
      */
     private function socialiteForAccountLinking(Platform $platform): \Laravel\Socialite\Contracts\Provider
     {
+        $this->applySocialiteConfigForPlatform($platform);
         $driver = Socialite::driver($this->socialiteDriver($platform));
         $slug   = $platform->value;
 
-        if ($platform === Platform::Facebook && method_exists($driver, 'usingGraphVersion')) {
+        if (in_array($platform, [Platform::Facebook, Platform::FacebookPages], true) && method_exists($driver, 'usingGraphVersion')) {
             // Socialite defaults Facebook to v3.3, which is obsolete and can cause auth failures.
             $driver->usingGraphVersion((string) env('FACEBOOK_GRAPH_VERSION', 'v21.0'));
         }
@@ -958,7 +964,7 @@ class SocialAccountController extends Controller
                 : url($u);
         }
 
-        if ($full === null && $platform === Platform::LinkedIn) {
+        if ($full === null && in_array($platform, [Platform::LinkedIn, Platform::LinkedInPages], true)) {
             $full = route('accounts.callback', ['platform' => $slug], true);
         }
 
@@ -967,6 +973,37 @@ class SocialAccountController extends Controller
         }
 
         return $driver;
+    }
+
+    private function applySocialiteConfigForPlatform(Platform $platform): void
+    {
+        $platformConfig = config("platforms.{$platform->value}", []);
+        if (!is_array($platformConfig)) {
+            return;
+        }
+
+        $clientId = trim((string) ($platformConfig['client_id'] ?? ''));
+        $clientSecret = trim((string) ($platformConfig['client_secret'] ?? ''));
+        $redirectUri = trim((string) ($platformConfig['redirect_uri'] ?? ''));
+        if ($redirectUri !== '' && !str_starts_with($redirectUri, 'http://') && !str_starts_with($redirectUri, 'https://')) {
+            $redirectUri = url($redirectUri);
+        }
+
+        if ($platform === Platform::FacebookPages) {
+            config([
+                'services.facebook.client_id' => $clientId,
+                'services.facebook.client_secret' => $clientSecret,
+                'services.facebook.redirect' => $redirectUri !== '' ? $redirectUri : route('accounts.callback', ['platform' => $platform->value], true),
+            ]);
+        }
+
+        if ($platform === Platform::LinkedInPages) {
+            config([
+                'services.linkedin-openid.client_id' => $clientId,
+                'services.linkedin-openid.client_secret' => $clientSecret,
+                'services.linkedin-openid.redirect' => $redirectUri !== '' ? $redirectUri : route('accounts.callback', ['platform' => $platform->value], true),
+            ]);
+        }
     }
 
     private function customOAuthRedirect(Platform $platform, array $scopes, ?User $linkingUser = null): RedirectResponse
@@ -1189,7 +1226,7 @@ class SocialAccountController extends Controller
      * LinkedIn callback is handled explicitly to avoid provider edge-cases where
      * token exchange may be attempted without the callback code.
      */
-    private function handleLinkedInOAuthCallback(Request $request): RedirectResponse
+    private function handleLinkedInOAuthCallback(Request $request, Platform $platform): RedirectResponse
     {
         if ($request->has('error')) {
             $desc = $request->input('error_description', $request->input('error'));
@@ -1204,14 +1241,14 @@ class SocialAccountController extends Controller
             ]);
             throw new \InvalidArgumentException(
                 'LinkedIn did not return an authorization code. Reconnect and ensure your LinkedIn app callback URL matches this exact URL: '
-                . route('accounts.callback', ['platform' => 'linkedin'], true)
+                . route('accounts.callback', ['platform' => $platform->value], true)
             );
         }
 
-        $config = config('platforms.linkedin');
+        $config = config('platforms.' . $platform->value);
         $clientId = trim((string) ($config['client_id'] ?? ''));
         $clientSecret = trim((string) ($config['client_secret'] ?? ''));
-        $redirectUri = trim((string) ($config['redirect_uri'] ?? route('accounts.callback', ['platform' => 'linkedin'], true)));
+        $redirectUri = trim((string) ($config['redirect_uri'] ?? route('accounts.callback', ['platform' => $platform->value], true)));
 
         if ($clientId === '' || $clientSecret === '') {
             throw new \InvalidArgumentException('LinkedIn OAuth is not configured. Missing client ID or client secret.');
@@ -1240,7 +1277,7 @@ class SocialAccountController extends Controller
             throw new \RuntimeException('LinkedIn token exchange returned no access token.');
         }
 
-        $storedScopes = config('platforms.linkedin.scopes', []);
+        $storedScopes = config('platforms.' . $platform->value . '.scopes', []);
         $storedScopes = is_array($storedScopes) ? $storedScopes : null;
 
         $userInfo = [];
@@ -1275,7 +1312,32 @@ class SocialAccountController extends Controller
             throw new \InvalidArgumentException('Could not read your LinkedIn account ID from OAuth response. Please reconnect.');
         }
 
+        if ($platform === Platform::LinkedIn) {
+            $this->linkingService->linkAccount(
+                user: Auth::user(),
+                platform: Platform::LinkedIn,
+                platformUserId: $platformUserId,
+                accessToken: $accessToken,
+                refreshToken: $tokenData['refresh_token'] ?? null,
+                username: $username,
+                displayName: $displayName !== null && trim($displayName) !== '' ? $displayName : ($username ?? 'LinkedIn Account'),
+                avatarUrl: $avatarUrl,
+                scopes: $storedScopes,
+                expiresAt: isset($tokenData['expires_in']) ? now()->addSeconds((int) $tokenData['expires_in']) : null,
+                metadata: [
+                    'account_type' => 'person',
+                    'author_urn' => 'urn:li:person:' . $platformUserId,
+                    'owner_urn' => 'urn:li:person:' . $platformUserId,
+                    'parent_user_id' => $platformUserId,
+                ],
+            );
+
+            return redirect()->route('accounts')
+                ->with('success', Platform::LinkedIn->label() . ' account connected successfully.');
+        }
+
         return $this->beginLinkedInDestinationSelection(
+            sessionPlatform: $platform,
             accessToken: $accessToken,
             refreshToken: $tokenData['refresh_token'] ?? null,
             expiresIn: isset($tokenData['expires_in']) ? (int) $tokenData['expires_in'] : null,
@@ -1284,10 +1346,12 @@ class SocialAccountController extends Controller
             oauthDisplayName: $displayName !== null && trim($displayName) !== '' ? $displayName : ($username ?? 'LinkedIn Account'),
             oauthAvatarUrl: $avatarUrl,
             scopes: $storedScopes,
+            destinationType: $platform === Platform::LinkedInPages ? 'organization' : null,
         );
     }
 
     private function beginFacebookDestinationSelection(
+        Platform $sessionPlatform,
         string $accessToken,
         ?string $refreshToken,
         ?int $expiresIn,
@@ -1310,7 +1374,7 @@ class SocialAccountController extends Controller
             $all = [];
         }
 
-        $all[Platform::Facebook->value] = [
+        $all[$sessionPlatform->value] = [
             'refresh_token' => $refreshToken,
             'expires_at' => $expiresIn !== null ? now()->addSeconds($expiresIn)->toIso8601String() : null,
             'scopes' => $scopes ?? [],
@@ -1319,10 +1383,11 @@ class SocialAccountController extends Controller
         ];
         session([self::DESTINATION_SELECTION_SESSION_KEY => $all]);
 
-        return redirect()->route('accounts.destinations', ['platform' => Platform::Facebook->value]);
+        return redirect()->route('accounts.destinations', ['platform' => $sessionPlatform->value]);
     }
 
     private function beginLinkedInDestinationSelection(
+        Platform $sessionPlatform,
         string $accessToken,
         ?string $refreshToken,
         ?int $expiresIn,
@@ -1331,8 +1396,15 @@ class SocialAccountController extends Controller
         ?string $oauthDisplayName,
         ?string $oauthAvatarUrl,
         ?array $scopes,
+        ?string $destinationType = null,
     ): RedirectResponse {
         $destinations = $this->discoverLinkedInDestinations($accessToken, $oauthUserId, $oauthUsername, $oauthDisplayName, $oauthAvatarUrl);
+        if (is_string($destinationType) && $destinationType !== '') {
+            $destinations = array_values(array_filter(
+                $destinations,
+                static fn (array $destination): bool => (($destination['metadata']['account_type'] ?? null) === $destinationType)
+            ));
+        }
 
         if ($destinations === []) {
             throw new \InvalidArgumentException('No publishable LinkedIn destinations were found for this account.');
@@ -1343,7 +1415,7 @@ class SocialAccountController extends Controller
             $all = [];
         }
 
-        $all[Platform::LinkedIn->value] = [
+        $all[$sessionPlatform->value] = [
             'access_token' => $accessToken,
             'refresh_token' => $refreshToken,
             'expires_at' => $expiresIn !== null ? now()->addSeconds($expiresIn)->toIso8601String() : null,
@@ -1352,7 +1424,7 @@ class SocialAccountController extends Controller
         ];
         session([self::DESTINATION_SELECTION_SESSION_KEY => $all]);
 
-        return redirect()->route('accounts.destinations', ['platform' => Platform::LinkedIn->value]);
+        return redirect()->route('accounts.destinations', ['platform' => $sessionPlatform->value]);
     }
 
     /**
@@ -1400,6 +1472,7 @@ class SocialAccountController extends Controller
 
             $destinations[] = [
                 'key' => 'page:' . $pageId,
+                'platform' => Platform::FacebookPages->value,
                 'platform_user_id' => $pageId,
                 'username' => $oauthUsername,
                 'display_name' => $display !== '' ? $display : ('Facebook Page ' . $pageId),
@@ -1467,6 +1540,7 @@ class SocialAccountController extends Controller
 
         $destinations = [[
             'key' => 'person:' . $oauthUserId,
+            'platform' => Platform::LinkedIn->value,
             'platform_user_id' => $oauthUserId,
             'username' => $oauthUsername,
             'display_name' => $safeDisplayName,
@@ -1482,7 +1556,7 @@ class SocialAccountController extends Controller
 
         $orgAclsResponse = Http::withToken($accessToken)
             ->acceptJson()
-            ->withHeaders($this->linkedInDiscoveryHeaders())
+            ->withHeaders($this->linkedInDiscoveryHeaders(Platform::LinkedInPages))
             ->get('https://api.linkedin.com/v2/organizationalEntityAcls', [
                 'q' => 'roleAssignee',
                 'role' => 'ADMINISTRATOR',
@@ -1517,7 +1591,7 @@ class SocialAccountController extends Controller
             $orgAvatar = null;
             $orgResponse = Http::withToken($accessToken)
                 ->acceptJson()
-                ->withHeaders($this->linkedInDiscoveryHeaders())
+                ->withHeaders($this->linkedInDiscoveryHeaders(Platform::LinkedInPages))
                 ->get('https://api.linkedin.com/v2/organizations/' . $orgId, [
                     'projection' => '(id,localizedName,vanityName)',
                 ]);
@@ -1531,6 +1605,7 @@ class SocialAccountController extends Controller
 
             $destinations[] = [
                 'key' => 'organization:' . $orgId,
+                'platform' => Platform::LinkedInPages->value,
                 'platform_user_id' => $orgId,
                 'username' => null,
                 'display_name' => $orgName,
@@ -1551,13 +1626,13 @@ class SocialAccountController extends Controller
     /**
      * @return array<string, string>
      */
-    private function linkedInDiscoveryHeaders(): array
+    private function linkedInDiscoveryHeaders(Platform $platform): array
     {
         $headers = [
             'X-Restli-Protocol-Version' => '2.0.0',
         ];
 
-        $version = trim((string) config('platforms.linkedin.api_version', ''));
+        $version = trim((string) config("platforms.{$platform->value}.api_version", ''));
         if ($version !== '') {
             $headers['LinkedIn-Version'] = $version;
         }
@@ -1578,7 +1653,8 @@ class SocialAccountController extends Controller
         $raw = $this->socialUserRawData($socialUser);
 
         return match ($platform) {
-            Platform::LinkedIn => trim((string) ($raw['sub'] ?? $raw['id'] ?? '')),
+            Platform::LinkedIn,
+            Platform::LinkedInPages => trim((string) ($raw['sub'] ?? $raw['id'] ?? '')),
             Platform::Twitter => trim((string) ($raw['id'] ?? $raw['data']['id'] ?? '')),
             default => trim((string) ($raw['id'] ?? '')),
         };

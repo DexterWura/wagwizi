@@ -26,8 +26,10 @@ class MentionSuggestionService
 
         return match ($platform) {
             'twitter'   => $this->twitterSuggestions($account, $q),
-            'linkedin'  => $this->linkedinSuggestions($account, $q),
-            'facebook'  => $this->facebookGraphSearch($account, $q, ['page', 'user']),
+            'linkedin',
+            'linkedin_pages'  => $this->linkedinSuggestions($account, $q),
+            'facebook',
+            'facebook_pages'  => $this->facebookGraphSearch($account, $q, ['page', 'user']),
             'instagram' => $this->facebookGraphSearch($account, $q, ['page', 'user']),
             'threads'   => $this->threadsSuggestions($account, $q),
             default     => [],
@@ -87,7 +89,7 @@ class MentionSuggestionService
         $response = Http::withToken($account->access_token)
             ->timeout(15)
             ->acceptJson()
-            ->withHeaders($this->linkedInHeaders())
+            ->withHeaders($this->linkedInHeaders($account))
             ->get('https://api.linkedin.com/v2/people', [
                 'q'        => 'peopleSearch',
                 'keywords' => $q,
@@ -158,13 +160,16 @@ class MentionSuggestionService
     /**
      * @return array<string, string>
      */
-    private function linkedInHeaders(): array
+    private function linkedInHeaders(SocialAccount $account): array
     {
         $headers = [
             'X-Restli-Protocol-Version' => '2.0.0',
         ];
 
-        $version = trim((string) config('platforms.linkedin.api_version', ''));
+        $platformSlug = in_array($account->platform, ['linkedin', 'linkedin_pages'], true)
+            ? $account->platform
+            : 'linkedin';
+        $version = trim((string) config("platforms.{$platformSlug}.api_version", ''));
         if ($version !== '') {
             $headers['LinkedIn-Version'] = $version;
         }

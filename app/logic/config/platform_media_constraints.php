@@ -41,6 +41,22 @@ return [
         ],
     ],
 
+    'facebook_pages' => [
+        'image' => [
+            'max_width'     => 8192,
+            'max_height'    => 8192,
+            'max_long_edge' => 8192,
+            'max_file_mb'   => 10,
+        ],
+        'video' => [
+            'max_width'        => 1920,
+            'max_height'       => 1080,
+            'max_long_edge'    => 1920,
+            'max_duration_sec' => 14400,
+            'max_file_mb'      => 4096,
+        ],
+    ],
+
     'instagram' => [
         'image' => [
             'min_width'          => 320,
@@ -61,6 +77,18 @@ return [
     ],
 
     'linkedin' => [
+        'image' => [
+            'max_long_edge' => 5528,
+            'max_file_mb'   => 100,
+        ],
+        'video' => [
+            'max_long_edge'    => 4096,
+            'max_duration_sec' => 600,
+            'max_file_mb'      => 200,
+        ],
+    ],
+
+    'linkedin_pages' => [
         'image' => [
             'max_long_edge' => 5528,
             'max_file_mb'   => 100,

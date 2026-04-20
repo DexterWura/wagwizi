@@ -288,7 +288,7 @@ class PublishPostToPlatformJob implements ShouldQueue
             'publish_phase'    => 'media_resolved',
         ]);
 
-        if ($platform === Platform::LinkedIn) {
+        if (in_array($platform, [Platform::LinkedIn, Platform::LinkedInPages], true)) {
             $postMediaCount = (int) $post->mediaFiles()->count();
             $fallbackMediaCount = is_array($post->media_paths) ? count($post->media_paths) : 0;
             if (($postMediaCount > 0 || $fallbackMediaCount > 0) && count($mediaUrls) === 0) {
@@ -562,7 +562,7 @@ class PublishPostToPlatformJob implements ShouldQueue
     private function canFallbackToTextOnly(Platform $platform, ?string $errorMessage): bool
     {
         // Platforms where text-only fallback is not valid for our publish flow.
-        if (in_array($platform, [Platform::Instagram, Platform::TikTok, Platform::LinkedIn], true)) {
+        if (in_array($platform, [Platform::Instagram, Platform::TikTok, Platform::LinkedIn, Platform::LinkedInPages], true)) {
             return false;
         }
 

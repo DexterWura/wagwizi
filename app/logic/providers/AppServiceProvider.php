@@ -10,9 +10,11 @@ use App\Services\Platform\Adapters\BlueskyAdapter;
 use App\Services\Platform\Adapters\DiscordAdapter;
 use App\Services\Platform\Adapters\DevToAdapter;
 use App\Services\Platform\Adapters\FacebookAdapter;
+use App\Services\Platform\Adapters\FacebookPagesAdapter;
 use App\Services\Platform\Adapters\GoogleBusinessAdapter;
 use App\Services\Platform\Adapters\InstagramAdapter;
 use App\Services\Platform\Adapters\LinkedInAdapter;
+use App\Services\Platform\Adapters\LinkedInPagesAdapter;
 use App\Services\Platform\Adapters\PinterestAdapter;
 use App\Services\Platform\Adapters\RedditAdapter;
 use App\Services\Platform\Adapters\TelegramAdapter;
@@ -60,8 +62,10 @@ class AppServiceProvider extends ServiceProvider
 
             $registry->register(new TwitterAdapter());
             $registry->register(new FacebookAdapter());
+            $registry->register(new FacebookPagesAdapter());
             $registry->register(new InstagramAdapter());
             $registry->register(new LinkedInAdapter());
+            $registry->register(new LinkedInPagesAdapter());
             $registry->register(new TikTokAdapter());
             $registry->register(new YouTubeAdapter());
             $registry->register(new TelegramAdapter());
