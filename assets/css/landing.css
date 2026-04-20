@@ -1868,7 +1868,7 @@ body.lp-nav-open {
   background-clip: text;
   color: transparent;
 }
-.fa-brands.fa-x-twitter { color: #e7e9ea; }
+.fa-brands.fa-x-twitter { color: #000000; }
 .fa-brands.fa-tiktok {
   color: #ffffff;
   text-shadow: -1px -1px 0 #25f4ee, 1px 1px 0 #fe2c55;
