@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class NotificationController extends Controller
 {
@@ -52,6 +53,7 @@ class NotificationController extends Controller
     {
         $notification = Auth::user()->notifications()->whereKey($id)->firstOrFail();
         $notification->markAsRead();
+        $this->clearUnreadCountCache();
 
         return response()->json([
             'success' => true,
@@ -63,10 +65,21 @@ class NotificationController extends Controller
         Auth::user()
             ->unreadNotifications()
             ->update(['read_at' => now()]);
+        $this->clearUnreadCountCache();
 
         return response()->json([
             'success' => true,
             'message' => 'All notifications marked as read.',
         ]);
+    }
+
+    private function clearUnreadCountCache(): void
+    {
+        $userId = Auth::id();
+        if ($userId === null) {
+            return;
+        }
+
+        Cache::forget("unread_notif_count:{$userId}");
     }
 }
