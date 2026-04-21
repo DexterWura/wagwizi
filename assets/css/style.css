@@ -9134,7 +9134,7 @@ button.link-create {
 .fa-brands.fa-google { color: #4285f4; }
 .fa-brands.fa-discord { color: #5865f2; }
 .fa-brands.fa-bluesky { color: #1185fe; }
-.fa-brands.fa-dev { color: #f5f5f5; }
+.fa-brands.fa-dev { color: var(--text); }
 .fa-brands.fa-whatsapp { color: #25d366; }
 .fa-brands.fa-stripe { color: #635bff; }
 .fa-brands.fa-paypal { color: #003087; }
