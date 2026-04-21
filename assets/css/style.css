@@ -9119,7 +9119,7 @@ button.link-create {
 }
 .fa-brands.fa-x-twitter { color: var(--text); }
 .fa-brands.fa-tiktok {
-  color: #ffffff;
+  color: var(--text);
   text-shadow: -1px -1px 0 #25f4ee, 1px 1px 0 #fe2c55;
 }
 .fa-brands.fa-youtube { color: #ff0000; }
