@@ -1299,6 +1299,7 @@ button.app-topbar-account-menu__link {
   top: calc(100% + 0.35rem);
   right: 0;
   min-width: 11.5rem;
+  max-height: min(65vh, 22rem);
   margin: 0;
   padding: 0.35rem;
   list-style: none;
@@ -1306,6 +1307,10 @@ button.app-topbar-account-menu__link {
   border: 1px solid var(--border);
   background: var(--bg-elevated);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   z-index: 60;
 }
 
