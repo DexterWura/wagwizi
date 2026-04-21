@@ -45,17 +45,49 @@ use Illuminate\View\View;
 
 class PageController extends Controller
 {
+    /**
+     * @param array<int, Platform> $platforms
+     * @return array<int, Platform>
+     */
+    private function displayPlatforms(array $platforms): array
+    {
+        $unique = [];
+        $seen = [];
+
+        foreach ($platforms as $platform) {
+            $canonical = $this->canonicalDisplayPlatform($platform);
+            if (isset($seen[$canonical->value])) {
+                continue;
+            }
+
+            $seen[$canonical->value] = true;
+            $unique[] = $canonical;
+        }
+
+        return $unique;
+    }
+
+    private function canonicalDisplayPlatform(Platform $platform): Platform
+    {
+        return match ($platform) {
+            Platform::FacebookPages => Platform::Facebook,
+            Platform::LinkedInPages => Platform::LinkedIn,
+            default => $platform,
+        };
+    }
+
     public function landing(): View
     {
         $registry = app(PlatformRegistry::class);
-        $enabledPlatforms = $registry->enabledPlatforms();
+        $enabledPlatformsRaw = $registry->enabledPlatforms();
+        $enabledPlatforms = $this->displayPlatforms($enabledPlatformsRaw);
         $testimonials = PublicCatalogCache::activeTestimonials();
         $plans        = PublicCatalogCache::activePlans();
         $planSupportedPlatforms = [];
         foreach ($plans as $plan) {
-            $planSupportedPlatforms[$plan->slug] = array_values(
-                array_filter($enabledPlatforms, static fn (Platform $p): bool => $plan->allowsPlatform($p->value))
-            );
+            $planSupportedPlatforms[$plan->slug] = $this->displayPlatforms(array_values(
+                array_filter($enabledPlatformsRaw, static fn (Platform $p): bool => $plan->allowsPlatform($p->value))
+            ));
         }
         $faqs         = PublicCatalogCache::activeFaqs();
 
@@ -600,14 +632,14 @@ class PageController extends Controller
         $subscription = $user->subscription;
         $plans        = PublicCatalogCache::activePlans();
         $registry     = app(PlatformRegistry::class);
-        $enabledPlatforms = $registry->enabledPlatforms();
+        $enabledPlatformsRaw = $registry->enabledPlatforms();
         $gatewayCfg   = app(PaymentGatewayConfigService::class);
         $fulfillment  = app(SubscriptionFulfillmentService::class);
         $planSupportedPlatforms = [];
         foreach ($plans as $plan) {
-            $planSupportedPlatforms[$plan->slug] = array_values(
-                array_filter($enabledPlatforms, static fn (Platform $p): bool => $plan->allowsPlatform($p->value))
-            );
+            $planSupportedPlatforms[$plan->slug] = $this->displayPlatforms(array_values(
+                array_filter($enabledPlatformsRaw, static fn (Platform $p): bool => $plan->allowsPlatform($p->value))
+            ));
         }
 
         $paidPlanSlugs = $plans->filter(static fn (Plan $p): bool => $fulfillment->requiresOnlinePayment($p))
