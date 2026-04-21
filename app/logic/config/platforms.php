@@ -206,6 +206,13 @@ return [
     'bluesky' => [
         'enabled'            => true,
         'service_host'       => env('BLUESKY_SERVICE_HOST', 'https://bsky.social'),
+        // Current production mode uses app passwords via createSession/refreshSession.
+        // OAuth fields are kept for staged migration and can be enabled in a future rollout.
+        'auth_mode'          => env('BLUESKY_AUTH_MODE', 'app_password'),
+        'oauth_enabled'      => filter_var(env('BLUESKY_OAUTH_ENABLED', false), FILTER_VALIDATE_BOOL),
+        'oauth_client_id'    => env('BLUESKY_OAUTH_CLIENT_ID'),
+        'oauth_client_secret'=> env('BLUESKY_OAUTH_CLIENT_SECRET'),
+        'oauth_redirect_uri' => env('BLUESKY_OAUTH_REDIRECT_URI'),
         'max_content_length' => 300,
         'supports_images'    => true,
         'supports_video'     => false,

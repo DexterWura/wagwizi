@@ -130,11 +130,37 @@
                       ->whereIn('status', ['pending', 'publishing'])
                       ->whereNull('published_at')
                       ->exists();
+                    $accountMeta = is_array($account->metadata) ? $account->metadata : [];
+                    $lastRefreshError = trim((string) ($accountMeta['last_refresh_error'] ?? ''));
+                    $refreshFailureReason = trim((string) ($accountMeta['refresh_failure_reason'] ?? ''));
+                    $lastRefreshAttemptRaw = trim((string) ($accountMeta['last_refresh_attempt_at'] ?? ''));
+                    $lastRefreshAttemptLabel = null;
+                    if ($lastRefreshAttemptRaw !== '') {
+                      try {
+                        $lastRefreshAttemptLabel = \Illuminate\Support\Carbon::parse($lastRefreshAttemptRaw)->format('Y-m-d H:i');
+                      } catch (\Throwable) {
+                        $lastRefreshAttemptLabel = $lastRefreshAttemptRaw;
+                      }
+                    }
                   @endphp
                   <tr>
                     <td>{{ \App\Services\Platform\Platform::tryFrom($account->platform)?->label() ?? ucfirst($account->platform) }}</td>
                     <td>{{ $account->display_name ?? $account->username ?? $account->platform_user_id }}</td>
-                    <td>{{ ucfirst($account->status) }}</td>
+                    <td>
+                      {{ ucfirst($account->status) }}
+                      @if($account->status === 'expired' && ($lastRefreshError !== '' || $refreshFailureReason !== ''))
+                        <div class="prose-muted" style="font-size:0.78rem; margin-top:0.2rem;">
+                          @if($lastRefreshError !== '')
+                            {{ $lastRefreshError }}
+                          @elseif($refreshFailureReason !== '')
+                            Refresh failure: {{ str_replace('_', ' ', $refreshFailureReason) }}.
+                          @endif
+                          @if($lastRefreshAttemptLabel !== null)
+                            <span style="display:block;">Last attempt: {{ $lastRefreshAttemptLabel }}</span>
+                          @endif
+                        </div>
+                      @endif
+                    </td>
                     <td>{{ optional($account->created_at)->format('Y-m-d') }}</td>
                     <td>
                       @if($account->status === 'active')
@@ -142,6 +168,8 @@
                         @csrf
                         <button type="submit" class="btn btn--ghost btn--compact">Disconnect</button>
                       </form>
+                      @elseif($account->platform === 'bluesky' && $account->status === 'expired')
+                        <button type="button" class="btn btn--outline btn--compact" data-app-modal-open="modal-bluesky-connect">Reconnect</button>
                       @endif
                     </td>
                   </tr>
@@ -250,6 +278,7 @@
             <div class="field">
               <label class="field__label" for="bsky-app-password">App Password</label>
               <input class="input" id="bsky-app-password" name="app_password" type="password" placeholder="xxxx-xxxx-xxxx-xxxx" required autocomplete="new-password" />
+              <p class="field__hint">If your existing connection shows as expired, reconnect here to refresh your Bluesky session.</p>
             </div>
           </div>
           <div class="app-modal__foot">

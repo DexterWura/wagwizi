@@ -5,11 +5,15 @@ namespace App\Services\SocialAccount;
 use App\Models\SocialAccount;
 use App\Services\Platform\PlatformRegistry;
 use App\Services\Platform\Platform;
+use App\Services\Platform\TokenResult;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class TokenRefreshService
 {
     private const MAX_TRANSIENT_REFRESH_FAILURES = 5;
+    private const REFRESH_LOCK_SECONDS = 30;
 
     public function __construct(
         private readonly PlatformRegistry $registry,
@@ -31,6 +35,32 @@ class TokenRefreshService
      * Force refresh the token regardless of expiry status.
      */
     public function refresh(SocialAccount $account): bool
+    {
+        $lockKey = 'social_account_token_refresh:' . $account->id;
+        $lock = Cache::lock($lockKey, self::REFRESH_LOCK_SECONDS);
+
+        try {
+            return $lock->block(5, function () use ($account): bool {
+                return $this->refreshUnlocked($account);
+            });
+        } catch (LockTimeoutException) {
+            // Another process is already refreshing this account. Re-check state and avoid duplicate refreshes.
+            $account->refresh();
+
+            if (!$this->needsRefresh($account)) {
+                return true;
+            }
+
+            Log::warning('Token refresh lock timeout', [
+                'account_id' => $account->id,
+                'platform'   => $account->platform,
+            ]);
+
+            return false;
+        }
+    }
+
+    private function refreshUnlocked(SocialAccount $account): bool
     {
         $platform = Platform::tryFrom($account->platform);
 
@@ -56,10 +86,20 @@ class TokenRefreshService
 
         try {
             $adapter = $this->registry->resolve($platform);
-            $result  = $adapter->refreshToken($account->refresh_token);
+            $attemptedRefreshToken = (string) $account->refresh_token;
+            $result  = $adapter->refreshToken($attemptedRefreshToken);
 
             if (!$result->success) {
-                $isPermanent = $this->isPermanentRefreshFailure($result->errorMessage);
+                $result = $this->retryWithLatestRefreshToken(
+                    account: $account,
+                    attemptedRefreshToken: $attemptedRefreshToken,
+                    result: $result,
+                    platform: $platform
+                );
+            }
+
+            if (!$result->success) {
+                $isPermanent = $this->isPermanentRefreshFailure($result->errorMessage, $platform);
 
                 Log::warning('Token refresh failed', [
                     'account_id' => $account->id,
@@ -189,10 +229,20 @@ class TokenRefreshService
         }
 
         try {
-            $result = $adapter->refreshToken($account->refresh_token);
+            $attemptedRefreshToken = (string) $account->refresh_token;
+            $result = $adapter->refreshToken($attemptedRefreshToken);
 
             if (!$result->success) {
-                $isPermanent = $this->isPermanentRefreshFailure($result->errorMessage);
+                $result = $this->retryWithLatestRefreshToken(
+                    account: $account,
+                    attemptedRefreshToken: $attemptedRefreshToken,
+                    result: $result,
+                    platform: Platform::Bluesky
+                );
+            }
+
+            if (!$result->success) {
+                $isPermanent = $this->isPermanentRefreshFailure($result->errorMessage, Platform::Bluesky);
                 Log::warning('Bluesky session refresh failed', [
                     'account_id' => $account->id,
                     'error'      => $result->errorMessage,
@@ -225,10 +275,31 @@ class TokenRefreshService
         }
     }
 
-    private function isPermanentRefreshFailure(?string $errorMessage): bool
+    private function isPermanentRefreshFailure(?string $errorMessage, ?Platform $platform = null): bool
     {
         $msg = strtolower((string) $errorMessage);
         if ($msg === '') {
+            return false;
+        }
+
+        if ($platform === Platform::Bluesky) {
+            // Bluesky sessions can report "invalid refresh"/"replayed" during refresh-token races.
+            // Treat those as transient so we do not expire accounts prematurely.
+            $blueskyPermanentSignals = [
+                'refresh token expired',
+                'token expired',
+                'expiredtoken',
+                'token revoked',
+                'revoked',
+                'account has been taken down',
+            ];
+
+            foreach ($blueskyPermanentSignals as $signal) {
+                if (str_contains($msg, $signal)) {
+                    return true;
+                }
+            }
+
             return false;
         }
 
@@ -249,6 +320,50 @@ class TokenRefreshService
         }
 
         return false;
+    }
+
+    private function retryWithLatestRefreshToken(
+        SocialAccount $account,
+        string $attemptedRefreshToken,
+        TokenResult $result,
+        Platform $platform,
+    ): TokenResult {
+        $error = strtolower((string) $result->errorMessage);
+        $mayBeStaleToken = str_contains($error, 'invalid refresh')
+            || str_contains($error, 'replayed')
+            || str_contains($error, 'invalid_grant');
+
+        if (!$mayBeStaleToken) {
+            return $result;
+        }
+
+        $account->refresh();
+        $latestRefreshToken = (string) ($account->refresh_token ?? '');
+
+        if ($latestRefreshToken === '' || hash_equals($attemptedRefreshToken, $latestRefreshToken)) {
+            return $result;
+        }
+
+        try {
+            $adapter = $this->registry->resolve($platform);
+            $retryResult = $adapter->refreshToken($latestRefreshToken);
+
+            Log::info('Retried token refresh with latest stored refresh token', [
+                'account_id' => $account->id,
+                'platform'   => $platform->value,
+                'success'    => $retryResult->success,
+            ]);
+
+            return $retryResult;
+        } catch (\Exception $e) {
+            Log::warning('Retry with latest refresh token failed', [
+                'account_id' => $account->id,
+                'platform'   => $platform->value,
+                'error'      => $e->getMessage(),
+            ]);
+
+            return $result;
+        }
     }
 
     private function recordRefreshFailure(SocialAccount $account, string $errorMessage, bool $permanent): void
