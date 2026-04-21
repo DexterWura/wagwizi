@@ -303,7 +303,7 @@ final class BlueskyAdapter extends AbstractPlatformAdapter
     {
         $c = Carbon::now('UTC');
 
-        return $c->format('Y-m-d\TH:i:s') . substr($c->format('u'), 0, 3) . 'Z';
+        return $c->format('Y-m-d\TH:i:s') . '.' . substr($c->format('u'), 0, 3) . 'Z';
     }
 
     private function jwtExpiry(string $jwt): ?DateTimeInterface
