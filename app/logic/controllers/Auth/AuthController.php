@@ -471,7 +471,10 @@ class AuthController extends Controller
             ],
         );
 
-        return redirect()->intended('/dashboard');
+        // New signups are routed to plan selection first to encourage paid conversion.
+        $request->session()->put('signup_plan_upsell', true);
+
+        return redirect()->route('plans', ['onboarding' => 1]);
     }
 
     private function maskEmail(string $email): string

@@ -625,24 +625,35 @@ class PageController extends Controller
         ]);
     }
 
-    public function plans(): View
+    public function plans(Request $request): View
     {
         $user = Auth::user();
         $user->loadMissing('subscription.planModel');
         $subscription = $user->subscription;
         $plans        = PublicCatalogCache::activePlans();
+        $signupOnboarding = $request->boolean('onboarding')
+            && (bool) $request->session()->pull('signup_plan_upsell', false);
+        $displayPlans = $signupOnboarding
+            ? $plans->sort(static function (Plan $a, Plan $b): int {
+                if ((bool) $a->is_free !== (bool) $b->is_free) {
+                    return ((bool) $a->is_free) <=> ((bool) $b->is_free);
+                }
+
+                return ((int) $a->sort_order) <=> ((int) $b->sort_order);
+            })->values()
+            : $plans;
         $registry     = app(PlatformRegistry::class);
         $enabledPlatformsRaw = $registry->enabledPlatforms();
         $gatewayCfg   = app(PaymentGatewayConfigService::class);
         $fulfillment  = app(SubscriptionFulfillmentService::class);
         $planSupportedPlatforms = [];
-        foreach ($plans as $plan) {
+        foreach ($displayPlans as $plan) {
             $planSupportedPlatforms[$plan->slug] = $this->displayPlatforms(array_values(
                 array_filter($enabledPlatformsRaw, static fn (Platform $p): bool => $plan->allowsPlatform($p->value))
             ));
         }
 
-        $paidPlanSlugs = $plans->filter(static fn (Plan $p): bool => $fulfillment->requiresOnlinePayment($p))
+        $paidPlanSlugs = $displayPlans->filter(static fn (Plan $p): bool => $fulfillment->requiresOnlinePayment($p))
             ->pluck('slug')
             ->values()
             ->all();
@@ -665,7 +676,7 @@ class PageController extends Controller
 
         return view('plans', [
             'currentSubscription'           => $subscription,
-            'plans'                         => $plans,
+            'plans'                         => $displayPlans,
             'paynowCheckoutAvailable'       => $gatewayCfg->hostedCheckoutAvailable(),
             'checkoutGateway'               => $gatewayCfg->activeCheckoutGateway(),
             'checkoutRequiresGatewayChoice' => $gatewayCfg->checkoutRequiresGatewayChoice(),
@@ -678,6 +689,7 @@ class PageController extends Controller
             'anyYearlyOffers'               => $anyYearlyOffers,
             'currentPlanBillingInterval'    => $currentPlanBillingInterval,
             'planSupportedPlatforms'        => $planSupportedPlatforms,
+            'signupOnboarding'              => $signupOnboarding,
         ]);
     }
 

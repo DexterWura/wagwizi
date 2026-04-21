@@ -104,8 +104,11 @@ class SocialAuthController extends Controller
         $providerCookie = cookie(self::LAST_SOCIAL_LOGIN_COOKIE, $normalizedProvider, 60 * 24 * 365);
 
         if ($popupRequested) {
+            if ($result['is_new']) {
+                $request->session()->put('signup_plan_upsell', true);
+            }
             $targetUrl = $result['is_new']
-                ? route('profile')
+                ? route('plans', ['onboarding' => 1])
                 : $this->intendedUrlForPopup();
 
             return $this->socialAuthPopupCompletionResponse($targetUrl)
@@ -113,8 +116,10 @@ class SocialAuthController extends Controller
         }
 
         if ($result['is_new']) {
-            return redirect()->route('profile')
-                ->with('info', 'Welcome! Please complete your profile to get started.')
+            $request->session()->put('signup_plan_upsell', true);
+
+            return redirect()->route('plans', ['onboarding' => 1])
+                ->with('info', 'Welcome! Choose your plan to get started.')
                 ->withCookie($providerCookie);
         }
 

@@ -10,6 +10,12 @@
 
 @section('content')
         <main class="app-content app-content--plans">
+          @if(($signupOnboarding ?? false) && !empty($paidPlanSlugs))
+            <div class="alert alert--info" role="status" style="margin-bottom:0.9rem;">
+              <i class="fa-solid fa-bolt" aria-hidden="true"></i>
+              <span>Unlock more reach from day one. Choose a paid plan to get the best posting limits and features.</span>
+            </div>
+          @endif
           @if(session('success'))
             <div class="alert alert--success">{{ session('success') }}</div>
           @endif
@@ -33,6 +39,11 @@
             </div>
             <div class="head-actions">
               <a class="btn btn--outline" href="{{ route('plan-history') }}"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Plan history</a>
+              @if(($signupOnboarding ?? false) && !empty($freePlanSlug))
+                <button type="button" class="btn btn--ghost" data-signup-free-plan-cta>
+                  Continue with free plan
+                </button>
+              @endif
             </div>
           </div>
 
@@ -251,5 +262,22 @@
 @push('scripts')
     <script>
       window.__paidPlanSlugs = @json($paidPlanSlugs ?? []);
+      window.__signupOnboarding = @json(($signupOnboarding ?? false) ? 1 : 0);
+      window.__freePlanSlug = @json($freePlanSlug ?? '');
+      document.addEventListener('DOMContentLoaded', function () {
+        if (!window.__signupOnboarding) return;
+        var cta = document.querySelector('[data-signup-free-plan-cta]');
+        var root = document.querySelector('[data-app-plans]');
+        if (!cta || !root) return;
+        cta.addEventListener('click', function () {
+          var freeSlug = String(window.__freePlanSlug || '').trim();
+          if (!freeSlug) return;
+          var card = root.querySelector('[data-plan-id="' + freeSlug + '"]');
+          if (!card) return;
+          var selectBtn = card.querySelector('[data-plan-select]');
+          if (!selectBtn || selectBtn.disabled) return;
+          selectBtn.click();
+        });
+      });
     </script>
 @endpush
