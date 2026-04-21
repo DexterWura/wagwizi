@@ -9127,7 +9127,7 @@ button.link-create {
 .fa-brands.fa-telegram-plane { color: #229ed9; }
 .fa-brands.fa-pinterest,
 .fa-brands.fa-pinterest-p { color: #e60023; }
-.fa-brands.fa-threads { color: #f5f5f5; }
+.fa-brands.fa-threads { color: var(--text); }
 .fa-brands.fa-reddit,
 .fa-brands.fa-reddit-alien { color: #ff4500; }
 .fa-brands.fa-wordpress { color: #21759b; }
