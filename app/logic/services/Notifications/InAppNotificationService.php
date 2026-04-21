@@ -174,8 +174,32 @@ final class InAppNotificationService
         }
 
         foreach ($this->superAdminRecipientIds() as $adminId) {
+            // Cache-based dedupe can be ineffective with non-persistent cache stores.
+            // Keep a DB-level fallback so the same alert does not immediately reappear.
+            if ($this->hasRecentOperationalAlert($adminId, $inAppType, $title, $body, $dedupeTtlSeconds)) {
+                continue;
+            }
             $this->create($adminId, $inAppType, $title, $body, $data);
         }
+    }
+
+    private function hasRecentOperationalAlert(
+        int $userId,
+        string $type,
+        string $title,
+        string $body,
+        int $ttlSeconds
+    ): bool {
+        $windowSeconds = max(60, $ttlSeconds);
+        $cutoff = now()->subSeconds($windowSeconds);
+
+        return Notification::query()
+            ->where('user_id', $userId)
+            ->where('type', $type)
+            ->where('title', $title)
+            ->where('body', $body)
+            ->where('created_at', '>=', $cutoff)
+            ->exists();
     }
 
     public function notifySuperAdminsTrialStarted(User $subscriber, Plan $plan): void
